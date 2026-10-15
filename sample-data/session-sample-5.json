@@ -1,0 +1,67 @@
+{
+  "session_id": "SES-20261015-05",
+  "driver_id": "USR-8821",
+  "vehicle_id": "XE-51F-889.24",
+  "start_time": "2026-10-15T13:00:00.000Z",
+  "end_time": "2026-10-15T18:00:00.000Z",
+  "duration_seconds": 18000,
+  
+  "safety_score": 48,
+  "peak_alert_level": 2,
+  "status": "COMPLETED",
+
+  "summary_metrics": {
+    "focus_ratio": 76.8,
+    "distracted_ratio": 12.1,
+    "drowsy_ratio": 11.1,
+    "avg_ear": 0.238,
+    "avg_mar": 0.210,
+    "avg_perclos": 0.155,
+    "drowsy_count": 2,
+    "yawn_count": 3,
+    "distracted_count": 1
+  },
+
+  "violations": [
+    {
+      "timestamp": "2026-10-15T14:10:05.000Z",
+      "type": "DROWSY",
+      "alert_level": 2,
+      "ear": 0.080,
+      "mar": 0.170,
+      "perclos": 0.190,
+      "head_pose": { "yaw": -1.0, "pitch": -15.0, "roll": -2.0 },
+      "dominant_emotion": "fatigued"
+    },
+    {
+      "timestamp": "2026-10-15T14:45:30.000Z",
+      "type": "DISTRACTED",
+      "alert_level": 2,
+      "ear": 0.260,
+      "mar": 0.150,
+      "perclos": 0.045,
+      "head_pose": { "yaw": -33.2, "pitch": -5.0, "roll": 3.1 },
+      "dominant_emotion": "neutral"
+    },
+    {
+      "timestamp": "2026-10-15T15:20:18.000Z",
+      "type": "ANGRY_OUTBURST",
+      "alert_level": 2,
+      "ear": 0.265,
+      "mar": 0.310,
+      "perclos": 0.035,
+      "head_pose": { "yaw": 4.5, "pitch": 2.0, "roll": 0.0 },
+      "dominant_emotion": "angry"
+    },
+    {
+      "timestamp": "2026-10-15T16:02:40.000Z",
+      "type": "DROWSY",
+      "alert_level": 2,
+      "ear": 0.075,
+      "mar": 0.180,
+      "perclos": 0.220,
+      "head_pose": { "yaw": 0.0, "pitch": -18.5, "roll": -3.0 },
+      "dominant_emotion": "fatigued"
+    }
+  ]
+}

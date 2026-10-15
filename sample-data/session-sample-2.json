@@ -1,0 +1,37 @@
+{
+  "session_id": "SES-20261015-02",
+  "driver_id": "USR-8821",
+  "vehicle_id": "XE-51F-889.24",
+  "start_time": "2026-10-15T07:00:00.000Z",
+  "end_time": "2026-10-15T11:00:00.000Z",
+  "duration_seconds": 14400,
+  
+  "safety_score": 95,
+  "peak_alert_level": 1,
+  "status": "COMPLETED",
+
+  "summary_metrics": {
+    "focus_ratio": 96.5,
+    "distracted_ratio": 1.2,
+    "drowsy_ratio": 2.3,
+    "avg_ear": 0.298,
+    "avg_mar": 0.195,
+    "avg_perclos": 0.028,
+    "drowsy_count": 0,
+    "yawn_count": 1,
+    "distracted_count": 0
+  },
+
+  "violations": [
+    {
+      "timestamp": "2026-10-15T09:15:20.000Z",
+      "type": "YAWNING",
+      "alert_level": 1,
+      "ear": 0.265,
+      "mar": 0.720,
+      "perclos": 0.045,
+      "head_pose": { "yaw": 2.1, "pitch": -3.0, "roll": 0.0 },
+      "dominant_emotion": "fatigued"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "session_id": "SES-20261015-01",
+  "driver_id": "USR-8821",
+  "vehicle_id": "XE-51F-889.24",
+  "start_time": "2026-10-15T06:30:00.000Z",
+  "end_time": "2026-10-15T10:30:00.000Z",
+  "duration_seconds": 14400,
+  
+  "safety_score": 100,
+  "peak_alert_level": 0,
+  "status": "COMPLETED",
+
+  "summary_metrics": {
+    "focus_ratio": 99.2,
+    "distracted_ratio": 0.8,
+    "drowsy_ratio": 0.0,
+    "avg_ear": 0.315,
+    "avg_mar": 0.142,
+    "avg_perclos": 0.012,
+    "drowsy_count": 0,
+    "yawn_count": 0,
+    "distracted_count": 0
+  },
+
+  "violations": []
+}

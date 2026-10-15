@@ -1,0 +1,57 @@
+{
+  "session_id": "SES-20261015-04",
+  "driver_id": "USR-8821",
+  "vehicle_id": "XE-51F-889.24",
+  "start_time": "2026-10-15T11:00:00.000Z",
+  "end_time": "2026-10-15T15:30:00.000Z",
+  "duration_seconds": 16200,
+  
+  "safety_score": 70,
+  "peak_alert_level": 2,
+  "status": "COMPLETED",
+
+  "summary_metrics": {
+    "focus_ratio": 85.2,
+    "distracted_ratio": 8.4,
+    "drowsy_ratio": 6.4,
+    "avg_ear": 0.260,
+    "avg_mar": 0.195,
+    "avg_perclos": 0.098,
+    "drowsy_count": 1,
+    "yawn_count": 1,
+    "distracted_count": 1
+  },
+
+  "violations": [
+    {
+      "timestamp": "2026-10-15T11:20:45.000Z",
+      "type": "DISTRACTED",
+      "alert_level": 2,
+      "ear": 0.274,
+      "mar": 0.160,
+      "perclos": 0.038,
+      "head_pose": { "yaw": 31.5, "pitch": -8.4, "roll": 4.2 },
+      "dominant_emotion": "neutral"
+    },
+    {
+      "timestamp": "2026-10-15T13:15:30.000Z",
+      "type": "YAWNING",
+      "alert_level": 1,
+      "ear": 0.210,
+      "mar": 0.690,
+      "perclos": 0.082,
+      "head_pose": { "yaw": 2.0, "pitch": -6.0, "roll": 0.0 },
+      "dominant_emotion": "fatigued"
+    },
+    {
+      "timestamp": "2026-10-15T14:05:12.000Z",
+      "type": "DROWSY",
+      "alert_level": 2,
+      "ear": 0.085,
+      "mar": 0.190,
+      "perclos": 0.195,
+      "head_pose": { "yaw": 0.5, "pitch": -16.2, "roll": -1.8 },
+      "dominant_emotion": "fatigued"
+    }
+  ]
+}
