@@ -1,0 +1,25 @@
+{
+  "name": "ai-scanning",
+  "version": "1.0.0",
+  "description": "Computer Vision & Video Analysis module for Driver Safety System",
+  "type": "module",
+  "main": "src/DriverSafetyMonitor.js",
+  "exports": {
+    "./DriverSafetyMonitor": "./src/DriverSafetyMonitor.js",
+    "./videoAnalyzer": "./src/videoAnalyzer.js",
+    ".": "./src/DriverSafetyMonitor.js"
+  },
+  "scripts": {
+    "dev": "node devServer.js",
+    "test": "node test/test-monitor.js"
+  },
+  "keywords": [
+    "mediapipe",
+    "driver-safety",
+    "drowsiness-detection",
+    "computer-vision",
+    "face-mesh"
+  ],
+  "author": "",
+  "license": "ISC"
+}

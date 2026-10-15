@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Driver Safety AI Scanning - Interactive Workbench</title>
+  
+  <!-- MediaPipe Face Mesh & Camera Utils via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+
+  <style>
+    :root {
+      --bg: #0b1120;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text: #f8fafc;
+      --text-dim: #94a3b8;
+      --accent: #38bdf8;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --success: #10b981;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1300px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 20px;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .badge-step {
+      font-size: 11px;
+      background: rgba(56, 189, 248, 0.2);
+      color: var(--accent);
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+    }
+
+    .status-badge {
+      padding: 8px 16px;
+      border-radius: 9999px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .status-0 { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; }
+    .status-1 { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; }
+    .status-2 {
+      background: rgba(239, 68, 68, 0.3);
+      color: #f87171;
+      border: 1px solid #ef4444;
+      animation: pulse 1s infinite alternate;
+    }
+
+    @keyframes pulse {
+      from { box-shadow: 0 0 4px rgba(239, 68, 68, 0.4); }
+      to { box-shadow: 0 0 16px rgba(239, 68, 68, 0.8); }
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 520px 1fr;
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Video stage */
+    .viewport {
+      position: relative;
+      width: 480px;
+      height: 360px;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--card-border);
+    }
+
+    video {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+
+    canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      transform: scaleX(-1);
+      z-index: 2;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    button {
+      flex: 1;
+      padding: 10px 14px;
+      font-weight: 600;
+      font-size: 13px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary { background: #0284c7; color: #fff; }
+    .btn-primary:hover { background: #0369a1; }
+    .btn-secondary { background: #334155; color: #f8fafc; }
+    .btn-secondary:hover { background: #475569; }
+    .btn-danger { background: #b91c1c; color: #fff; }
+
+    .metric-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: var(--text-dim);
+      width: 130px;
+    }
+
+    .metric-bar-bg {
+      flex: 1;
+      height: 8px;
+      background: #0f172a;
+      border-radius: 4px;
+      position: relative;
+      margin: 0 10px;
+      overflow: hidden;
+    }
+
+    .metric-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 4px;
+      transition: width 0.08s ease-out;
+    }
+
+    .metric-val {
+      font-family: monospace;
+      font-size: 13px;
+      font-weight: 700;
+      width: 48px;
+      text-align: right;
+    }
+
+    .pose-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .pose-box {
+      background: #0f172a;
+      padding: 10px;
+      border-radius: 6px;
+      text-align: center;
+    }
+
+    .pose-box small {
+      font-size: 11px;
+      color: var(--text-dim);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .pose-box span {
+      font-size: 16px;
+      font-weight: 700;
+      font-family: monospace;
+      color: var(--accent);
+    }
+
+    .sim-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    pre {
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 11px;
+      color: #38bdf8;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .log-box {
+      margin-top: 10px;
+      padding: 8px 10px;
+      background: #0f172a;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #94a3b8;
+      border-left: 3px solid var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>
+          <span>Driver Safety AI Scanning</span>
+          <span class="badge-step">Bước 1: Computer Vision Engine</span>
+        </h1>
+        <small style="color: var(--text-dim);">Kiểm thử trực quan real-time bằng Webcam và mô phỏng offline</small>
+      </div>
+      <div>
+        <span id="alertBadge" class="status-badge status-0">● NORMAL (Level 0)</span>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Cột Trái: Camera Feed & Thao tác nhanh -->
+      <div>
+        <div class="card">
+          <div class="card-title">
+            <span>Camera Stream & 468 FaceMesh</span>
+            <span id="fpsCounter" style="color: var(--accent);">0 FPS</span>
+          </div>
+
+          <div class="viewport">
+            <video id="webcam" playsinline muted></video>
+            <canvas id="overlay"></canvas>
+          </div>
+
+          <div class="btn-group">
+            <button id="toggleCameraBtn" class="btn-primary">Bật Webcam Camera</button>
+            <button id="soundToggleBtn" class="btn-secondary">Còi báo động: BẬT</button>
+          </div>
+
+          <div id="statusLog" class="log-box">Trạng thái: Sẵn sàng. Nhấn "Bật Webcam Camera" để cấp quyền camera.</div>
+        </div>
+
+        <!-- Thẻ mô phỏng kiểm thử nhanh (Simulation) -->
+        <div class="card">
+          <div class="card-title">Test Nhanh Bằng Nút Giả Lập (Không cần nhắm mắt thật)</div>
+          <div class="sim-grid">
+            <button id="simDrowsyBtn" class="btn-secondary">Giả lập Ngủ gật (DROWSY - Cấp 2)</button>
+            <button id="simYawnBtn" class="btn-secondary">Giả lập Ngáp (YAWNING - Cấp 1)</button>
+            <button id="simDistractBtn" class="btn-secondary">Giả lập Quay mặt (DISTRACTED - Cấp 2)</button>
+            <button id="simAngryBtn" class="btn-secondary">Giả lập Giận dữ (ANGRY - Cấp 2)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cột Phải: Đồng hồ đo và Chỉ số CV -->
+      <div>
+        <!-- Đồng hồ EAR, MAR, PERCLOS -->
+        <div class="card">
+          <div class="card-title">Chỉ số Mắt & Miệng (Fatigue Metrics)</div>
+          
+          <div class="metric-row">
+            <span class="metric-label">EAR (Ngưỡng &lt; 0.21)</span>
+            <div class="metric-bar-bg">
+              <div id="earBar" class="metric-bar-fill" style="width: 50%;"></div>
+            </div>
+            <span id="earVal" class="metric-val">0.35</span>
+          </div>
+
+          <div class="metric-row">
+            <span class="metric-label">MAR (Ngưỡng &gt; 0.65)</span>
+            <div class="metric-bar-bg">
+              <div id="marBar" class="metric-bar-fill" style="width: 20%; background: var(--warning);"></div>
+            </div>
+            <span id="marVal" class="metric-val">0.15</span>
+          </div>
+
+          <div class="metric-row">
+            <span class="metric-label">PERCLOS 60s (&ge; 0.15)</span>
+            <div class="metric-bar-bg">
+              <div id="perclosBar" class="metric-bar-fill" style="width: 2%; background: #a855f7;"></div>
+            </div>
+            <span id="perclosVal" class="metric-val">0.02</span>
+          </div>
+        </div>
+
+        <!-- Góc xoay đầu (Head Pose) -->
+        <div class="card">
+          <div class="card-title">Góc Nghiêng Đầu (Head Pose - Distraction)</div>
+          <div class="pose-grid">
+            <div class="pose-box">
+              <small>Yaw (Xoay ngang |&gt;25°|)</small>
+              <span id="yawVal">0.0°</span>
+            </div>
+            <div class="pose-box">
+              <small>Pitch (Gật/Ngửa |&gt;20°|)</small>
+              <span id="pitchVal">0.0°</span>
+            </div>
+            <div class="pose-box">
+              <small>Roll (Nghiêng)</small>
+              <span id="rollVal">0.0°</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cảm xúc chủ đạo -->
+        <div class="card">
+          <div class="card-title">
+            <span>Cảm Xúc Khuôn Mặt (FAU Emotion)</span>
+            <span id="emotionBadge" style="color: var(--accent); font-weight: bold;">NEUTRAL</span>
+          </div>
+          <div id="emotionScores" style="display: flex; gap: 8px; flex-wrap: wrap; font-size: 11px;">
+            <span style="background: #0f172a; padding: 4px 8px; border-radius: 4px;">Neutral: 0.5</span>
+            <span style="background: #0f172a; padding: 4px 8px; border-radius: 4px;">Happy: 0.0</span>
+            <span style="background: #0f172a; padding: 4px 8px; border-radius: 4px;">Angry: 0.0</span>
+            <span style="background: #0f172a; padding: 4px 8px; border-radius: 4px;">Fatigued: 0.0</span>
+          </div>
+        </div>
+
+        <!-- Dữ liệu JSON Output thời gian thực -->
+        <div class="card">
+          <div class="card-title">Dữ Liệu JSON Chuẩn Bị Stream Về Backend</div>
+          <pre id="jsonPayload">{ "status": "READY" }</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nạp trực tiếp DriverSafetyMonitor.js từ mã nguồn Bước 1 -->
+  <script type="module">
+    import { DriverSafetyMonitor } from './src/DriverSafetyMonitor.js';
+    import { VideoAnalyzer } from './src/videoAnalyzer.js';
+
+    // Khởi tạo Monitor
+    const monitor = new DriverSafetyMonitor({
+      earThreshold: 0.21,
+      marThreshold: 0.65,
+      yawThresholdDeg: 25.0,
+      pitchThresholdDeg: 20.0,
+      drowsyFramesLimit: 45,
+      distractFramesLimit: 60,
+      yawnFramesLimit: 45
+    });
+
+    // Các phần tử DOM
+    const video = document.getElementById('webcam');
+    const canvas = document.getElementById('overlay');
+    const ctx = canvas.getContext('2d');
+    const toggleBtn = document.getElementById('toggleCameraBtn');
+    const soundToggleBtn = document.getElementById('soundToggleBtn');
+    const alertBadge = document.getElementById('alertBadge');
+    const fpsCounter = document.getElementById('fpsCounter');
+    const statusLog = document.getElementById('statusLog');
+
+    const earBar = document.getElementById('earBar');
+    const earVal = document.getElementById('earVal');
+    const marBar = document.getElementById('marBar');
+    const marVal = document.getElementById('marVal');
+    const perclosBar = document.getElementById('perclosBar');
+    const perclosVal = document.getElementById('perclosVal');
+    const yawVal = document.getElementById('yawVal');
+    const pitchVal = document.getElementById('pitchVal');
+    const rollVal = document.getElementById('rollVal');
+    const emotionBadge = document.getElementById('emotionBadge');
+    const emotionScores = document.getElementById('emotionScores');
+    const jsonPayload = document.getElementById('jsonPayload');
+
+    let isRunning = false;
+    let isSoundEnabled = true;
+    let stream = null;
+    let faceMesh = null;
+    let audioCtx = null;
+    let frameCount = 0;
+    let lastTime = performance.now();
+    let animId = null;
+
+    // Âm thanh còi báo động Web Audio API
+    function playAlarmSound() {
+      if (!isSoundEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(850, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.25);
+      } catch (e) {}
+    }
+
+    soundToggleBtn.addEventListener('click', () => {
+      isSoundEnabled = !isSoundEnabled;
+      soundToggleBtn.textContent = `Còi báo động: ${isSoundEnabled ? 'BẬT' : 'TẮT'}`;
+      soundToggleBtn.className = isSoundEnabled ? 'btn-secondary' : 'btn-danger';
+    });
+
+    // Cập nhật giao diện
+    function updateUI(payload) {
+      earVal.textContent = payload.ear.toFixed(2);
+      earBar.style.width = `${Math.min(100, (payload.ear / 0.5) * 100)}%`;
+      earBar.style.background = payload.ear < 0.21 ? 'var(--danger)' : 'var(--accent)';
+
+      marVal.textContent = payload.mar.toFixed(2);
+      marBar.style.width = `${Math.min(100, (payload.mar / 1.0) * 100)}%`;
+      marBar.style.background = payload.mar > 0.65 ? 'var(--danger)' : 'var(--warning)';
+
+      perclosVal.textContent = payload.perclos.toFixed(2);
+      perclosBar.style.width = `${Math.min(100, (payload.perclos / 0.3) * 100)}%`;
+
+      yawVal.textContent = `${payload.head_pose.yaw}°`;
+      pitchVal.textContent = `${payload.head_pose.pitch}°`;
+      rollVal.textContent = `${payload.head_pose.roll}°`;
+
+      emotionBadge.textContent = (payload.emotion || 'NEUTRAL').toUpperCase();
+      alertBadge.className = `status-badge status-${payload.alert_level}`;
+      alertBadge.textContent = `● ${payload.status} (Cấp ${payload.alert_level})`;
+
+      if (payload.alert_level === 2) {
+        playAlarmSound();
+      }
+
+      jsonPayload.textContent = JSON.stringify(payload, null, 2);
+    }
+
+    // MediaPipe callback
+    function onResults(results) {
+      canvas.width = video.videoWidth || 480;
+      canvas.height = video.videoHeight || 360;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      frameCount++;
+      const now = performance.now();
+      if (now - lastTime >= 1000) {
+        fpsCounter.textContent = `${frameCount} FPS`;
+        frameCount = 0;
+        lastTime = now;
+      }
+
+      if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+        const landmarks = results.multiFaceLandmarks[0];
+
+        // Vẽ các điểm mốc quan trọng
+        ctx.fillStyle = '#38bdf8';
+        const keyIndices = [33, 133, 160, 144, 158, 153, 362, 263, 385, 380, 387, 373, 13, 14, 78, 308, 1, 152];
+        for (const idx of keyIndices) {
+          const pt = landmarks[idx];
+          ctx.beginPath();
+          ctx.arc(pt.x * canvas.width, pt.y * canvas.height, 2.5, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+
+        const payload = monitor.processLandmarks(landmarks);
+        updateUI(payload);
+      } else {
+        const payload = monitor.processLandmarks(null);
+        updateUI(payload);
+      }
+    }
+
+    async function processFrame() {
+      if (!isRunning) return;
+      if (video.readyState >= 2 && faceMesh) {
+        try {
+          await faceMesh.send({ image: video });
+        } catch (e) {}
+      }
+      animId = requestAnimationFrame(processFrame);
+    }
+
+    // Bật / Tắt Camera
+    toggleBtn.addEventListener('click', async () => {
+      if (isRunning) {
+        isRunning = false;
+        if (animId) cancelAnimationFrame(animId);
+        if (stream) stream.getTracks().forEach(t => t.stop());
+        video.srcObject = null;
+        toggleBtn.textContent = 'Bật Webcam Camera';
+        statusLog.textContent = 'Trạng thái: Đã tắt camera.';
+        alertBadge.className = 'status-badge status-0';
+        alertBadge.textContent = '● STOPPED';
+        return;
+      }
+
+      try {
+        statusLog.textContent = 'Đang yêu cầu quyền truy cập Camera...';
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 640, height: 480, facingMode: 'user' },
+          audio: false
+        });
+
+        video.srcObject = stream;
+        await video.play();
+
+        statusLog.textContent = 'Đang tải MediaPipe FaceMesh WASM model...';
+        faceMesh = new FaceMesh({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+        });
+
+        faceMesh.setOptions({
+          maxNumFaces: 1,
+          refineLandmarks: true,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+
+        faceMesh.onResults(onResults);
+
+        isRunning = true;
+        toggleBtn.textContent = 'Tắt Camera';
+        statusLog.textContent = 'AI FaceMesh đang theo dõi 468 điểm mốc thời gian thực!';
+        animId = requestAnimationFrame(processFrame);
+      } catch (err) {
+        statusLog.textContent = `Lỗi Camera: ${err.message}`;
+        alert(`Không thể mở camera: ${err.message}`);
+      }
+    });
+
+    // Simulation Buttons
+    document.getElementById('simDrowsyBtn').addEventListener('click', () => {
+      updateUI({
+        ear: 0.08, mar: 0.15, perclos: 0.28,
+        head_pose: { yaw: 1.0, pitch: -6.0, roll: 0.0 },
+        emotion: 'fatigued',
+        status: 'DROWSY', alert_level: 2, timestamp: Date.now()
+      });
+      statusLog.textContent = 'Mô phỏng: Kích hoạt Ngủ gật (DROWSY - Cấp 2).';
+    });
+
+    document.getElementById('simYawnBtn').addEventListener('click', () => {
+      updateUI({
+        ear: 0.32, mar: 0.82, perclos: 0.02,
+        head_pose: { yaw: 0.0, pitch: 4.0, roll: 0.0 },
+        emotion: 'fatigued',
+        status: 'YAWNING', alert_level: 1, timestamp: Date.now()
+      });
+      statusLog.textContent = 'Mô phỏng: Kích hoạt Ngáp (YAWNING - Cấp 1).';
+    });
+
+    document.getElementById('simDistractBtn').addEventListener('click', () => {
+      updateUI({
+        ear: 0.30, mar: 0.18, perclos: 0.01,
+        head_pose: { yaw: 36.5, pitch: 12.0, roll: 2.0 },
+        emotion: 'neutral',
+        status: 'DISTRACTED', alert_level: 2, timestamp: Date.now()
+      });
+      statusLog.textContent = 'Mô phỏng: Kích hoạt Mất tập trung quay mặt 36.5° (DISTRACTED - Cấp 2).';
+    });
+
+    document.getElementById('simAngryBtn').addEventListener('click', () => {
+      updateUI({
+        ear: 0.28, mar: 0.20, perclos: 0.03,
+        head_pose: { yaw: -2.0, pitch: -8.0, roll: 0.0 },
+        emotion: 'angry',
+        status: 'ANGRY_OUTBURST', alert_level: 2, timestamp: Date.now()
+      });
+      statusLog.textContent = 'Mô phỏng: Kích hoạt Giận dữ bùng phát (ANGRY_OUTBURST - Cấp 2).';
+    });
+  </script>
+</body>
+</html>

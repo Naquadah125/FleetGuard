@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+
+# Environment variables and local secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Coverage and test output
+coverage/
+.nyc_output/
+
+# Build and generated output
+dist/
+build/
+out/
+.tmp/
+tmp/
+
+# Runtime data
+*.pid
+*.seed
+*.pid.lock
+
+# Local databases and uploaded/generated data
+*.sqlite
+*.sqlite3
+*.db
+uploads/
+
+# IDE and editor files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Optional local cache
+.cache/
+.npm/

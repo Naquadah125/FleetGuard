@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Driver Safety Backend - Interactive Test Console</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-dim: #94a3b8;
+      --accent: #38bdf8;
+      --danger: #ef4444;
+      --success: #10b981;
+      --warning: #f59e0b;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 20px;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+    h1 { font-size: 20px; color: var(--accent); }
+    .badge {
+      padding: 6px 12px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .badge-connected { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; }
+    .badge-disconnected { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+    }
+    button {
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      margin-right: 8px;
+      margin-bottom: 8px;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: #0284c7; color: #fff; }
+    .btn-success { background: #059669; color: #fff; }
+    .btn-danger { background: #dc2626; color: #fff; }
+    .btn-secondary { background: #334155; color: #f8fafc; }
+    pre {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 11px;
+      color: #38bdf8;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+    .alert-banner {
+      display: none;
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid #ef4444;
+      color: #fca5a5;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-weight: 700;
+      animation: pulse 1s infinite alternate;
+    }
+    @keyframes pulse {
+      from { opacity: 0.8; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Driver Safety Backend - Interactive Testing Console</h1>
+        <small style="color: var(--text-dim);">Bước 2: Máy chủ Express, Socket.io Real-time Telemetry & Batch Buffer</small>
+      </div>
+      <div>
+        <span id="socketBadge" class="badge badge-disconnected">● Socket.io: Đang kết nối...</span>
+      </div>
+    </header>
+
+    <div id="alertBanner" class="alert-banner">
+      🚨 <span id="alertBannerText">CẢNH BÁO NGUY HIỂM LEVEL 2 NHẬN TỪ XE!</span>
+    </div>
+
+    <div class="grid">
+      <!-- Cột Trái: Giả lập Xe phát Telemetry & Cảnh báo -->
+      <div>
+        <div class="card">
+          <div class="card-title">1. Giả lập Buồng lái Xe (Driver Client)</div>
+          <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 12px;">
+            Gửi các sự kiện telemetry theo chu kỳ. Backend sẽ gom vào bộ đệm và batch insert vào Database mỗi 2 giây.
+          </p>
+          <div>
+            <button id="startStreamBtn" class="btn-success">Bắt đầu Stream Telemetry (2 FPS)</button>
+            <button id="stopStreamBtn" class="btn-secondary" disabled>Dừng Stream</button>
+            <button id="sendAlertBtn" class="btn-danger">Gửi Cảnh báo Khẩn cấp Level 2 (Ngủ gật)</button>
+          </div>
+          <div style="font-size: 12px; margin-top: 8px;">
+            Số frame đã phát: <strong id="streamCount" style="color: var(--accent);">0</strong>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">2. Ban Điều Hành (Fleet Admin Room)</div>
+          <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 12px;">
+            Tham gia phòng <code>room:fleet_admins</code> để nhận relay cảnh báo khẩn cấp ngay tức thì.
+          </p>
+          <button id="joinAdminBtn" class="btn-primary">Tham gia Phòng Fleet Admins</button>
+          <span id="adminStatus" style="font-size: 12px; color: #34d399; margin-left: 8px;"></span>
+        </div>
+
+        <div class="card">
+          <div class="card-title">3. Kiểm tra REST API Analytics</div>
+          <button id="queryAnalyticsBtn" class="btn-secondary">Gọi GET /api/analytics/emotions</button>
+          <button id="checkHealthBtn" class="btn-secondary">Gọi GET /api/health</button>
+        </div>
+      </div>
+
+      <!-- Cột Phải: Logs thời gian thực -->
+      <div>
+        <div class="card">
+          <div class="card-title">
+            <span>Live Socket.io Logs (Admin & Driver)</span>
+            <button id="clearLogsBtn" style="padding: 2px 8px; font-size: 11px;">Xóa log</button>
+          </div>
+          <pre id="logArea">Đang kết nối Socket.io...</pre>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Dữ Liệu REST API Response</div>
+          <pre id="apiArea">{ "info": "Bấm các nút gọi API để xem kết quả tại đây" }</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const socket = io();
+    const socketBadge = document.getElementById('socketBadge');
+    const logArea = document.getElementById('logArea');
+    const apiArea = document.getElementById('apiArea');
+    const streamCount = document.getElementById('streamCount');
+    const startStreamBtn = document.getElementById('startStreamBtn');
+    const stopStreamBtn = document.getElementById('stopStreamBtn');
+    const sendAlertBtn = document.getElementById('sendAlertBtn');
+    const joinAdminBtn = document.getElementById('joinAdminBtn');
+    const adminStatus = document.getElementById('adminStatus');
+    const alertBanner = document.getElementById('alertBanner');
+    const alertBannerText = document.getElementById('alertBannerText');
+
+    let streamTimer = null;
+    let count = 0;
+
+    function addLog(msg) {
+      const time = new Date().toLocaleTimeString();
+      logArea.textContent = `[${time}] ${msg}\n` + logArea.textContent;
+    }
+
+    // Socket state
+    socket.on('connect', () => {
+      socketBadge.className = 'badge badge-connected';
+      socketBadge.textContent = '● Socket.io: Đã kết nối (ID: ' + socket.id.substr(0, 5) + ')';
+      addLog('Đã kết nối Socket.io tới Backend Server thành công!');
+    });
+
+    socket.on('disconnect', () => {
+      socketBadge.className = 'badge badge-disconnected';
+      socketBadge.textContent = '● Socket.io: Mất kết nối';
+      addLog('Mất kết nối tới Backend Server.');
+    });
+
+    socket.on('admin:joined', (data) => {
+      adminStatus.textContent = '✓ Đã tham gia room:fleet_admins';
+      addLog(`Fleet Admin đã vào phòng: ${data.room}`);
+    });
+
+    socket.on('telemetry:live', (data) => {
+      addLog(`[Admin nhận Live Telemetry] Tài xế: ${data.driver_id} | EAR: ${data.ear} | MAR: ${data.mar} | Status: ${data.status}`);
+    });
+
+    socket.on('alert:critical', (data) => {
+      alertBanner.style.display = 'block';
+      alertBannerText.textContent = `🚨 [CRITICAL ALERT] Tài xế: ${data.driver_id} vi phạm ${data.status} (Cấp độ 2)!`;
+      addLog(`⚠️ [CẢNH BÁO KHẨN CẤP] Nhận sự kiện alert:critical -> Tài xế ${data.driver_id} đang ${data.status}!`);
+      setTimeout(() => { alertBanner.style.display = 'none'; }, 5000);
+    });
+
+    // Thao tác nút
+    joinAdminBtn.addEventListener('click', () => {
+      socket.emit('admin:join');
+    });
+
+    startStreamBtn.addEventListener('click', () => {
+      startStreamBtn.disabled = true;
+      stopStreamBtn.disabled = false;
+      addLog('Bắt đầu stream telemetry định kỳ (mỗi 500ms phát 1 frame)...');
+
+      streamTimer = setInterval(() => {
+        count++;
+        streamCount.textContent = count;
+        socket.emit('telemetry:stream', {
+          driver_id: 'drv_test_01',
+          session_id: 'ses_interactive_01',
+          vehicle_id: 'XE-51F-12345',
+          ear: 0.32,
+          mar: 0.16,
+          perclos: 0.02,
+          head_pose: { yaw: 1.5, pitch: -4.0, roll: 0.0 },
+          emotion: 'neutral',
+          status: 'NORMAL',
+          alert_level: 0,
+          timestamp: Date.now()
+        });
+      }, 500);
+    });
+
+    stopStreamBtn.addEventListener('click', () => {
+      clearInterval(streamTimer);
+      startStreamBtn.disabled = false;
+      stopStreamBtn.disabled = true;
+      addLog('Đã dừng stream telemetry.');
+    });
+
+    sendAlertBtn.addEventListener('click', () => {
+      addLog('Đang phát tín hiệu vi phạm khẩn cấp Level 2 (Ngủ gật - DROWSY)...');
+      socket.emit('telemetry:stream', {
+        driver_id: 'drv_test_01',
+        session_id: 'ses_interactive_01',
+        vehicle_id: 'XE-51F-12345',
+        ear: 0.09,
+        mar: 0.22,
+        perclos: 0.35,
+        head_pose: { yaw: 0.0, pitch: -12.0, roll: 0.0 },
+        emotion: 'fatigued',
+        status: 'DROWSY',
+        alert_level: 2,
+        timestamp: Date.now()
+      });
+    });
+
+    document.getElementById('queryAnalyticsBtn').addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/analytics/emotions?driver_id=drv_test_01');
+        const data = await res.json();
+        apiArea.textContent = JSON.stringify(data, null, 2);
+      } catch (e) {
+        apiArea.textContent = 'Lỗi gọi API: ' + e.message;
+      }
+    });
+
+    document.getElementById('checkHealthBtn').addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/health');
+        const data = await res.json();
+        apiArea.textContent = JSON.stringify(data, null, 2);
+      } catch (e) {
+        apiArea.textContent = 'Lỗi gọi API: ' + e.message;
+      }
+    });
+
+    document.getElementById('clearLogsBtn').addEventListener('click', () => {
+      logArea.textContent = '';
+    });
+  </script>
+</body>
+</html>
