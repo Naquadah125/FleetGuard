@@ -1,0 +1,283 @@
+/* =============================================
+   LoginPage & RegisterPage CSS Module — Fintech Light Theme
+   Clean Slate #F8FAFC | Pure White #FFFFFF | Royal Blue #2563EB | Amber #F59E0B
+   ============================================= */
+
+.authWrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-primary);
+  background-image: 
+    radial-gradient(circle at 15% 15%, rgba(37, 99, 235, 0.08), transparent 40%),
+    radial-gradient(circle at 85% 85%, rgba(245, 158, 11, 0.08), transparent 40%);
+  padding: 40px 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.backHome {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.backHome:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  background: var(--bg-subtle);
+}
+
+.authCard {
+  width: 100%;
+  max-width: 480px;
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 24px;
+  padding: 44px 38px;
+  box-shadow: var(--shadow-card);
+  animation: fadeSlideUp 0.35s ease-out;
+}
+
+.cardHeader {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.cardLogo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.logoText {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+}
+
+.logoAccent {
+  color: var(--amber-dark);
+}
+
+.cardTitle {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+
+.cardSubtitle {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.quickAccounts {
+  background: var(--amber-bg);
+  border: 1.5px dashed var(--amber-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 24px;
+}
+
+.quickHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--amber-dark);
+  margin-bottom: 10px;
+  letter-spacing: 0.3px;
+}
+
+.quickButtons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.quickBtn {
+  background: #ffffff;
+  border: 1px solid var(--amber-border);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.quickBtn:hover {
+  background: var(--amber-primary);
+  color: #0F172A;
+  border-color: var(--amber-primary);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 14px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.input {
+  width: 100%;
+  background: var(--bg-subtle);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 13px 14px 13px 44px;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  transition: all 0.2s ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--blue-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  background: #ffffff;
+}
+
+.select {
+  width: 100%;
+  background: var(--bg-subtle);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 13px 14px 13px 44px;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  appearance: none;
+  cursor: pointer;
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--blue-primary);
+  background: #ffffff;
+}
+
+.errorBanner {
+  background: var(--red-bg);
+  border: 1px solid var(--red-border);
+  color: var(--red-dark);
+  padding: 11px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-body);
+}
+
+.successBanner {
+  background: var(--green-bg);
+  border: 1px solid var(--green-border);
+  color: var(--green-dark);
+  padding: 11px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-body);
+}
+
+.submitBtn {
+  background: var(--text-primary);
+  color: #ffffff;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+  padding: 14px 20px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.15);
+}
+
+.submitBtn:hover:not(:disabled) {
+  background: var(--blue-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.3);
+}
+
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cardFooter {
+  text-align: center;
+  margin-top: 24px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+}
+
+.linkAccent {
+  color: var(--blue-primary);
+  font-weight: 700;
+  margin-left: 6px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.linkAccent:hover {
+  color: var(--blue-dark);
+}
