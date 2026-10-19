@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
+import SamsaraLogo from './SamsaraLogo'
 import styles from './Navbar.module.css'
 
 const NAV_LINKS = [
@@ -31,35 +32,9 @@ export default function Navbar() {
   return (
     <header className={`${styles.navbar} ${scrolled ? styles.scrolled : styles.transparent}`}>
       <div className={styles.inner}>
-        {/* ── Logo ── */}
+        {/* ── Logo with official Samsara icon ── */}
         <Link to="/" className={styles.logo} aria-label="FleetGuard Home">
-          {/* Samsara owl SVG recolored to Amber */}
-          <svg
-            width="32"
-            height="32"
-            viewBox="0 0 200 200"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            {/* Shield shape */}
-            <path
-              d="M100 10 L175 45 L175 110 Q175 155 100 185 Q25 155 25 110 L25 45 Z"
-              fill="#F59E0B"
-              opacity="0.15"
-            />
-            <path
-              d="M100 10 L175 45 L175 110 Q175 155 100 185 Q25 155 25 110 L25 45 Z"
-              stroke="#F59E0B"
-              strokeWidth="8"
-              fill="none"
-            />
-            {/* Eye (camera lens) */}
-            <circle cx="100" cy="105" r="32" fill="#F59E0B" opacity="0.9" />
-            <circle cx="100" cy="105" r="18" fill="#0A1628" />
-            <circle cx="100" cy="105" r="8" fill="#F59E0B" />
-            <circle cx="107" cy="98" r="4" fill="white" opacity="0.6" />
-          </svg>
+          <SamsaraLogo size={32} color="#0F172A" accentColor="#F59E0B" />
           <span className={styles.logoText}>
             Fleet<span className={styles.logoAccent}>Guard</span>
           </span>

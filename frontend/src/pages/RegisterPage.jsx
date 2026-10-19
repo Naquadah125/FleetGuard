@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { User, Mail, Lock, Shield, ArrowRight, ArrowLeft, AlertCircle, CheckCircle2 } from 'lucide-react'
+import SamsaraLogo from '../components/SamsaraLogo'
 import styles from './Auth.module.css'
 
 export default function RegisterPage() {
@@ -72,13 +73,7 @@ export default function RegisterPage() {
       <div className={styles.authCard}>
         <div className={styles.cardHeader}>
           <Link to="/" className={styles.cardLogo}>
-            <svg width="34" height="34" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M100 10 L175 45 L175 110 Q175 155 100 185 Q25 155 25 110 L25 45 Z" fill="#F59E0B" opacity="0.15" />
-              <path d="M100 10 L175 45 L175 110 Q175 155 100 185 Q25 155 25 110 L25 45 Z" stroke="#F59E0B" strokeWidth="8" fill="none" />
-              <circle cx="100" cy="105" r="30" fill="#F59E0B" />
-              <circle cx="100" cy="105" r="16" fill="#0A1628" />
-              <circle cx="100" cy="105" r="7" fill="#F59E0B" />
-            </svg>
+            <SamsaraLogo size={34} color="#0F172A" accentColor="#F59E0B" />
             <span className={styles.logoText}>
               Fleet<span className={styles.logoAccent}>Guard</span>
             </span>

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import Navbar from '../components/Navbar'
 import HeroSection from '../components/HeroSection'
+import SamsaraLogo from '../components/SamsaraLogo'
 import styles from './HomePage.module.css'
 
 const FEATURES = [
@@ -307,13 +308,7 @@ export default function HomePage() {
           <div className={styles.footerTop}>
             <div className={styles.footerBrand}>
               <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <svg width="28" height="28" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M100 10 L175 45 L175 110 Q175 155 100 185 Q25 155 25 110 L25 45 Z" fill="#F59E0B" opacity="0.15" />
-                  <path d="M100 10 L175 45 L175 110 Q175 155 100 185 Q25 155 25 110 L25 45 Z" stroke="#F59E0B" strokeWidth="8" fill="none" />
-                  <circle cx="100" cy="105" r="30" fill="#F59E0B" />
-                  <circle cx="100" cy="105" r="16" fill="#0F172A" />
-                  <circle cx="100" cy="105" r="7" fill="#F59E0B" />
-                </svg>
+                <SamsaraLogo size={28} color="#0F172A" accentColor="#F59E0B" />
                 <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, color: '#0F172A' }}>
                   Fleet<span style={{ color: '#D97706' }}>Guard</span>
                 </span>
