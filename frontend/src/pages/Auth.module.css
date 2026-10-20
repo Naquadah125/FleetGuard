@@ -1,6 +1,5 @@
 /* =============================================
-   LoginPage & RegisterPage CSS Module — Fintech Light Theme
-   Clean Slate #F8FAFC | Pure White #FFFFFF | Royal Blue #2563EB | Amber #F59E0B
+   FleetGuard Auth Pages — Samsara White Mode Enterprise
    ============================================= */
 
 .authWrapper {
@@ -10,8 +9,8 @@
   justify-content: center;
   background-color: var(--bg-primary);
   background-image: 
-    radial-gradient(circle at 15% 15%, rgba(37, 99, 235, 0.08), transparent 40%),
-    radial-gradient(circle at 85% 85%, rgba(245, 158, 11, 0.08), transparent 40%);
+    radial-gradient(circle at 10% 20%, rgba(37, 99, 235, 0.08), transparent 45%),
+    radial-gradient(circle at 90% 80%, rgba(245, 158, 11, 0.06), transparent 45%);
   padding: 40px 20px;
   position: relative;
   overflow: hidden;
@@ -25,37 +24,37 @@
   align-items: center;
   gap: 8px;
   color: var(--text-secondary);
-  font-family: var(--font-body);
-  font-size: 14px;
+  font-family: var(--font-sans);
+  font-size: 13px;
   font-weight: 600;
   padding: 9px 18px;
   border-radius: 10px;
-  background: #ffffff;
-  border: 1px solid var(--border-subtle);
-  transition: all 0.2s ease;
+  background: #FFFFFF;
+  border: 1px solid var(--card-border);
   box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
 }
 
 .backHome:hover {
-  color: var(--text-primary);
-  border-color: var(--border-strong);
+  color: var(--text-main);
+  border-color: var(--amber-primary);
   background: var(--bg-subtle);
 }
 
 .authCard {
   width: 100%;
   max-width: 480px;
-  background: #ffffff;
-  border: 1px solid var(--border-subtle);
-  border-radius: 24px;
-  padding: 44px 38px;
+  background: #FFFFFF;
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  padding: 40px 36px;
   box-shadow: var(--shadow-card);
   animation: fadeSlideUp 0.35s ease-out;
 }
 
 .cardHeader {
   text-align: center;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
 .cardLogo {
@@ -66,10 +65,10 @@
 }
 
 .logoText {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-size: 24px;
   font-weight: 800;
-  color: var(--text-primary);
+  color: var(--text-main);
   letter-spacing: -0.5px;
 }
 
@@ -78,39 +77,40 @@
 }
 
 .cardTitle {
-  font-family: var(--font-display);
-  font-size: 1.6rem;
+  font-family: var(--font-sans);
+  font-size: 1.5rem;
   font-weight: 800;
-  color: var(--text-primary);
+  color: var(--text-main);
   margin-bottom: 8px;
   letter-spacing: -0.02em;
 }
 
 .cardSubtitle {
-  font-family: var(--font-body);
-  font-size: 0.95rem;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
   color: var(--text-secondary);
 }
 
+/* Quick Fill Panel */
 .quickAccounts {
   background: var(--amber-bg);
-  border: 1.5px dashed var(--amber-border);
+  border: 1px dashed var(--amber-border);
   border-radius: 12px;
   padding: 14px 16px;
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
 .quickHeader {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--font-body);
-  font-size: 12px;
-  font-weight: 700;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 800;
   text-transform: uppercase;
   color: var(--amber-dark);
   margin-bottom: 10px;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
 }
 
 .quickButtons {
@@ -120,43 +120,79 @@
 }
 
 .quickBtn {
-  background: #ffffff;
+  background: #FFFFFF;
   border: 1px solid var(--amber-border);
-  color: var(--text-primary);
-  font-family: var(--font-body);
+  color: var(--text-main);
+  font-family: var(--font-sans);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   padding: 8px 10px;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: center;
-  box-shadow: var(--shadow-sm);
 }
 
 .quickBtn:hover {
   background: var(--amber-primary);
   color: #0F172A;
   border-color: var(--amber-primary);
+  font-weight: 700;
+}
+
+/* Account Type Choice (Register) */
+.typeSelector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: var(--bg-subtle);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  margin-bottom: 20px;
+}
+
+.typeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  transition: all 0.2s ease;
+}
+
+.typeBtnActive {
+  background: #FFFFFF;
+  color: var(--amber-dark);
+  border: 1px solid var(--amber-border);
+  box-shadow: var(--shadow-sm);
+  font-weight: 700;
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
 .formGroup {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 
 .label {
-  font-family: var(--font-body);
-  font-size: 13px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .inputWrapper {
@@ -174,110 +210,109 @@
 
 .input {
   width: 100%;
-  background: var(--bg-subtle);
-  border: 1.5px solid var(--border-subtle);
-  border-radius: 12px;
-  padding: 13px 14px 13px 44px;
+  background: #FFFFFF;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 12px 14px 12px 42px;
+  color: var(--text-main);
+  font-family: var(--font-sans);
   font-size: 14px;
-  color: var(--text-primary);
-  font-family: var(--font-body);
   transition: all 0.2s ease;
 }
 
 .input:focus {
   outline: none;
-  border-color: var(--blue-primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-  background: #ffffff;
+  border-color: var(--amber-primary);
+  box-shadow: 0 0 0 3px var(--amber-glow);
+  background: #FFFFFF;
 }
 
-.select {
+.input::placeholder {
+  color: var(--text-dim);
+}
+
+.submitBtn {
+  margin-top: 8px;
   width: 100%;
-  background: var(--bg-subtle);
-  border: 1.5px solid var(--border-subtle);
-  border-radius: 12px;
-  padding: 13px 14px 13px 44px;
-  font-size: 14px;
-  color: var(--text-primary);
-  font-family: var(--font-body);
-  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--amber-primary);
+  color: #0F172A;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 800;
+  padding: 13px 20px;
+  border-radius: 10px;
   cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
 }
 
-.select:focus {
-  outline: none;
-  border-color: var(--blue-primary);
-  background: #ffffff;
+.submitBtn:hover {
+  background: var(--amber-dark);
+  color: #FFFFFF;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+}
+
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.cardFooter {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.cardFooter a {
+  color: var(--amber-dark);
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+.cardFooter a:hover {
+  text-decoration: underline;
 }
 
 .errorBanner {
   background: var(--red-bg);
   border: 1px solid var(--red-border);
   color: var(--red-dark);
-  padding: 11px 14px;
-  border-radius: 10px;
   font-size: 13px;
-  font-weight: 600;
-  font-family: var(--font-body);
+  padding: 10px 14px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .successBanner {
   background: var(--green-bg);
   border: 1px solid var(--green-border);
   color: var(--green-dark);
-  padding: 11px 14px;
-  border-radius: 10px;
   font-size: 13px;
-  font-weight: 600;
-  font-family: var(--font-body);
-}
-
-.submitBtn {
-  background: var(--text-primary);
-  color: #ffffff;
-  font-family: var(--font-body);
-  font-size: 15px;
-  font-weight: 700;
-  padding: 14px 20px;
-  border-radius: 12px;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  padding: 10px 14px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
-  margin-top: 6px;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.15);
 }
 
-.submitBtn:hover:not(:disabled) {
-  background: var(--blue-primary);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.3);
-}
-
-.submitBtn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.cardFooter {
-  text-align: center;
-  margin-top: 24px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  font-family: var(--font-body);
-}
-
-.linkAccent {
+.noticeBanner {
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-border);
   color: var(--blue-primary);
-  font-weight: 700;
-  margin-left: 6px;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.linkAccent:hover {
-  color: var(--blue-dark);
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
 }

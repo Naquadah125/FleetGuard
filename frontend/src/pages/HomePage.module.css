@@ -65,6 +65,7 @@
   color: var(--blue-primary);
   background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 50%, #D97706 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -561,10 +562,486 @@
   box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
 }
 
+/* ── Pricing Section (Fintech Plans & Comparison Table) ── */
+.billingToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 auto 36px;
+}
+
+.toggleContainer {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  padding: 4px;
+  border-radius: 9999px;
+}
+
+.toggleBtn {
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 18px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toggleBtnActive {
+  background: #FFFFFF;
+  color: var(--text-primary);
+  font-weight: 800;
+  box-shadow: var(--shadow-sm);
+}
+
+.discountBadge {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34D399;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.pricingCards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 32px;
+  max-width: 980px;
+  margin: 0 auto 56px;
+  align-items: stretch;
+}
+
+.pricingCard {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--card-border);
+  border-radius: 24px;
+  padding: 40px 36px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-card);
+}
+
+.pricingCard:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+}
+
+.pricingCardPopular {
+  border: 2px solid var(--amber-primary) !important;
+  box-shadow: 0 16px 40px -10px rgba(245, 158, 11, 0.25), 0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+.popularBadge {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  color: #060E1C;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 5px 16px;
+  border-radius: 9999px;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+  white-space: nowrap;
+}
+
+.planHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.planName {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.planTargetPill {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.planTargetPillPro {
+  background: var(--blue-bg);
+  color: var(--blue-primary);
+  border-color: var(--blue-border);
+}
+
+.planDesc {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+  min-height: 48px;
+}
+
+.planPriceWrapper {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 28px;
+}
+
+.planPrice {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.planPricePeriod {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.planFeatures {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+  margin-bottom: 32px;
+}
+
+.planFeatureItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  line-height: 1.45;
+}
+
+.planFeatureIcon {
+  color: var(--green-primary);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.planBtn {
+  width: 100%;
+  padding: 14px 24px;
+  border-radius: 12px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.planBtnDefault {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+}
+
+.planBtnDefault:hover {
+  background: #ffffff;
+  border-color: var(--text-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.planBtnPrimary {
+  background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+}
+
+.planBtnPrimary:hover {
+  background: linear-gradient(135deg, #1E40AF 0%, #1D4ED8 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.45);
+}
+
+/* ── Detailed Comparison Table ── */
+.comparisonSection {
+  margin-top: 40px;
+}
+
+.comparisonHeader {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.comparisonTitle {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.comparisonSubtitle {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.tableWrapper {
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  overflow-x: auto;
+  box-shadow: var(--shadow-card);
+  -webkit-overflow-scrolling: touch;
+}
+
+.compareTable {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+  text-align: left;
+  font-family: var(--font-body);
+}
+
+.compareTable th {
+  padding: 18px 24px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: #F8FAFC;
+  border-bottom: 2px solid var(--border-subtle);
+}
+
+.thPro {
+  background: var(--blue-bg) !important;
+  color: var(--blue-primary) !important;
+}
+
+.compareTable td {
+  padding: 16px 24px;
+  font-size: 14.5px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.compareTable tr:last-child td {
+  border-bottom: none;
+}
+
+.compareTable tr:hover td {
+  background-color: #F8FAFC;
+}
+
+.tdPro {
+  background: rgba(239, 246, 255, 0.3);
+  font-weight: 600;
+}
+
+.compareTable tr:hover .tdPro {
+  background: rgba(239, 246, 255, 0.65);
+}
+
+.featureCol {
+  font-weight: 600;
+  color: var(--text-primary);
+  width: 38%;
+}
+
+.freeCol {
+  width: 31%;
+}
+
+.proCol {
+  width: 31%;
+}
+
+.badgeYes {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--green-dark);
+  background: var(--green-bg);
+  border: 1px solid var(--green-border);
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.badgeNo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cellText {
+  color: var(--text-secondary);
+}
+
+.cellTextHighlight {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.badgeCustom {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: var(--blue-bg);
+  color: var(--blue-primary);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+/* ── Architecture & SLA Banner (#about) ── */
+.archGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-bottom: 48px;
+}
+
+.archCard {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.25s ease;
+  box-shadow: var(--shadow-card);
+}
+
+.archCard:hover {
+  transform: translateY(-4px);
+  border-color: var(--amber-primary);
+  box-shadow: var(--shadow-hover);
+}
+
+.archIconBox {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--blue-primary);
+  margin-bottom: 20px;
+}
+
+.archTitle {
+  font-family: var(--font-sans);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.archBadge {
+  display: inline-block;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--amber-dark);
+  background: var(--amber-bg);
+  border: 1px solid var(--amber-border);
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-bottom: 14px;
+  align-self: flex-start;
+}
+
+.archDesc {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.slaBanner {
+  background: #FFFFFF;
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  padding: 36px 40px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  text-align: center;
+  box-shadow: var(--shadow-card);
+}
+
+.slaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.slaValue {
+  font-family: var(--font-mono);
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: var(--amber-dark);
+  line-height: 1;
+}
+
+.slaLabel {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.slaSub {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
 /* ── Responsive ── */
 @media (max-width: 1024px) {
   .featuresGrid,
-  .stepsGrid {
+  .stepsGrid,
+  .pricingCards {
     grid-template-columns: repeat(2, 1fr);
   }
   .metricsBanner {
@@ -580,8 +1057,12 @@
     padding: 60px 20px;
   }
   .featuresGrid,
-  .stepsGrid {
+  .stepsGrid,
+  .pricingCards {
     grid-template-columns: 1fr;
+  }
+  .pricingCard {
+    padding: 32px 24px;
   }
   .simLayout {
     grid-template-columns: 1fr;

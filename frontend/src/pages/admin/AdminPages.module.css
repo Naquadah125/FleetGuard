@@ -1,0 +1,319 @@
+/* Admin Pages Styles — Samsara White Mode Enterprise */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.kpiCard {
+  background: #FFFFFF;
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 22px 24px;
+  box-shadow: var(--shadow-card);
+}
+
+.kpiHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.kpiLabel {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+}
+
+.kpiValue {
+  font-family: var(--font-mono);
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+
+.kpiSub {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.twoColGrid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.card {
+  background: #FFFFFF;
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--shadow-card);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.cardTitle {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-main);
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Incident Feed */
+.incidentList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.incidentItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: #FFFFFF;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s;
+}
+
+.incidentItemLevel2 {
+  border-left: 3px solid var(--red-primary);
+  background: var(--red-bg);
+}
+
+.incidentItemLevel1 {
+  border-left: 3px solid var(--amber-primary);
+  background: var(--amber-bg);
+}
+
+.resolveBtn {
+  background: var(--amber-bg);
+  border: 1px solid var(--amber-border);
+  color: var(--amber-dark);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.resolveBtn:hover {
+  background: var(--amber-primary);
+  color: #0F172A;
+}
+
+/* Camera Wall Grid */
+.cameraWallGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.cameraTile {
+  background: #FFFFFF;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: var(--shadow-card);
+}
+
+.cameraTile:hover {
+  transform: translateY(-3px);
+  border-color: var(--blue-primary);
+  box-shadow: var(--shadow-hover);
+}
+
+.cameraTileLevel2 {
+  border-color: #EF4444 !important;
+  animation: pulse-level2 1.2s infinite ease-in-out;
+}
+
+.cameraTileLevel1 {
+  border-color: #F59E0B !important;
+}
+
+.tileVideoArea {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  background: #020610;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.tileHudOverlay {
+  position: absolute;
+  inset: 0;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(6, 14, 28, 0.6) 0%, transparent 40%, transparent 60%, rgba(6, 14, 28, 0.8) 100%);
+}
+
+.tileHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tileFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.tileMetrics {
+  display: flex;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #ffffff;
+}
+
+.tileMetricItem {
+  background: rgba(6, 14, 28, 0.7);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.tileInfo {
+  padding: 12px 16px;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--card-border);
+}
+
+.tileDriverName {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.tilePlate {
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+/* Modal Form Styles */
+.formGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.formRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formLabel {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.formInput {
+  background: #FFFFFF;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--text-main);
+  font-size: 13.5px;
+  font-family: var(--font-sans);
+}
+
+.formInput:focus {
+  outline: none;
+  border-color: var(--amber-primary);
+  box-shadow: 0 0 0 3px var(--amber-glow);
+}
+
+.formSelect {
+  background: #FFFFFF;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--text-main);
+  font-size: 13.5px;
+  font-family: var(--font-sans);
+}
+
+.formSelect:focus {
+  outline: none;
+  border-color: var(--amber-primary);
+  box-shadow: 0 0 0 3px var(--amber-glow);
+}
+
+.btnPrimary {
+  background: var(--amber-primary);
+  color: #0F172A;
+  font-weight: 800;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.btnPrimary:hover {
+  background: var(--amber-dark);
+  color: #FFFFFF;
+}
+
+.btnSecondary {
+  background: var(--bg-subtle);
+  color: var(--text-main);
+  border: 1px solid var(--card-border);
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnSecondary:hover {
+  background: var(--border-subtle);
+}

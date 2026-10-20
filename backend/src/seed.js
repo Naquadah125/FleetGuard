@@ -1,3 +1,5 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import bcrypt from 'bcryptjs';
 import { User, DrivingSession, EmotionLog } from './models/index.js';
 import { getIsMongoConnected, memoryStore, connectDB, disconnectDB } from './db.js';

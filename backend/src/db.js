@@ -12,6 +12,15 @@ export const memoryStore = {
   chatConversations: []
 };
 
+import dns from 'dns';
+
+// Fix Node.js SRV resolution issue on certain Windows DNS setups
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);
+} catch (e) {
+  // Ignore if not permitted
+}
+
 /**
  * Connect to MongoDB with timeout and fallback
  * @param {string} uri MongoDB connection string
@@ -21,8 +30,8 @@ export async function connectDB(uri = process.env.MONGODB_URI || 'mongodb://loca
   try {
     mongoose.set('strictQuery', false);
     await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 2500,
-      connectTimeoutMS: 3000
+      serverSelectionTimeoutMS: 8000,
+      connectTimeoutMS: 10000
     });
     isMongoConnected = true;
     console.log(`\x1b[32m[MongoDB] Connected successfully to ${uri}\x1b[0m`);

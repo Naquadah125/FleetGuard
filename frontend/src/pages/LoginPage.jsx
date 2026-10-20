@@ -1,68 +1,43 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Mail, Lock, ArrowRight, ArrowLeft, Key, AlertCircle } from 'lucide-react'
+import { Mail, Lock, ArrowRight, ArrowLeft, Key, AlertCircle, Info } from 'lucide-react'
 import SamsaraLogo from '../components/SamsaraLogo'
+import { useAuth } from '../context/AuthContext'
 import styles from './Auth.module.css'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const { login, loading } = useAuth()
   const navigate = useNavigate()
 
   const handleQuickFill = (demoEmail) => {
     setEmail(demoEmail)
-    setPassword('password123')
+    setPassword('fleet1234')
     setError('')
+    setNotice('')
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    setLoading(true)
+    setNotice('')
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
+      const res = await login(email, password)
+      if (res.isMock) {
+        setNotice('Đã kích hoạt phiên làm việc Local Offline')
+      }
 
-      const data = await res.json()
-
-      if (res.ok && data.success) {
-        localStorage.setItem('fleet_token', data.token)
-        localStorage.setItem('fleet_user', JSON.stringify(data.user))
-
-        navigate('/')
-        return
+      if (res.user.role === 'ADMIN') {
+        navigate('/admin')
       } else {
-        throw new Error(data.message || 'Sai thông tin đăng nhập')
+        navigate('/driver')
       }
     } catch (err) {
-      // If backend is offline or returned error, check demo accounts for smooth experience
-      const lowerEmail = email.toLowerCase()
-      if (
-        (lowerEmail === 'user@fleet.vn' || lowerEmail === 'driver@fleet.vn' || lowerEmail === 'admin@fleet.vn') &&
-        password === 'password123'
-      ) {
-        const isAdmin = lowerEmail.includes('admin')
-        const mockUser = {
-          id: isAdmin ? 'demo_admin' : 'demo_user',
-          name: isAdmin ? 'Fleet Manager' : 'Tài xế Nguyễn Văn A',
-          email: lowerEmail,
-          role: isAdmin ? 'ADMIN' : 'USER',
-        }
-        localStorage.setItem('fleet_token', 'demo_token_' + Date.now())
-        localStorage.setItem('fleet_user', JSON.stringify(mockUser))
-
-        navigate('/')
-      } else {
-        setError(err.message || 'Không thể kết nối đến máy chủ. Hãy thử dùng tài khoản mẫu.')
-      }
-    } finally {
-      setLoading(false)
+      setError(err.message || 'Sai thông tin đăng nhập hoặc tài khoản không tồn tại')
     }
   }
 
@@ -81,38 +56,45 @@ export default function LoginPage() {
               Fleet<span className={styles.logoAccent}>Guard</span>
             </span>
           </Link>
-          <h1 className={styles.cardTitle}>Đăng Nhập Hệ Thống</h1>
-          <p className={styles.cardSubtitle}>Nền tảng giám sát tài xế AI thời gian thực</p>
+          <h1 className={styles.cardTitle}>ĐĂNG NHẬP HỆ THỐNG</h1>
+          <p className={styles.cardSubtitle}>Nền tảng giám sát an toàn tài xế AI thời gian thực</p>
         </div>
 
         {/* Quick Demo Credentials Fill */}
         <div className={styles.quickAccounts}>
           <div className={styles.quickHeader}>
             <Key size={13} />
-            <span>Tài Khoản Kiểm Thử Nhanh</span>
+            <span>Tài Khoản Kiểm Thử Nhanh (Mật khẩu: fleet1234)</span>
           </div>
           <div className={styles.quickButtons}>
             <button
               type="button"
               className={styles.quickBtn}
-              onClick={() => handleQuickFill('user@fleet.vn', 'USER')}
+              onClick={() => handleQuickFill('user@fleet.vn')}
             >
               Tài Xế (user@fleet.vn)
             </button>
             <button
               type="button"
               className={styles.quickBtn}
-              onClick={() => handleQuickFill('admin@fleet.vn', 'ADMIN')}
+              onClick={() => handleQuickFill('admin@fleet.vn')}
             >
               Quản Trị (admin@fleet.vn)
             </button>
           </div>
         </div>
 
+        {notice && (
+          <div className={styles.noticeBanner}>
+            <Info size={14} />
+            <span>{notice}</span>
+          </div>
+        )}
+
         {error && (
           <div className={styles.errorBanner} style={{ marginBottom: 16 }}>
-            <AlertCircle size={15} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: 6 }} />
-            {error}
+            <AlertCircle size={15} />
+            <span>{error}</span>
           </div>
         )}
 
@@ -151,18 +133,17 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            id="btn-login-submit"
             className={styles.submitBtn}
             disabled={loading}
           >
             <span>{loading ? 'Đang xác thực...' : 'Đăng Nhập'}</span>
-            <ArrowRight size={17} />
+            <ArrowRight size={16} />
           </button>
         </form>
 
         <div className={styles.cardFooter}>
           <span>Chưa có tài khoản?</span>
-          <Link to="/register" className={styles.linkAccent}>Đăng ký ngay</Link>
+          <Link to="/register">Đăng ký trải nghiệm</Link>
         </div>
       </div>
     </div>

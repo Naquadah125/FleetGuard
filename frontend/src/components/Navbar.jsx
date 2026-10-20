@@ -7,6 +7,7 @@ import styles from './Navbar.module.css'
 const NAV_LINKS = [
   { label: 'Tính Năng', href: '#features' },
   { label: 'Demo', href: '#demo' },
+  { label: 'Bảng Giá', href: '#pricing' },
   { label: 'Về Chúng Tôi', href: '#about' },
 ]
 
@@ -34,7 +35,7 @@ export default function Navbar() {
       <div className={styles.inner}>
         {/* ── Logo with official Samsara icon ── */}
         <Link to="/" className={styles.logo} aria-label="FleetGuard Home">
-          <SamsaraLogo size={32} color="#0F172A" accentColor="#F59E0B" />
+          <SamsaraLogo size={32} color={scrolled ? '#0F172A' : '#FFFFFF'} accentColor="#F59E0B" />
           <span className={styles.logoText}>
             Fleet<span className={styles.logoAccent}>Guard</span>
           </span>

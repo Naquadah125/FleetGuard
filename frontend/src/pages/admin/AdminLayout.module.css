@@ -1,0 +1,333 @@
+/* Admin Layout Styles — Samsara White Mode Enterprise */
+.layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+}
+
+.sidebar {
+  width: 270px;
+  background: #FFFFFF;
+  border-right: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 100;
+  box-shadow: var(--shadow-sm);
+  transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebarCollapsed {
+  width: 76px;
+}
+
+.sidebarBrand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 16px;
+  border-bottom: 1px solid var(--card-border);
+  height: 68px;
+  transition: padding 0.25s ease;
+  position: relative;
+}
+
+.sidebarBrandCollapsed {
+  padding: 18px 8px;
+  justify-content: center;
+}
+
+.brandMain {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  text-decoration: none;
+}
+
+.brandText {
+  font-family: var(--font-sans);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+}
+
+.brandAccent {
+  color: var(--amber-dark);
+}
+
+.collapseBtn {
+  background: var(--bg-subtle);
+  border: 1px solid var(--card-border);
+  color: var(--text-secondary);
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.collapseBtn:hover {
+  background: #FFFFFF;
+  color: var(--text-main);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.sidebarBrandCollapsed .collapseBtn {
+  position: absolute;
+  right: -13px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #FFFFFF;
+  border: 1px solid var(--card-border);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  z-index: 105;
+}
+
+.sidebarBrandCollapsed .collapseBtn:hover {
+  background: var(--amber-primary);
+  color: #0F172A;
+  border-color: var(--amber-primary);
+}
+
+.orgCard {
+  padding: 14px 18px;
+  margin: 14px 12px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  transition: all 0.25s ease;
+}
+
+.orgCardCollapsed {
+  padding: 10px 0;
+  margin: 14px 8px;
+  display: flex;
+  justify-content: center;
+  background: transparent;
+  border-color: transparent;
+}
+
+.orgIconCollapsed {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--amber-bg);
+  border: 1px solid var(--amber-border);
+  color: var(--amber-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orgName {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.orgPlanBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--amber-dark);
+  background: var(--amber-bg);
+  border: 1px solid var(--amber-border);
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.navGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0 12px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all 0.2s;
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.navItem:hover {
+  color: var(--text-main);
+  background: var(--bg-subtle);
+}
+
+.navItemActive {
+  color: var(--amber-dark) !important;
+  background: var(--amber-bg) !important;
+  border-color: var(--amber-border) !important;
+  font-weight: 700;
+}
+
+.navItemDisabled {
+  opacity: 0.4;
+  cursor: not-allowed !important;
+  pointer-events: none;
+}
+
+.sidebarCollapsed .navGroup {
+  padding: 0 8px;
+}
+
+.sidebarCollapsed .navItem {
+  justify-content: center;
+  padding: 10px 0;
+  gap: 0;
+}
+
+.sidebarCollapsed .navItem span {
+  display: none;
+}
+
+.sidebarFooter {
+  padding: 14px 12px;
+  border-top: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidebarCollapsed .sidebarFooter {
+  padding: 14px 8px;
+}
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.sidebarCollapsed .actionBtn {
+  justify-content: center;
+  padding: 9px 0;
+  gap: 0;
+}
+
+.sidebarCollapsed .actionBtn span {
+  display: none;
+}
+
+.actionBtn:hover {
+  background: var(--bg-subtle);
+  color: var(--text-main);
+}
+
+.resetBtn {
+  color: var(--amber-dark);
+}
+
+.resetBtn:hover {
+  background: var(--amber-bg);
+  color: var(--amber-dark);
+}
+
+.logoutBtn {
+  color: var(--red-dark);
+}
+
+.logoutBtn:hover {
+  background: var(--red-bg);
+}
+
+/* Main Area */
+.mainWrapper {
+  margin-left: 270px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background-color: var(--bg-primary);
+  transition: margin-left 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mainWrapperCollapsed {
+  margin-left: 76px;
+}
+
+.topbar {
+  height: 68px;
+  background: var(--bg-topbar);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--card-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  box-shadow: var(--shadow-sm);
+}
+
+.topbarTitle {
+  font-family: var(--font-sans);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: -0.5px;
+}
+
+.content {
+  padding: 32px;
+  flex: 1;
+}
+
+@media print {
+  .sidebar,
+  .topbar {
+    display: none !important;
+  }
+  .mainWrapper {
+    margin-left: 0 !important;
+  }
+  .content {
+    padding: 0 !important;
+  }
+}
