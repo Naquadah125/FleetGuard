@@ -8,7 +8,7 @@ import AnimatedIcon from '@/components/landing/AnimatedIcon'
 import Reveal from '@/components/landing/Reveal'
 import SectionHeading from '@/components/landing/SectionHeading'
 import { gsap, useGSAP } from '@/lib/motion/gsap'
-import { DUR, EASE, MQ, clampStart } from '@/lib/motion/presets'
+import { DUR, EASE, MQ, revealTrigger } from '@/lib/motion/presets'
 import { scrollToSection } from '@/lib/motion/scroll'
 import { cn } from '@/lib/utils'
 
@@ -55,7 +55,7 @@ export default function Technology() {
             duration: DUR.base,
             ease: EASE.out,
             stagger: 0.04,
-            scrollTrigger: { trigger: chip, start: clampStart(), once: true },
+            scrollTrigger: revealTrigger(chip),
           })
           gsap.fromTo(
             chip.querySelector('[data-part="glow"]'),
@@ -82,7 +82,7 @@ export default function Technology() {
         const bar = root.querySelector('[data-stats-bar]')
         const nums = Array.from(root.querySelectorAll('[data-stat-value]'))
         if (!bar) return undefined
-        const tl = gsap.timeline({ scrollTrigger: { trigger: bar, start: clampStart('top 85%'), once: true } })
+        const tl = gsap.timeline({ scrollTrigger: revealTrigger(bar, 'top 85%') })
         tl.from(bar, { scale: 0.96, opacity: 0, duration: DUR.base, ease: EASE.out })
         tl.from(bar.querySelectorAll('[data-stat]'), { opacity: 0, y: 12, duration: DUR.base, ease: EASE.out, stagger: 0.08 }, 0.1)
         nums.forEach((el) => {
@@ -125,7 +125,7 @@ export default function Technology() {
       ref={ref}
       id="technology"
       aria-labelledby="technology-title"
-      className="relative overflow-hidden bg-linear-to-b from-brand-50 to-white pt-20 pb-14 lg:pt-24 lg:pb-20"
+      className="relative overflow-hidden bg-linear-to-b from-surface/70 to-white pt-20 pb-14 lg:pt-24 lg:pb-20"
     >
       <CitySkyline
         data-tech-skyline

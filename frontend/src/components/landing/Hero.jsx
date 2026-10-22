@@ -23,18 +23,16 @@ import FleetDashboard from './hero/FleetDashboard'
  *    desktop leaf sway. Out of view → paused.
  *  - desktop: dashboard tilts toward the pointer (quickTo rotationX/Y ±4°, perspective 1200).
  *  - parallax via data-speed (ScrollSmoother, enabled by the page): blobs 0.8, dashboard 0.95,
- *    distance card 1.08, leaves 0.85.
+ *    distance card 1.08, leaves 0.95 — all clamp()ed so the effect starts at scroll 0 (layout at load
+ *    = design layout; the card and trust row only move vertically, never closer horizontally).
  */
 
 const TICK_SECONDS = 6
 const TILT_DEG = 4
 
-// Decorative initials for the trust avatars (no real customers are named).
-const AVATARS = [
-  { initials: 'TL', className: 'bg-brand-100 text-brand-darker' },
-  { initials: 'MH', className: 'bg-info/15 text-navy' },
-  { initials: 'QA', className: 'bg-warning/20 text-navy' },
-]
+// Tones for the decorative trust avatars (initials come from HERO.trustAvatars).
+const AVATAR_TONES = ['bg-brand-100 text-brand-darker', 'bg-info/15 text-navy', 'bg-warning/20 text-navy']
+const AVATARS = HERO.trustAvatars.map((initials, i) => ({ initials, className: AVATAR_TONES[i % AVATAR_TONES.length] }))
 
 /** Update a React-rendered number without replacing its text node (React keeps its reference). */
 function setText(el, text) {
@@ -57,7 +55,7 @@ function NoOrphan({ text }) {
 
 function Backdrop() {
   return (
-    <div aria-hidden="true" data-speed="0.8" className="pointer-events-none absolute inset-0 -z-10">
+    <div aria-hidden="true" data-speed="clamp(0.8)" className="pointer-events-none absolute inset-0 -z-10">
       <div
         className="absolute -top-40 -left-48 size-[620px] rounded-full opacity-90"
         style={{ background: 'radial-gradient(closest-side, var(--color-brand-50), transparent)' }}
@@ -415,7 +413,7 @@ export default function Hero() {
       <div
         aria-hidden="true"
         data-hero-leaf
-        data-speed="0.85"
+        data-speed="clamp(0.95)"
         className="pointer-events-none absolute right-0 bottom-2 hidden w-[150px] lg:block lg:w-[160px] xl:right-3 xl:w-[176px]"
       >
         <LeafBranch className="block h-auto w-full" />

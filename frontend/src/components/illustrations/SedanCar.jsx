@@ -5,7 +5,8 @@
  * data-part hooks (for GSAP):
  *   body        whole car body (paint, glass, lights, trim) — nudge y for suspension bob
  *   wheel-front front (right) wheel; geometry centered on its own box, so
- *               `rotation` with `transformOrigin: '50% 50%'` spins in place (CSS: transform-box fill-box set inline)
+ *               `rotation` with `transformOrigin: '50% 50%'` spins in place. No CSS transform-box/origin is set:
+ *               GSAP resolves the % origin against the part's own bbox (do not add transformBox)
  *   wheel-rear  rear (left) wheel (same as above)
  *   shadow      ground shadow ellipse
  *
@@ -13,8 +14,6 @@
  * viewBox 0 0 300 140.
  */
 import { useId } from 'react'
-
-const WHEEL_STYLE = { transformBox: 'fill-box', transformOrigin: 'center' }
 
 function spokes(r0, r1, count = 5) {
   return Array.from({ length: count }, (_, i) => {
@@ -33,7 +32,7 @@ function spokes(r0, r1, count = 5) {
 function Wheel({ part, cx, cy, url }) {
   return (
     <g transform={`translate(${cx} ${cy})`}>
-      <g data-part={part} style={WHEEL_STYLE}>
+      <g data-part={part}>
         <circle r="18" fill={url('tire')} />
         <circle r="14.6" fill="none" stroke="#0B1219" strokeWidth="1" opacity="0.7" />
         <circle r="11.4" fill={url('rim')} />

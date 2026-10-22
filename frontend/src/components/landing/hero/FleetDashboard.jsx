@@ -164,7 +164,7 @@ function AlertItem({ alert }) {
       <span className="flex min-w-0 flex-col">
         <span className="truncate text-body-sm font-semibold text-navy">{alert.type}</span>
         <span className="truncate text-body-sm text-ink tabular-nums">
-          {alert.time} - Xe {alert.plate}
+          {alert.time} - {DASHBOARD.alertMetaPrefix} {alert.plate}
         </span>
       </span>
     </li>
@@ -224,7 +224,7 @@ function DistanceCard() {
           <span data-count={DASHBOARD.distanceKm} data-distance-count className="text-[26px] leading-8 font-extrabold tabular-nums">
             {formatStat(DASHBOARD.distanceKm)}
           </span>
-          <span className="text-body-sm font-semibold text-ink">km</span>
+          <span className="text-body-sm font-semibold text-ink">{DASHBOARD.distanceUnit}</span>
         </p>
         <p className={cn('mt-0.5 text-body-sm font-semibold', SUCCESS_TEXT)}>{DASHBOARD.distanceDelta}</p>
       </div>
@@ -282,7 +282,7 @@ export default function FleetDashboard({ ref, className }) {
   return (
     <div className={cn('relative isolate', className)}>
       <CornerDecor />
-      <div data-dash-speed data-speed="0.95">
+      <div data-dash-speed data-speed="clamp(0.95)">
         <div data-dash-tilt>
           <div data-dash className="flex overflow-hidden rounded-xl bg-white shadow-dashboard ring-1 ring-line/60">
             <Rail />
@@ -310,7 +310,7 @@ export default function FleetDashboard({ ref, className }) {
 
       <div
         data-distance-speed
-        data-speed="1.08"
+        data-speed="clamp(1.08)"
         className="mt-4 lg:absolute lg:-bottom-14 lg:-left-12 lg:mt-0 lg:w-[208px] xl:-bottom-8 xl:-left-8"
       >
         <DistanceCard />

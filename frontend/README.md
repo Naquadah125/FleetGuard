@@ -1,24 +1,23 @@
 # FleetGuard Frontend 🚗🛡️
 
-Giao diện người dùng hiện đại cho nền tảng **FleetGuard — Hệ thống Giám Sát Tài Xế AI Thời Gian Thực**, lấy cảm hứng thiết kế từ **Samsara** kết hợp phong cách **Fintech Light** (Dribbble Fintech Motion).
+Giao diện người dùng cho nền tảng **FleetGuard — Hệ thống Giám Sát Tài Xế AI Thời Gian Thực**: trang giới thiệu (landing), đăng nhập / đăng ký và các phân hệ Tài xế / Quản trị.
 
 ---
 
-## 🎨 Điểm Nổi Bật Về Giao Diện & Thiết Kế
-* **Phong cách Fintech Light**: Tông màu sáng hiện đại (`#F8FAFC`), thẻ trắng tinh khôi (`#FFFFFF`), đường nét sắc sảo kết hợp bảng màu phân định trạng thái rõ ràng (Xanh Hoàng Gia `#2563EB`, Hổ Phách/Cam `#F59E0B`, Xanh Lục `#10B981`, Đỏ San Hô `#EF4444`).
-* **Typography Độc Đáo**: Sử dụng kết hợp **Space Grotesk** (tiêu đề cá tính), **Plus Jakarta Sans** (nội dung thanh lịch) và **JetBrains Mono** (chỉ số đo lường).
-* **Nền Video Cinematic**: Video đường cao tốc chuyển động êm dịu kết hợp lớp phủ ánh sáng nhẹ tương phản cao.
-* **Ngôn ngữ gần gũi, súc tích**: Rút gọn tối đa, dễ hiểu với người dùng phổ thông, loại bỏ hoàn toàn các thuật ngữ học thuật và kiến trúc kỹ thuật nội bộ.
-* **Buồng lái mô phỏng trực quan**: Cho phép trải nghiệm thử 4 trạng thái (Bình thường, Ngủ gật, Ngáp mệt mỏi, Xem điện thoại) ngay trên trình duyệt.
+## 🎨 Giao Diện & Thiết Kế
+* **Nhận diện FleetGuard**: logo khiên chevron, tông xanh lục (`brand` #0E9B78, `brand-dark` #08765E), chữ navy (#0D2232), nền trắng / mint nhạt. Toàn bộ token nằm trong theme Tailwind v4 (`src/index.css`).
+* **Typography**: **Plus Jakarta Sans** (giao diện) và **JetBrains Mono** (chỉ số trên dashboard), tải qua `@fontsource-variable`, có đầy đủ dấu tiếng Việt.
+* **Component**: shadcn/ui (`src/components/ui/`) + icon lucide-react; hình minh họa SVG dựng bằng code (`src/components/illustrations/`).
+* **Chuyển động**: GSAP (ScrollTrigger, ScrollSmoother, SplitText, DrawSVG, Flip…) qua `src/lib/motion/` — cuộn mượt + parallax trên desktop, reveal theo cuộn, icon động, dashboard hero "đang chạy". Tôn trọng `prefers-reduced-motion` (tắt hết chuyển động, hiện trạng thái cuối).
+* **Nội dung**: toàn bộ chữ của landing nằm trong `src/content/landing.js`.
 
 ---
 
 ## 📂 Các Trang Hiện Hành
-* **`/` (Trang chủ)**: Giới thiệu giải pháp an toàn, 6 tính năng chính, mô phỏng buồng lái trực quan, quy trình 3 bước lắp đặt và chân trang doanh nghiệp.
-* **`/login` (Đăng nhập)**: Thẻ kính sáng mờ, nút điền nhanh tài khoản kiểm thử (`user@fleet.vn` & `admin@fleet.vn`).
-* **`/register` (Đăng ký)**: Biểu mẫu tạo tài khoản người dùng mới.
-
-> *Lưu ý: Các phân hệ buồng lái tài xế (Driver HUD) và bảng điều hành quản trị (Fleet Admin) đang được phát triển tách biệt theo kế hoạch.*
+* **`/` (Trang chủ)**: Hero + dashboard đội xe trực tiếp, 6 tính năng, mô phỏng AI 4 trạng thái tài xế, công nghệ & số liệu, bảng giá (tháng / năm), so sánh gói, chân trang.
+* **`/login` (Đăng nhập)**: nút điền nhanh tài khoản kiểm thử (`user@fleet.vn` & `admin@fleet.vn`).
+* **`/register` (Đăng ký)**: tạo tài khoản tài xế hoặc doanh nghiệp.
+* **`/driver`, `/admin`**: phân hệ Tài xế và Quản trị (cần đăng nhập).
 
 ---
 
@@ -36,4 +35,11 @@ npm run lint
 
 # Đóng gói sản phẩm (Production Build)
 npm run build
+
+# Kiểm tra landing (cần dev server đang chạy): sections, lỗi console, tràn ngang,
+# reduced motion, nội dung màn hình đầu, nav anchor, rò rỉ ScrollTrigger
+npm run check -- http://localhost:5173
+
+# Chụp ảnh toàn trang ở nhiều độ rộng
+npm run shot -- http://localhost:5173/ ../.tmp/shots --widths=1440,768,375 --full
 ```

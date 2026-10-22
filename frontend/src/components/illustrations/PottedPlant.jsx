@@ -8,14 +8,13 @@
  *   stem       main stem path
  *   leaf-1 … leaf-9
  *              individual leaves, bottom → top. Each leaf's base sits at the bottom-center of its
- *              own box, so `transformOrigin: '50% 100%'` pivots on the stem (CSS: transform-box
- *              fill-box + origin set inline). Odd = left side, even = right side, 9 = top.
+ *              own box, so `transformOrigin: '50% 100%'` pivots on the stem (GSAP resolves the % origin against
+ *              the part's own bbox; no CSS transform-box is set). Odd = left side, even = right side, 9 = top.
  *
  * viewBox 0 0 200 300 (pot base at y≈290).
  */
 import { useId } from 'react'
 
-const LEAF_STYLE = { transformBox: 'fill-box', transformOrigin: '50% 100%' }
 
 // [x, y, rotation°, length, half-width]
 const LEAVES = [
@@ -40,7 +39,7 @@ function Leaf({ n, x, y, rot, len, w, url }) {
   ])
   return (
     <g transform={`translate(${x} ${y}) rotate(${rot})`}>
-      <g data-part={`leaf-${n}`} style={LEAF_STYLE}>
+      <g data-part={`leaf-${n}`}>
         <path d={left} fill={url('leafLit')} />
         <path d={right} fill={url('leafShade')} />
         <path d={`M0 -2 L0 ${-l * 0.9}`} stroke="#D9F7E6" strokeOpacity="0.55" strokeWidth="1.1" strokeLinecap="round" />
@@ -114,7 +113,7 @@ export default function PottedPlant({ className, title, ...props }) {
         <path d="M50 221 H150" stroke="#94A3B8" strokeOpacity="0.35" strokeWidth="1" />
       </g>
 
-      <g data-part="leaves" style={LEAF_STYLE}>
+      <g data-part="leaves">
         <path data-part="stem" d="M100 207 C98 176 104 132 101.5 50" stroke={url('stem')} strokeWidth="3.6" strokeLinecap="round" />
         {LEAVES.map(([x, y, rot, len, w], i) => (
           <Leaf key={i} n={i + 1} x={x} y={y} rot={rot} len={len} w={w} url={url} />

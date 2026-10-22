@@ -13,21 +13,11 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
-import { NAV_LINKS } from '@/content/landing'
+import { NAV_ACTIONS as COPY, NAV_LINKS } from '@/content/landing'
 import { ScrollTrigger, gsap, useGSAP } from '@/lib/motion/gsap'
 import { DUR, EASE, MQ } from '@/lib/motion/presets'
 import { scrollToSection } from '@/lib/motion/scroll'
 import { cn } from '@/lib/utils'
-
-// TODO(controller): move into src/content/landing.js (e.g. `NAV_ACTIONS`) — landing.js has no
-// entries for these yet and is a shared file this task may not edit.
-const COPY = {
-  login: 'Đăng nhập',
-  register: 'Đăng ký',
-  openMenu: 'Mở menu',
-  closeMenu: 'Đóng menu',
-  navLabel: 'Điều hướng chính',
-}
 
 /** Links that open a dropdown-style group in the mockup get a chevron. */
 const WITH_CHEVRON = new Set(['Tài nguyên'])

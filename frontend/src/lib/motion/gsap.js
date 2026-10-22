@@ -37,7 +37,7 @@ if (typeof document !== 'undefined' && document.fonts?.addEventListener) {
 
 // Dev-only hook for verification scripts (no-leak / reduced-motion checks).
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  window.__fg = { gsap, ScrollTrigger }
+  window.__fg = { gsap, ScrollTrigger, ScrollSmoother }
 }
 
 export {

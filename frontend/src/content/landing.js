@@ -13,6 +13,15 @@ export const NAV_LINKS = [
   { label: 'Liên hệ', id: 'contact' },
 ]
 
+/** Navbar actions + accessible names (desktop bar and mobile Sheet). */
+export const NAV_ACTIONS = {
+  login: 'Đăng nhập',
+  register: 'Đăng ký',
+  openMenu: 'Mở menu',
+  closeMenu: 'Đóng menu',
+  navLabel: 'Điều hướng chính',
+}
+
 export const HERO = {
   titleLine1: 'An toàn trên mọi hành trình',
   titleLine2: 'Bảo vệ doanh nghiệp bằng AI thông minh',
@@ -25,6 +34,8 @@ export const HERO = {
   rating: '4.9',
   ratingMax: '5',
   ratingCount: '(120+ đánh giá)',
+  /** Decorative initials for the trust-row avatars (no real customers are named). */
+  trustAvatars: ['TL', 'MH', 'QA'],
 }
 
 export const DASHBOARD = {
@@ -46,6 +57,9 @@ export const DASHBOARD = {
     { type: 'Ngủ gật', time: '15:37', plate: '51B-889.21', tone: 'danger' },
   ],
   viewAll: 'Xem tất cả',
+  /** Alert meta line: `{time} - {alertMetaPrefix} {plate}`. */
+  alertMetaPrefix: 'Xe',
+  distanceUnit: 'km',
   distanceLabel: 'Quãng đường hôm nay',
   distanceKm: 1245,
   distanceDelta: '↑ 12% so với hôm qua',
@@ -116,6 +130,8 @@ export const PRICING = {
   monthlyLabel: 'Thanh toán tháng',
   yearlyLabel: 'Thanh toán năm',
   yearlyBadge: 'Tiết kiệm 20%',
+  /** Accessible name of the monthly / yearly toggle. */
+  toggleLabel: 'Chu kỳ thanh toán',
   unit: '/xe/tháng',
   popularBadge: 'PHỔ BIẾN',
   plans: [
@@ -155,6 +171,9 @@ export const PRICING = {
 export const COMPARISON = {
   title: 'So sánh chi tiết tính năng',
   columns: ['Tính năng', 'Cơ bản', 'Nâng cao'],
+  /** Screen-reader text for the check / dash cells. */
+  yes: 'Có',
+  no: 'Không',
   rows: [
     ['Giám sát vị trí & lộ trình', true, true],
     ['Cảnh báo buồn ngủ, mất tập trung', true, true],

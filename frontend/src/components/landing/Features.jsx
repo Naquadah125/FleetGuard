@@ -11,15 +11,17 @@ const ICONS = { Bell, MapPin, ChartNoAxesCombined, Plug, Lock, Headset }
  * "FleetGuard có thể giúp gì cho bạn?" — 6 feature rows (icon tile + title + description)
  * in a 3 / 2 / 1 column grid. Each row is a `data-icon-trigger`, so hovering anywhere on it
  * plays its icon motion; the row lifts onto a white card on hover.
- * Parallax: two soft mint blobs with `data-speed` (picked up by ScrollSmoother on desktop).
+ * Parallax: two soft mint blobs with `data-speed` (picked up by ScrollSmoother on desktop). Both
+ * sit inside the section and use speeds > 1, so they drift away from the clipped top / bottom
+ * edges while those edges are on screen (no hard cut against the hero above).
  */
 export default function Features() {
   return (
     <section id="features" aria-labelledby="features-title" className="relative overflow-hidden bg-white py-20 lg:py-28">
       <div
         aria-hidden="true"
-        data-speed="0.7"
-        className="pointer-events-none absolute -top-24 -left-40 size-[420px] rounded-full bg-brand-100/70 blur-3xl lg:-left-24"
+        data-speed="1.1"
+        className="pointer-events-none absolute top-8 -left-40 size-[420px] rounded-full bg-brand-100/70 blur-3xl lg:-left-24"
       />
       <div
         aria-hidden="true"

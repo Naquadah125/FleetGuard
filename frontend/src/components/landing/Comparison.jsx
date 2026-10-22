@@ -5,17 +5,14 @@ import PottedPlant from '@/components/illustrations/PottedPlant'
 import SectionHeading from '@/components/landing/SectionHeading'
 import { COMPARISON } from '@/content/landing'
 import { gsap, ScrollTrigger, useGSAP } from '@/lib/motion/gsap'
-import { DUR, EASE, MQ, clampStart } from '@/lib/motion/presets'
-
-// Screen-reader labels for the check / dash cells (not in landing.js yet — see task-9 report).
-const SR = { yes: 'Có', no: 'Không' }
+import { DUR, EASE, MQ, revealTrigger } from '@/lib/motion/presets'
 
 function Availability({ value }) {
   if (value === true) {
     return (
       <span className="inline-flex size-6 items-center justify-center rounded-full bg-brand text-white">
         <Check aria-hidden="true" data-check className="size-3.5" strokeWidth={3.25} />
-        <span className="sr-only">{SR.yes}</span>
+        <span className="sr-only">{COMPARISON.yes}</span>
       </span>
     )
   }
@@ -23,7 +20,7 @@ function Availability({ value }) {
     return (
       <span className="inline-flex size-6 items-center justify-center text-ink-subtle">
         <Minus aria-hidden="true" className="size-4" strokeWidth={2.5} />
-        <span className="sr-only">{SR.no}</span>
+        <span className="sr-only">{COMPARISON.no}</span>
       </span>
     )
   }
@@ -51,7 +48,7 @@ export default function Comparison() {
 
       mm.add({ desktop: MQ.desktop, mobile: MQ.mobile }, () => {
         gsap
-          .timeline({ scrollTrigger: { trigger: table, start: clampStart(), once: true } })
+          .timeline({ scrollTrigger: revealTrigger(table) })
           .from(rows, { opacity: 0, y: 16, duration: DUR.base, ease: EASE.out, stagger: 0.07 })
           .from(checks, { drawSVG: '0%', duration: 0.45, ease: 'power2.out', stagger: 0.04 }, 0.25)
       })
@@ -61,17 +58,13 @@ export default function Comparison() {
         if (!plant) return
         const leaves = plant.querySelector('[data-part="leaves"]')
         const leaf = plant.querySelectorAll('[data-part^="leaf-"]')
-        // PottedPlant sets `transform-box: fill-box` inline; GSAP bakes the origin into the SVG
-        // transform attribute and sets CSS origin 0 0, which fill-box would move to each box's
-        // top-left. Restore the SVG default while animating (reverted with the context).
-        gsap.set([leaves, ...leaf], { transformBox: 'view-box' })
         const sway = gsap
           .timeline({ paused: true, repeat: -1, yoyo: true, defaults: { ease: 'sine.inOut' } })
-          .fromTo(leaves, { rotation: -2.5 }, { rotation: 2.5, duration: 2.6, transformOrigin: '50% 100%' }, 0)
+          .fromTo(leaves, { rotation: -2.5, transformOrigin: '50% 100%' }, { rotation: 2.5, duration: 2.6 }, 0)
           .fromTo(
             leaf,
-            { rotation: -4 },
-            { rotation: 4, duration: 1.3, transformOrigin: '50% 100%', stagger: { each: 0.12, from: 'end' } },
+            { rotation: -4, transformOrigin: '50% 100%' },
+            { rotation: 4, duration: 1.3, stagger: { each: 0.12, from: 'end' } },
             0,
           )
         ScrollTrigger.create({
@@ -89,10 +82,11 @@ export default function Comparison() {
 
   return (
     <section ref={ref} id="comparison" className="relative overflow-hidden bg-surface/70 py-16 lg:py-20">
-      {/* soft green blobs in the bottom corners (mockup) */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-        <div className="absolute -bottom-40 -left-40 size-[420px] rounded-full bg-brand-100/60 blur-3xl" />
-        <div className="absolute -right-40 -bottom-48 size-[460px] rounded-full bg-brand-100/50 blur-3xl" />
+      {/* soft green blobs in the bottom corners (mockup); kept clear of the bottom edge and masked out
+          toward it, so the section clip never shows as a hard band against Technology below */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 mask-b-from-60% mask-b-to-100%">
+        <div className="absolute bottom-6 -left-48 size-[420px] rounded-full bg-brand-100/60 blur-3xl" />
+        <div className="absolute -right-48 bottom-6 size-[460px] rounded-full bg-brand-100/50 blur-3xl" />
       </div>
 
       <div className="container-page relative flex flex-col gap-8">

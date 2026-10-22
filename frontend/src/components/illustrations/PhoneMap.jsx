@@ -12,13 +12,13 @@
  *   pin-3   alert pin, red
  *   pin-4   start pin, green (small)
  *           Each pin's tip is the bottom-center of its own box → drop / bounce with
- *           `transformOrigin: '50% 100%'` (CSS: transform-box fill-box + origin set inline).
+ *           `transformOrigin: '50% 100%'` (GSAP resolves the % origin against the pin's own bbox;
+ *           no CSS transform-box is set — do not add one, it would shift GSAP's pivot).
  *
  * viewBox 0 0 200 380.
  */
 import { useId } from 'react'
 
-const PIN_STYLE = { transformBox: 'fill-box', transformOrigin: '50% 100%' }
 const PIN_D = 'M0 0 C-2.6 -5.6 -10 -9.4 -10 -16 A10 10 0 1 1 10 -16 C10 -9.4 2.6 -5.6 0 0 Z'
 
 // [part, x, y, scale, gradient]
@@ -122,7 +122,7 @@ export default function PhoneMap({ className, title, ...props }) {
         {PINS.map(([part, x, y, s, grad]) => (
           <g key={part} transform={`translate(${x} ${y})`}>
             <ellipse cx="0" cy="0" rx={6 * s} ry={2.2 * s} fill="#0D2232" opacity="0.18" />
-            <g data-part={part} style={PIN_STYLE}>
+            <g data-part={part}>
               <g transform={`scale(${s})`}>
                 <path d={PIN_D} fill={url(grad)} stroke="#fff" strokeWidth="1.6" />
                 <circle cx="0" cy="-16" r="4" fill="#fff" />

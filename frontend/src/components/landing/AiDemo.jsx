@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { DEMO } from '@/content/landing'
 import { cn } from '@/lib/utils'
 import { gsap, ScrollTrigger, useGSAP } from '@/lib/motion/gsap'
-import { DUR, EASE, MQ, clampStart } from '@/lib/motion/presets'
+import { DUR, EASE, MQ, revealTrigger } from '@/lib/motion/presets'
 import SectionHeading from '@/components/landing/SectionHeading'
 import ScenarioCard from '@/components/landing/demo/ScenarioCard'
 import { createIdle } from '@/components/landing/demo/driverMotion'
@@ -49,7 +49,7 @@ export default function AiDemo() {
           duration: DUR.base,
           ease: EASE.out,
           stagger: 0.1,
-          scrollTrigger: { trigger: list, start: clampStart(), once: true },
+          scrollTrigger: revealTrigger(list),
         })
 
         // Idle loops, one per card (paused until the section is in view).

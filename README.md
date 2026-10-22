@@ -69,4 +69,4 @@ npm run dev
 * **[`ai-scanning/`](./ai-scanning/README.md)**: Xử lý Computer Vision (MediaPipe Face Mesh), đo chỉ số nhắm mắt EAR, ngáp MAR, quay đầu xao nhãng.
 * **[`backend/`](./backend/README.md)**: Server Express + Socket.io, lưu trữ 4 bảng dữ liệu (`Users`, `DrivingSessions`, `TelemetryLogs`, `ChatLogs`).
 * **[`ai-chatbot/`](./ai-chatbot/README.md)**: Trợ lý an toàn AI kết nối dữ liệu chuyến đi, hỗ trợ Function Calling.
-* **[`frontend/`](./frontend/README.md)**: Giao diện React/Vite cho User & Admin (Thiết kế hiện đại, thuần chữ & badge, tuyệt đối không dùng icon).
+* **[`frontend/`](./frontend/README.md)**: Giao diện React/Vite (Tailwind v4 + shadcn/ui, GSAP) cho landing, User & Admin.

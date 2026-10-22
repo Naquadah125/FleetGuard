@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { gsap, SplitText, useGSAP } from '@/lib/motion/gsap'
-import { DUR, EASE, MQ, clampStart } from '@/lib/motion/presets'
+import { DUR, EASE, MQ, revealTrigger } from '@/lib/motion/presets'
 
 /**
  * Section title block: h2 (heading-section, navy) + optional 48×3 brand underline + optional subtitle.
@@ -35,7 +35,7 @@ export default function SectionHeading({
 
       const mm = gsap.matchMedia()
       mm.add({ desktop: MQ.desktop, mobile: MQ.mobile }, () => {
-        const scrollTrigger = () => ({ trigger: root, start: clampStart(), once: true })
+        const scrollTrigger = () => revealTrigger(root)
 
         // autoSplit re-splits after the web font loads / on resize; returning the tween lets
         // SplitText revert and time-sync it on each re-split.

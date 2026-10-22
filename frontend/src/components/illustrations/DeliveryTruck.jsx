@@ -6,7 +6,8 @@
  *   body        cargo box + chassis (everything behind the cab)
  *   cab         driver cab incl. windows, headlight, bumper, mirror
  *   wheel-front front wheel; its geometry is centered on its own box, so
- *               `rotation` with `transformOrigin: '50% 50%'` spins in place (CSS: transform-box fill-box set inline)
+ *               `rotation` with `transformOrigin: '50% 50%'` spins in place. No CSS transform-box/origin is set:
+ *               GSAP resolves the % origin against the part's own bbox (do not add transformBox)
  *   wheel-rear  rear wheel (same as above)
  *   shadow      ground shadow ellipse (scaleX / opacity for bounce)
  *
@@ -14,8 +15,6 @@
  * viewBox 0 0 320 180 — scale freely via className (e.g. `w-64 h-auto`).
  */
 import { useId } from 'react'
-
-const WHEEL_STYLE = { transformBox: 'fill-box', transformOrigin: 'center' }
 
 function spokes(r0, r1, count = 5) {
   return Array.from({ length: count }, (_, i) => {
@@ -34,7 +33,7 @@ function spokes(r0, r1, count = 5) {
 function Wheel({ part, cx, cy, url }) {
   return (
     <g transform={`translate(${cx} ${cy})`}>
-      <g data-part={part} style={WHEEL_STYLE}>
+      <g data-part={part}>
         <circle r="19" fill={url('tire')} />
         <circle r="15.6" fill="none" stroke="#0B1219" strokeWidth="1" opacity="0.7" />
         <circle r="11.5" fill={url('rim')} />

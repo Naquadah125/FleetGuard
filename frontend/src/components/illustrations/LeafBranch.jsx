@@ -6,15 +6,14 @@
  *   stem          the curved branch stroke (DrawSVG-friendly single path)
  *   leaf-1 … leaf-10
  *                 leaves from bottom → top; each leaf's base is the bottom-center of its own box,
- *                 so `transformOrigin: '50% 100%'` pivots it on the branch (CSS: transform-box
- *                 fill-box + origin set inline). leaf-10 is the tip bud.
+ *                 so `transformOrigin: '50% 100%'` pivots it on the branch (GSAP resolves the % origin
+ *                 against the leaf's own bbox; no CSS transform-box is set). leaf-10 is the tip bud.
  *   (root <svg>)  sway the whole branch with `transformOrigin: '80% 100%'` (the base).
  *
  * viewBox 40 -14 240 334 (branch base at 200,318).
  */
 import { useId } from 'react'
 
-const LEAF_STYLE = { transformBox: 'fill-box', transformOrigin: '50% 100%' }
 
 // Two cubic segments of the branch: base (200,318) → (140,120) → tip (104,30)
 const SEGS = [
@@ -63,7 +62,7 @@ function Leaf({ n, x, y, rot, len, w, url }) {
   ])
   return (
     <g transform={`translate(${x} ${y}) rotate(${rot})`}>
-      <g data-part={`leaf-${n}`} style={LEAF_STYLE}>
+      <g data-part={`leaf-${n}`}>
         <path d={left} fill={url('leafLit')} />
         <path d={right} fill={url('leafShade')} />
         <path d={`M0 -2 L0 ${-l * 0.9}`} stroke="#E3FAEC" strokeOpacity="0.55" strokeWidth="1.2" strokeLinecap="round" />

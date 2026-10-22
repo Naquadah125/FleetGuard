@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { gsap, useGSAP } from '@/lib/motion/gsap'
-import { DUR, EASE, MQ, REVEAL_START, clampStart } from '@/lib/motion/presets'
+import { DUR, EASE, MQ, REVEAL_START, revealTrigger } from '@/lib/motion/presets'
 
 /**
  * Scroll reveal wrapper: direct children carrying `data-reveal` fade + rise in (staggered)
@@ -35,7 +35,7 @@ export default function Reveal({
           duration: DUR.base,
           ease: EASE.out,
           stagger,
-          scrollTrigger: { trigger: root, start: clampStart(start), once: true },
+          scrollTrigger: revealTrigger(root, start),
         })
       })
       return () => mm.revert()

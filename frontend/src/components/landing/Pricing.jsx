@@ -11,9 +11,6 @@ import { PRICING } from '@/content/landing'
 import { Flip, gsap, ScrollTrigger, useGSAP } from '@/lib/motion/gsap'
 import { EASE, MQ } from '@/lib/motion/presets'
 
-// Accessible name for the billing toggle (not in landing.js yet — see task-9 report).
-const TOGGLE_LABEL = 'Chu kỳ thanh toán'
-
 // Wheel radius as a fraction of each illustration's viewBox width (SedanCar r18/300, DeliveryTruck r19/320):
 // lets the scrub roll the wheels exactly as far as the car travels.
 const SEDAN_WHEEL = 18 / 300
@@ -25,18 +22,6 @@ const DASH_PERIOD = 48 // RoadBand dash rhythm (26 + 22)
 function rollDeg(svg, ratio, distance) {
   const radius = svg.getBoundingClientRect().width * ratio
   return radius > 0 ? (distance / radius) * (180 / Math.PI) : 0
-}
-
-/**
- * The illustrations set `transform-box: fill-box` inline on their wheels, but GSAP writes SVG
- * transforms into the `transform` attribute with the origin baked in (user space) and sets CSS
- * `transform-origin: 0 0` — with fill-box that 0 0 becomes the wheel's top-left corner, so the
- * wheel orbits instead of spinning. Restore the SVG default (view-box) while animating; reverted
- * with the context.
- */
-function viewBoxOrigin(els) {
-  gsap.set(els, { transformBox: 'view-box' })
-  return els
 }
 
 /** Runs a paused looping animation only while `trigger` is on screen. */
@@ -111,8 +96,8 @@ export default function Pricing() {
         const truck = decor.querySelector('[data-vehicle="truck"]')
         const sedanSvg = sedan.querySelector('svg')
         const truckSvg = truck.querySelector('svg')
-        const sedanWheels = viewBoxOrigin(sedan.querySelectorAll('[data-part^="wheel-"]'))
-        const truckWheels = viewBoxOrigin(truck.querySelectorAll('[data-part^="wheel-"]'))
+        const sedanWheels = sedan.querySelectorAll('[data-part^="wheel-"]')
+        const truckWheels = truck.querySelectorAll('[data-part^="wheel-"]')
 
         // Both SVGs are mirrored (-scale-x-100), so on-screen clockwise = negative local rotation.
         // Sedan rolls right (−120 → 0): screen CW → local starts positive. Truck rolls left: the opposite.
@@ -150,7 +135,7 @@ export default function Pricing() {
         // Static vehicles, wheels spinning "forward" for the way each one faces on screen
         // (sedan faces left → local CW; truck faces right → local CCW, both mirrored).
         const spin = (selector, dir) =>
-          gsap.to(viewBoxOrigin(decor.querySelectorAll(`[data-vehicle="${selector}"] [data-part^="wheel-"]`)), {
+          gsap.to(decor.querySelectorAll(`[data-vehicle="${selector}"] [data-part^="wheel-"]`), {
             rotation: 360 * dir,
             transformOrigin: '50% 50%',
             duration: 1.1,
@@ -174,7 +159,7 @@ export default function Pricing() {
     <section
       ref={ref}
       id="pricing"
-      className="relative overflow-hidden bg-linear-to-b from-white via-white to-surface/70 pt-16 pb-12 lg:pt-24 lg:pb-24"
+      className="relative overflow-hidden bg-linear-to-b from-brand-50/40 via-white to-surface/70 pt-16 pb-12 lg:pt-24 lg:pb-24"
     >
       <div className="container-page flex flex-col items-center gap-8">
         <SectionHeading title={PRICING.title} />
@@ -185,7 +170,7 @@ export default function Pricing() {
             type="single"
             value={billing}
             onValueChange={onBillingChange}
-            aria-label={TOGGLE_LABEL}
+            aria-label={PRICING.toggleLabel}
             spacing={1}
             className="isolate rounded-full bg-surface p-1 sm:p-0"
           >

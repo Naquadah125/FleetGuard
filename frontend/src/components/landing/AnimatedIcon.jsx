@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { gsap, useGSAP } from '@/lib/motion/gsap'
 import { ICON_MOTIONS, drawIconIn } from '@/lib/motion/iconMotion'
-import { MQ, clampStart } from '@/lib/motion/presets'
+import { MQ, revealTrigger } from '@/lib/motion/presets'
 
 // Static class map so Tailwind can see every class (no string-built class names).
 const TONES = {
@@ -48,7 +48,7 @@ export default function AnimatedIcon({
 
       const mm = gsap.matchMedia()
       mm.add({ desktop: MQ.desktop, mobile: MQ.mobile }, () => {
-        drawIconIn(svg, gsap, { scrollTrigger: { trigger: root, start: clampStart(), once: true } })
+        drawIconIn(svg, gsap, { scrollTrigger: revealTrigger(root) })
 
         const make = motion ? ICON_MOTIONS[motion] : null
         if (!make) return undefined
@@ -65,7 +65,7 @@ export default function AnimatedIcon({
       })
       return () => mm.revert()
     },
-    { scope: ref, dependencies: [motion], revertOnUpdate: true },
+    { scope: ref, dependencies: [motion, Icon], revertOnUpdate: true },
   )
 
   return (

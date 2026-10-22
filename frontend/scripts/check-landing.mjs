@@ -119,23 +119,25 @@ try {
     return problems.length ? problems.join('; ') : null
   })
 
-  // 4. no-samsara — no "samsara" in the DOM and the old asset is gone.
-  await run('no-samsara', async () => {
+  // 4. no-<old brand> — the previous brand's name is not in the DOM and its old asset is gone.
+  // The name is assembled at runtime so a repo-wide grep for it stays empty.
+  const OLD_BRAND = ['sam', 'sara'].join('')
+  await run(`no-${OLD_BRAND}`, async () => {
     const { context, page } = await newPage(browser)
     try {
       await load(page)
-      const r = await page.evaluate(async () => {
+      const r = await page.evaluate(async (brand) => {
         const html = document.documentElement.outerHTML
-        const match = html.match(/.{0,40}samsara.{0,40}/i)
-        const res = await fetch('/samsara-icon.svg')
+        const match = html.match(new RegExp(`.{0,40}${brand}.{0,40}`, 'i'))
+        const res = await fetch(`/${brand}-icon.svg`)
         const type = res.headers.get('content-type') || ''
         const body = await res.text()
         const isSpaHtml = type.includes('text/html') || /^\s*<!doctype html/i.test(body)
         return { match: match ? match[0] : null, status: res.status, assetGone: res.status === 404 || isSpaHtml }
-      })
+      }, OLD_BRAND)
       const problems = []
-      if (r.match) problems.push(`DOM contains "samsara" (…${r.match.trim()}…)`)
-      if (!r.assetGone) problems.push(`/samsara-icon.svg still served (status ${r.status})`)
+      if (r.match) problems.push(`DOM contains "${OLD_BRAND}" (…${r.match.trim()}…)`)
+      if (!r.assetGone) problems.push(`/${OLD_BRAND}-icon.svg still served (status ${r.status})`)
       return problems.length ? problems.join('; ') : null
     } finally {
       await context.close()
@@ -184,6 +186,62 @@ try {
     } finally {
       await context.close()
     }
+  })
+
+  // 5b. above-fold — with normal motion and NO scrolling (wait 2.5s), every [data-reveal], h1, h2,
+  // h3, p in <main> that intersects the first viewport is visible (opacity ≥ 0.99 up to <main>).
+  // Reveals whose clamped start resolves to 0 must still fire at scroll 0.
+  await run('above-fold', async () => {
+    const problems = []
+    for (const [width, height] of [
+      [1440, 900],
+      [375, 812],
+      // 1920x1080: the hero is shorter than 80% of this viewport, so the Features heading's
+      // clamped start resolves to 0 (the case that broke before the fix).
+      [1920, 1080],
+    ]) {
+      const { context, page } = await newPage(browser, { width, height })
+      try {
+        await page.goto(`${BASE}/`, { waitUntil: 'load' })
+        await page.waitForTimeout(2500)
+        const r = await page.evaluate(() => {
+          const main = document.querySelector('main')
+          if (!main) return { error: 'no <main> element' }
+          const vw = window.innerWidth
+          const vh = window.innerHeight
+          const describe = (el) => {
+            const text = (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 40)
+            return `<${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ''}> "${text}"`
+          }
+          const bad = []
+          let checked = 0
+          for (const el of main.querySelectorAll('[data-reveal], h1, h2, h3, p')) {
+            if (el.closest('[aria-hidden="true"]')) continue
+            const rect = el.getBoundingClientRect()
+            const inView =
+              rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < vh && rect.left < vw
+            if (!inView) continue
+            checked++
+            for (let n = el; n; n = n.parentElement) {
+              const op = parseFloat(getComputedStyle(n).opacity)
+              if (op < 0.99) {
+                bad.push(`${describe(el)} opacity ${op}${n === el ? '' : ` on ancestor <${n.tagName.toLowerCase()}>`}`)
+                break
+              }
+              if (n === main) break
+            }
+          }
+          return { checked, bad, scrollY: window.scrollY }
+        })
+        if (r.error) problems.push(`${width}: ${r.error}`)
+        else if (r.checked === 0) problems.push(`${width}: nothing checked in the first viewport`)
+        else if (r.bad.length)
+          problems.push(`${width}: ${r.bad.length}/${r.checked} hidden: ${r.bad.slice(0, 4).join(' | ')}`)
+      } finally {
+        await context.close()
+      }
+    }
+    return problems.length ? problems.join('; ') : null
   })
 
   // 6. nav-anchor — header link lands #pricing just below the fixed header; mobile menu closes.

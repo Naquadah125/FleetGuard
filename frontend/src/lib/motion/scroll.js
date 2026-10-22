@@ -9,16 +9,20 @@ export const HEADER_OFFSET = 72
  * Uses ScrollSmoother when it is active, otherwise native window scrolling.
  * Honors prefers-reduced-motion (jumps instead of animating). Uses 'instant', not 'auto',
  * so the jump never inherits a CSS `scroll-behavior: smooth`.
+ *
+ * @param {string} id section element id
+ * @param {{ immediate?: boolean }} [options] `immediate` jumps without animating (e.g. hash on load)
  */
-export function scrollToSection(id) {
+export function scrollToSection(id, { immediate = false } = {}) {
   const reduce = typeof window !== 'undefined' && window.matchMedia(MQ.reduce).matches
+  const animate = !reduce && !immediate
   const smoother = ScrollSmoother.get()
   if (smoother) {
-    smoother.scrollTo(`#${id}`, !reduce, `top ${HEADER_OFFSET}px`)
+    smoother.scrollTo(`#${id}`, animate, `top ${HEADER_OFFSET}px`)
     return
   }
   const el = document.getElementById(id)
   // getBoundingClientRect + scrollY is robust to positioned ancestors (offsetTop is not).
   const top = el ? el.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET : 0
-  window.scrollTo({ top: Math.max(0, top), behavior: reduce ? 'instant' : 'smooth' })
+  window.scrollTo({ top: Math.max(0, top), behavior: animate ? 'smooth' : 'instant' })
 }

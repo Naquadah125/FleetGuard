@@ -5,7 +5,8 @@
 //
 // Writes <outDir>/<slug>-<width>.png. For each width prints `errors: [...]` (pageerror +
 // console.error) and `overflowX: <px>` (documentElement.scrollWidth − innerWidth, min 0).
-// --full     full-page screenshot (scrolls through the page first so scroll-triggered content runs)
+// --full     full-page screenshot (scrolls through the page first so scroll-triggered content runs;
+//            a ScrollSmoother, if any, is killed before the capture — see below)
 // --reduced  emulate prefers-reduced-motion: reduce
 // Exit code 1 if any width logged an error.
 import { mkdir } from 'node:fs/promises'
@@ -62,10 +63,25 @@ try {
     await page.waitForTimeout(600)
 
     if (full) {
+      // ScrollSmoother (desktop) lags behind native scroll by ~1s, so give each step longer.
+      const smooth = await page.evaluate(() => Boolean(window.__fg?.ScrollSmoother?.get()))
       for (let i = 1; i <= 10; i++) {
         await page.evaluate((f) => window.scrollTo(0, document.documentElement.scrollHeight * f), i / 10)
-        await page.waitForTimeout(150)
+        await page.waitForTimeout(smooth ? 450 : 150)
       }
+      // Let the last reveals / count-ups (StatsBar is near the page bottom) finish.
+      await page.waitForTimeout(1800)
+      // A full-page capture can't show a ScrollSmoother page (its wrapper is fixed to the
+      // viewport, so everything below the first screen would render blank). Kill the smoother
+      // (dev hook) so content flows natively; parallax layers return to their layout position.
+      await page.evaluate(() => {
+        const fg = window.__fg
+        const smoother = fg?.ScrollSmoother?.get()
+        if (smoother) {
+          smoother.kill()
+          fg.ScrollTrigger.refresh()
+        }
+      })
       await page.evaluate(() => window.scrollTo(0, 0))
       await page.waitForTimeout(500)
     }
