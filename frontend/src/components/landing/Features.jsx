@@ -1,38 +1,45 @@
 import { useRef } from 'react'
-import { Bell, ChartNoAxesCombined, Headset, Lock, MapPin, Plug } from 'lucide-react'
 import { FEATURES, FEATURES_HEADING } from '@/content/landing'
-import AnimatedIcon from '@/components/landing/AnimatedIcon'
+import { FEATURE_GLYPHS, FEATURE_GLYPH_TILES } from '@/components/illustrations/feature-glyphs'
 import Reveal from '@/components/landing/Reveal'
 import SectionHeading from '@/components/landing/SectionHeading'
-import SectionBackdrop from '@/components/landing/decor/SectionBackdrop'
-import Float3D from '@/components/landing/decor/Float3D'
-import { gsap, useGSAP } from '@/lib/motion/gsap'
+import { GLYPH_MOTIONS } from '@/components/landing/featureGlyphMotion'
+import { ScrollTrigger, gsap, useGSAP } from '@/lib/motion/gsap'
 import { deferSetup } from '@/lib/motion/defer'
 import { bindIdle } from '@/lib/motion/idle'
-import { MQ } from '@/lib/motion/presets'
+import { MQ, revealTrigger } from '@/lib/motion/presets'
 
-// Explicit name → component map (keeps lucide tree-shakable; no `import * as Icons`).
-const ICONS = { Bell, MapPin, ChartNoAxesCombined, Plug, Lock, Headset }
+/** Seconds between two idle glyph motions (one glyph at a time). */
+const IDLE_STEP = 1.6
+/** Rest after the last glyph before the cycle starts again. */
+const IDLE_REST = 2.4
 
-/** Seconds between two icon "glints" (one tile at a time, so at most one tween runs). */
-const GLINT_STEP = 1.4
+// Mockup-scale heading: 25px at 1440 (the shared heading-section stays 32px elsewhere) and a
+// 62px underline, ~42px below the cap line.
+const HEADING_CLASS =
+  'gap-3.5 [&_[data-heading-title]]:text-[22px] md:[&_[data-heading-title]]:text-[24px] lg:[&_[data-heading-title]]:text-[25px] [&_[data-heading-underline]]:w-[62px]'
+
+// Static near-white wash with a faint mint glow (design: no pattern, no floating badges). Mint at the
+// very top / bottom edge so it blends into the hero's and the AI demo's backdrops.
+const WASH = [
+  'radial-gradient(ellipse 42% 60% at 8% 22%, color-mix(in oklab, var(--color-brand-100) 18%, transparent), transparent 70%)',
+  'radial-gradient(ellipse 38% 55% at 92% 34%, color-mix(in oklab, var(--color-brand-100) 12%, transparent), transparent 70%)',
+  'linear-gradient(to bottom, var(--color-tint-mint) 0, #F5FAFD 32px, #FAFCFE 45%, #FFFFFF calc(100% - 56px), var(--color-tint-mint) 100%)',
+].join(', ')
 
 /**
- * "FleetGuard có thể giúp gì cho bạn?" — 6 feature rows (icon tile + title + description)
- * in a 3 / 2 / 1 column grid. Each row is a `data-icon-trigger`, so hovering anywhere on it
- * plays its icon motion; the row lifts onto a white card on hover.
- * The list bleeds out by the card padding (-mx), so icons align with the page's left edge.
+ * "FleetGuard có thể giúp gì cho bạn?" — 6 feature rows (glyph tile + title + description) in a
+ * 3 / 2 / 1 column grid, sized to the design mockup at 1440: 80px pastel tiles with filled colored
+ * glyphs (FEATURE_GLYPHS, 0.55 × tile = 44px), 16px bold titles, 14px descriptions. The row lifts onto a white
+ * card on hover. The list bleeds out by the card padding (-mx), so the tiles align with the page's
+ * left edge.
  *
- * Atmosphere: SectionBackdrop variant "mint" (tinted gradient, dot pattern, drifting blobs with
- * parallax); Float3D clay badges (chart, lock, headset) in the side gutters at different depths:
- * phones one small chart beside the heading; md chart; lg+ chart + lock beside the heading; xl+ also
- * the headset in the left gutter beside the grid (the right edge is the fixed contact CTA's).
- *
- * Idle accent (subtle): the icon tiles "glint" one after another — a small lift + scale on the
- * tile, never on the icon strokes (AnimatedIcon's hover motion owns those). Built after first
- * paint (deferSetup), one timeline `gsap.getById('features-idle')` bound with bindIdle to the
- * list: plays only while the list is on screen and the shared motion pause is off; nothing moves
- * under reduced motion.
+ * Motion (none under reduced motion; set up after first paint with deferSetup):
+ * - reveal: the rows rise in (Reveal) and each glyph pops in with a little overshoot;
+ * - hover / focus on a row: its glyph plays its micro-motion (GLYPH_MOTIONS: the bell rings, the
+ *   pin hops, the bars regrow, the plug wiggles in, the lock clicks, the headset pulses);
+ * - idle: one glyph at a time plays the same micro-motion — a metronome timeline
+ *   `gsap.getById('features-idle')` bound with bindIdle to the list (in view only, MotionPause).
  */
 export default function Features() {
   const rootRef = useRef(null)
@@ -42,18 +49,53 @@ export default function Features() {
       let unbind = () => {}
       const cancel = deferSetup(
         contextSafe(() => {
-          const root = rootRef.current
-          const list = root?.querySelector('[data-features-list]')
+          const list = rootRef.current?.querySelector('[data-features-list]')
           if (!list) return
           const mm = gsap.matchMedia()
           mm.add({ desktop: MQ.desktop, mobile: MQ.mobile }, () => {
-            const tiles = gsap.utils.toArray('[data-feature-tile]', list)
-            const idle = gsap.timeline({ id: 'features-idle', repeat: -1, repeatDelay: 1.6 })
-            tiles.forEach((tile, i) => {
-              idle.to(tile, { y: -5, scale: 1.06, duration: 0.45, ease: 'sine.out', yoyo: true, repeat: 1 }, i * GLINT_STEP)
+            const items = gsap.utils.toArray('[data-feature]', list)
+            const wraps = items.map((li) => li.querySelector('[data-feature-glyph]'))
+            const micro = items.map((li, i) => {
+              const svg = wraps[i]?.querySelector('svg')
+              const make = GLYPH_MOTIONS[li.dataset.feature]
+              return svg && make ? make(svg, gsap) : null
             })
+            const play = (i) => {
+              const tl = micro[i]
+              if (tl && !tl.isActive()) tl.restart()
+            }
+
+            // Glyph pop-in, a beat after the row's own rise (skipped when already on screen).
+            if (!ScrollTrigger.isInViewport(list)) {
+              gsap.from(wraps.filter(Boolean), {
+                scale: 0.3,
+                rotation: -16,
+                opacity: 0,
+                duration: 0.7,
+                ease: 'back.out(2.2)',
+                stagger: 0.08,
+                delay: 0.18,
+                scrollTrigger: revealTrigger(list),
+              })
+            }
+
+            const offs = items.map((li, i) => {
+              const onEnter = () => play(i)
+              li.addEventListener('pointerenter', onEnter)
+              li.addEventListener('focusin', onEnter)
+              return () => {
+                li.removeEventListener('pointerenter', onEnter)
+                li.removeEventListener('focusin', onEnter)
+              }
+            })
+
+            const idle = gsap.timeline({ id: 'features-idle', repeat: -1 })
+            items.forEach((_li, i) => idle.call(play, [i], 0.4 + i * IDLE_STEP))
+            idle.to({}, { duration: IDLE_REST }, 0.4 + items.length * IDLE_STEP)
             unbind = bindIdle(idle, list)
+
             return () => {
+              offs.forEach((off) => off())
               unbind()
               unbind = () => {}
             }
@@ -73,44 +115,41 @@ export default function Features() {
       id="features"
       ref={rootRef}
       aria-labelledby="features-title"
-      className="relative isolate overflow-hidden pt-10 pb-16 md:pt-12 md:pb-20 lg:pt-14 lg:pb-20"
+      className="relative isolate overflow-hidden pt-10 pb-12 md:pt-12 md:pb-12 lg:pt-9 lg:pb-9"
     >
-      <SectionBackdrop variant="mint" />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10" style={{ background: WASH }} />
 
       <div className="relative container-page">
-        <SectionHeading id="features-title" title={FEATURES_HEADING} underline />
-
-        {/* Side-gutter accents beside the (centred) heading, and next to the grid on wide screens.
-            Phones: one small chart left of the heading. Right-side badges only from lg and ≥ 100px
-            from the viewport edge (the fixed contact CTA owns the right edge). */}
-        <Float3D badge="chart" mobile size={56} phase={0.15} className="top-0 -left-1 max-[359px]:hidden" />
-        <Float3D badge="chart" size={84} depth={1.15} phase={0.15} className="top-[-14px] left-0 lg:left-[4%] xl:left-[6%]" />
-        <Float3D badge="lock" from="lg" size={72} depth={0.9} phase={0.55} className="top-[2px] right-[10%] xl:right-[8%]" />
-        <Float3D badge="headset" from="xl" size={80} depth={1.12} phase={0.85} className="top-[56%] -left-24 2xl:-left-28" />
+        <SectionHeading id="features-title" title={FEATURES_HEADING} underline className={HEADING_CLASS} />
 
         <Reveal
           as="ul"
           y={24}
           stagger={0.08}
           data-features-list
-          className="-mx-4 mt-10 grid grid-cols-1 gap-2 md:-mx-5 md:grid-cols-2 md:gap-4 lg:-mx-6 lg:mt-12 lg:grid-cols-3 lg:gap-x-6 lg:gap-y-6"
+          className="-mx-4 mt-6 grid grid-cols-1 gap-1 md:-mx-5 md:mt-5 md:grid-cols-2 md:gap-x-4 md:gap-y-2 lg:-mx-6 lg:mt-4 lg:grid-cols-3 lg:gap-x-0 lg:gap-y-4"
         >
           {FEATURES.map((f) => {
-            const Icon = ICONS[f.icon]
+            const Glyph = FEATURE_GLYPHS[f.icon]
             return (
               // GSAP's reveal writes inline `translate: none` on the <li>, so the CSS hover lift
               // (Tailwind's `translate` property) lives on an inner card element instead.
-              <li key={f.title} data-reveal data-icon-trigger className="flex">
+              <li key={f.title} data-reveal data-feature={f.icon} className="flex">
                 <div className="flex w-full items-start gap-5 rounded-lg bg-transparent p-4 transition-[translate,background-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:bg-white hover:shadow-card-hover motion-reduce:transition-none motion-reduce:hover:translate-y-0 md:p-5 lg:p-6">
-                  {Icon ? (
-                    // The idle glint transforms this wrapper, never AnimatedIcon's own tile.
-                    <span data-feature-tile className="inline-flex shrink-0">
-                      <AnimatedIcon icon={Icon} motion={f.motion} tone={f.tone} container="2xl" size={32} strokeWidth={1.75} className="max-md:size-16 max-md:rounded-lg" />
-                    </span>
-                  ) : null}
-                  <div className="flex min-w-0 flex-col gap-2">
-                    <h3 className="text-h4 text-navy">{f.title}</h3>
-                    <p className="text-body text-ink">{f.desc}</p>
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex size-16 shrink-0 items-center justify-center rounded-[14px] md:size-20 md:rounded-[18px]"
+                    style={{ backgroundColor: FEATURE_GLYPH_TILES[f.icon] }}
+                  >
+                    {Glyph ? (
+                      <span data-feature-glyph className="inline-flex">
+                        <Glyph className="size-[35px] md:size-11" />
+                      </span>
+                    ) : null}
+                  </span>
+                  <div className="-mt-1 flex min-w-0 max-w-[224px] flex-col gap-2">
+                    <h3 className="text-[16px] leading-6 font-bold text-navy">{f.title}</h3>
+                    <p className="text-[14px] leading-[22.5px] text-ink/85">{f.desc}</p>
                   </div>
                 </div>
               </li>

@@ -1,85 +1,65 @@
 import { useRef, useState } from 'react'
-import { Badge } from '@/components/ui/badge'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import DeliveryTruck from '@/components/illustrations/DeliveryTruck'
+import BoxTruck3Q from '@/components/illustrations/BoxTruck3Q'
 import RoadBand from '@/components/illustrations/RoadBand'
-import SedanCar from '@/components/illustrations/SedanCar'
+import SedanCar3Q from '@/components/illustrations/SedanCar3Q'
 import Reveal from '@/components/landing/Reveal'
 import SectionHeading from '@/components/landing/SectionHeading'
 import SectionBackdrop from '@/components/landing/decor/SectionBackdrop'
-import Float3D from '@/components/landing/decor/Float3D'
 import PricingCard from '@/components/landing/pricing/PricingCard'
+import PricingRoad, { DASH_PERIOD } from '@/components/landing/pricing/PricingRoad'
 import { PRICING, pricingAnnouncement } from '@/content/landing'
 import { deferSetup } from '@/lib/motion/defer'
 import { Flip, gsap, useGSAP } from '@/lib/motion/gsap'
 import { bindIdle } from '@/lib/motion/idle'
 import { EASE, MQ } from '@/lib/motion/presets'
 
-// Wheel radius as a fraction of each illustration's viewBox width (SedanCar r18/300, DeliveryTruck r19/320):
-// lets the scrub roll the wheels exactly as far as the car travels.
-const SEDAN_WHEEL = 18 / 300
-const TRUCK_WHEEL = 19 / 320
-const TRAVEL = 120
-const DASH_PERIOD = 48 // RoadBand dash rhythm (26 + 22)
-const IDLE_LOOP = 1.8 // s — one wheel turn per loop
-
-/** Degrees a wheel turns while its vehicle travels `distance` px on screen. */
-function rollDeg(svg, ratio, distance) {
-  const radius = svg.getBoundingClientRect().width * ratio
-  return radius > 0 ? (distance / radius) * (180 / Math.PI) : 0
-}
-
-/**
- * Wheel rotation = entrance roll offset (desktop scrub) + idle spin, written with one quickSetter
- * per vehicle so the scrub and the idle loop never tween the same property.
- * Wheel geometry is centred on each part's local origin → svgOrigin '0 0' (no bbox read).
- */
-function createWheels(decor) {
-  const sedanWheels = decor.querySelectorAll('[data-vehicle="sedan"] [data-part^="wheel-"]')
-  const truckWheels = decor.querySelectorAll('[data-vehicle="truck"] [data-part^="wheel-"]')
-  gsap.set([...sedanWheels, ...truckWheels], { rotation: 0, svgOrigin: '0 0' })
-  const setSedan = gsap.quickSetter(sedanWheels, 'rotation', 'deg')
-  const setTruck = gsap.quickSetter(truckWheels, 'rotation', 'deg')
-  const roll = { sedan: 0, truck: 0 }
-  const spin = { deg: 0 }
-  const apply = () => {
-    // Each vehicle drives "forward" for the way it faces on screen: the sedan faces left (local CW,
-    // both SVGs are mirrored), the truck faces right (local CCW).
-    setSedan(roll.sedan + spin.deg)
-    setTruck(roll.truck - spin.deg)
-  }
-  return { roll, spin, apply }
-}
+const ROAD_BAND_DASH = 48 // RoadBand (mobile road) dash rhythm: 26 + 22
+const IDLE_LOOP = 2.4 // s — one idle cycle: 2 bobs, 1 glint pulse, 1 dash period
 
 /**
  * Continuous idle while the road is on screen (bindIdle: paused off screen, under MotionPause and
- * reduced motion): wheels spin, both bodies bob on their suspension (out of phase), road dashes
- * flow. One 1.8s loop: 1 wheel turn, 2 bobs, 2 dash periods (≈53px/s). 4 tweens.
+ * reduced motion): both bodies bob on their suspension out of phase (shadows breathe against the
+ * bob), headlight / windshield glints pulse, the lane dashes flow. The 3Q wheels are edge-on, so
+ * they never spin (SedanCar3Q / BoxTruck3Q contract). 5 tweens.
  */
-function roadIdle(decor, wheels) {
-  const part = (vehicle, name) => decor.querySelectorAll(`[data-vehicle="${vehicle}"] [data-part="${name}"]`)
-  const bob = { y: -2, duration: IDLE_LOOP / 4, ease: 'sine.inOut', yoyo: true, repeat: 3 }
-  return gsap
-    .timeline({ repeat: -1, paused: true })
-    .fromTo(wheels.spin, { deg: 0 }, { deg: 360, duration: IDLE_LOOP, ease: 'none', onUpdate: wheels.apply }, 0)
-    .to(part('sedan', 'body'), bob, 0)
-    .to([...part('truck', 'body'), ...part('truck', 'cab')], { ...bob, y: -1.6 }, IDLE_LOOP / 8)
+function roadIdle(decor, dashPeriod) {
+  const part = (vehicle, name) => decor.querySelector(`[data-vehicle="${vehicle}"] [data-part="${name}"]`)
+  const bob = { y: -1.5, duration: IDLE_LOOP / 4, ease: 'sine.inOut', yoyo: true, repeat: 3 }
+  const tl = gsap.timeline({ repeat: -1, paused: true })
+  tl.to([part('sedan', 'body'), part('sedan', 'glint')], bob, 0)
+    .to([part('truck', 'body'), part('truck', 'glint')], { ...bob, y: -1.2 }, IDLE_LOOP / 8)
+    .fromTo(
+      [part('sedan', 'shadow'), part('truck', 'shadow')],
+      { scaleX: 1 },
+      { scaleX: 0.96, duration: IDLE_LOOP / 4, ease: 'sine.inOut', yoyo: true, repeat: 3, transformOrigin: '50% 50%' },
+      0,
+    )
+    .fromTo(
+      [part('sedan', 'glint'), part('truck', 'glint')],
+      { opacity: 0.4 },
+      { opacity: 1, duration: IDLE_LOOP / 2, ease: 'sine.inOut', yoyo: true, repeat: 1, stagger: 0.3 },
+      0,
+    )
     .fromTo(
       decor.querySelector('[data-part="dashes"]'),
       { strokeDashoffset: 0 },
-      { strokeDashoffset: -2 * DASH_PERIOD, duration: IDLE_LOOP, ease: 'none', autoRound: false },
+      { strokeDashoffset: -dashPeriod, duration: IDLE_LOOP, ease: 'none', autoRound: false },
       0,
     )
+  return tl
 }
 
 /**
- * Pricing (#pricing): heading, billing toggle (monthly/yearly) and two plan cards over a road band
- * with a sedan (left) and a delivery truck (right).
- * Motion — desktop: vehicles scrub in from ±120px as the cards enter, wheels roll by the distance
- * travelled. Then, on every size, a continuous idle runs while the road is on screen (bindIdle —
- * paused off screen, under the shared motion pause and under reduced motion): wheels spin, bodies
- * bob, road dashes flow. Mobile: road + vehicles sit small below the cards (idle only). Toggle thumb
- * moves with Flip; prices tween; one polite live region announces both new prices.
+ * Pricing (#pricing) — design mockup layout: compact heading, white billing pill (savings badge
+ * inside it), two plan cards (824px grid at lg) over a wide light-grey curved road, with a white
+ * sedan (front three-quarter) on the road at left and a green box truck at right, its cargo box
+ * tucked behind the right card.
+ * Motion — desktop: the vehicles scrub out from behind the cards as the band enters (sedan down-
+ * left, truck down-right). Then, on every size, a continuous idle runs while the road is on screen
+ * (bindIdle — paused off screen, under the shared motion pause and under reduced motion): bodies
+ * bob, glints pulse, lane dashes flow. Mobile/tablet: a small road + vehicles below the cards.
+ * Toggle thumb moves with Flip; prices tween; one polite live region announces both new prices.
  * The road/vehicle setup is deferred (deferSetup) — the section is far below the fold.
  * Reduced motion: everything static and in its final place.
  */
@@ -126,46 +106,25 @@ export default function Pricing() {
         mm.add(MQ.desktop, () => {
           const band = root.querySelector('[data-pricing-band]')
           const decor = root.querySelector('[data-road="desktop"]')
-          const sedan = decor.querySelector('[data-vehicle="sedan"]')
-          const truck = decor.querySelector('[data-vehicle="truck"]')
-          const sedanSvg = sedan.querySelector('svg')
-          const truckSvg = truck.querySelector('svg')
-          const wheels = createWheels(decor)
-
-          // Entrance: vehicles scrub in from the gutters; their wheels roll by the distance travelled
-          // (the roll is an offset added to the idle spin, so both can run without fighting).
-          // Both SVGs are mirrored (-scale-x-100), so on-screen clockwise = negative local rotation.
-          // Sedan rolls right (−120 → 0): screen CW → local starts positive. Truck rolls left: the opposite.
+          // Entrance: both vehicles drive out from behind the cards, along their own lane.
           gsap
             .timeline({
               defaults: { ease: 'none' },
               scrollTrigger: {
                 trigger: band,
                 start: 'top bottom',
-                end: 'top 30%',
+                end: 'top 35%',
                 scrub: 0.8,
-                invalidateOnRefresh: true,
               },
             })
-            .fromTo(sedan, { x: -TRAVEL }, { x: 0 }, 0)
-            .fromTo(truck, { x: TRAVEL }, { x: 0 }, 0)
-            .fromTo(
-              wheels.roll,
-              {
-                sedan: () => rollDeg(sedanSvg, SEDAN_WHEEL, TRAVEL),
-                truck: () => -rollDeg(truckSvg, TRUCK_WHEEL, TRAVEL),
-              },
-              { sedan: 0, truck: 0, onUpdate: wheels.apply },
-              0,
-            )
-          wheels.apply() // the scrub's first render does not fire onUpdate
-
-          return bindIdle(roadIdle(decor, wheels), decor)
+            .fromTo(decor.querySelector('[data-vehicle="sedan"]'), { x: 72, y: -12 }, { x: 0, y: 0 }, 0)
+            .fromTo(decor.querySelector('[data-vehicle="truck"]'), { x: -64, y: -8 }, { x: 0, y: 0 }, 0)
+          return bindIdle(roadIdle(decor, DASH_PERIOD), decor)
         })
 
         mm.add(MQ.mobile, () => {
           const decor = root.querySelector('[data-road="mobile"]')
-          return bindIdle(roadIdle(decor, createWheels(decor)), decor)
+          return bindIdle(roadIdle(decor, ROAD_BAND_DASH), decor)
         })
       })
       const cancel = deferSetup(build)
@@ -183,25 +142,40 @@ export default function Pricing() {
       ref={ref}
       id="pricing"
       aria-labelledby="pricing-title"
-      // isolate: keeps the backdrop's -z-10 layer inside the section. Tight top padding: AiDemo above
-      // ends on the same tint (seam tint-sky), so the heading follows the cards without a pale band.
-      className="relative isolate overflow-hidden pt-10 pb-12 lg:pt-12 lg:pb-20"
+      // isolate: keeps the backdrop's -z-10 layer inside the section. Near-white like the mockup:
+      // the pricing tint gradient only (seams kept), no pattern, two faint blobs.
+      className="relative isolate overflow-hidden pt-10 pb-10 lg:pt-12 lg:pb-14"
     >
-      <SectionBackdrop variant="pricing" />
-      <div className="container-page flex flex-col items-center gap-8">
-        <SectionHeading id="pricing-title" title={PRICING.title} />
+      <SectionBackdrop variant="pricing" pattern="none" blobs={2} />
+      {/* Mockup: a cool near-white field. Veils the tint (blobs show through faintly) and fades
+          out at both edges so the seams with AI Demo / Comparison keep their shared colours. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(to_bottom,transparent,rgb(246_250_253/0.88)_160px,rgb(246_250_253/0.88)_calc(100%-140px),transparent)]"
+      />
+      <div className="container-page flex flex-col items-center gap-4">
+        {/* Mockup heading size (25px at desktop) without touching the shared heading-section utility. */}
+        <SectionHeading
+          id="pricing-title"
+          title={PRICING.title}
+          className="[&_[data-heading-title]]:text-[22px] sm:[&_[data-heading-title]]:text-[24px] lg:[&_[data-heading-title]]:text-[25px]"
+        />
 
-        {/* Billing toggle: on ≥sm the badge sits inside the pill, on phones it wraps below.
-            Revealed (like the heading above it) so it never shows before its heading. */}
+        {/* Billing pill: on ≥sm the savings badge sits inside the white pill, on phones it wraps
+            below. Revealed (like the heading above it) so it never shows before its heading. */}
         <Reveal y={12}>
-          <div data-reveal className="relative flex flex-col items-center gap-2.5 sm:flex-row sm:gap-1 sm:rounded-full sm:bg-surface sm:p-1 sm:pr-3">
+          <div
+            data-reveal
+            data-billing-pill
+            className="flex flex-col items-center gap-2 sm:flex-row sm:gap-0 sm:rounded-full sm:bg-white sm:p-[3px] sm:shadow-[0_4px_18px_-4px_rgb(13_34_50/0.1)] sm:ring-1 sm:ring-line/50"
+          >
             <ToggleGroup
               type="single"
               value={billing}
               onValueChange={onBillingChange}
               aria-label={PRICING.toggleLabel}
               spacing={1}
-              className="isolate rounded-full bg-surface p-1 sm:p-0"
+              className="isolate rounded-full bg-white p-[3px] shadow-[0_4px_18px_-4px_rgb(13_34_50/0.1)] ring-1 ring-line/50 sm:p-0 sm:shadow-none sm:ring-0"
             >
               {[
                 ['monthly', PRICING.monthlyLabel],
@@ -210,23 +184,23 @@ export default function Pricing() {
                 <ToggleGroupItem
                   key={value}
                   value={value}
-                  className="relative h-11 rounded-full px-5 text-body font-semibold focus:z-auto focus-visible:z-auto text-ink transition-colors duration-300 hover:bg-transparent hover:text-navy data-[state=on]:bg-transparent data-[state=on]:text-white data-[state=on]:hover:text-white"
+                  className="relative h-[30px] rounded-full px-5 text-[13px] font-semibold text-navy transition-colors duration-300 focus:z-auto focus-visible:z-auto hover:bg-transparent hover:text-brand-dark pointer-coarse:min-h-11 sm:px-9 data-[state=on]:bg-transparent data-[state=on]:text-white data-[state=on]:hover:text-white"
                 >
                   {billing === value ? (
                     <span
                       aria-hidden="true"
                       data-billing-thumb
                       data-flip-id="billing-thumb"
-                      className="absolute inset-0 -z-10 rounded-full bg-primary shadow-sm"
+                      className="absolute inset-0 -z-10 rounded-full bg-primary shadow-[0_4px_10px_-3px_rgb(8_118_94/0.5)]"
                     />
                   ) : null}
                   {label}
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
-            <Badge variant="success">{PRICING.yearlyBadge}</Badge>
-            {/* Phones (pill wrapped below the toggle): a small shield left of the savings pill. */}
-            <Float3D badge="shield" mobile size={56} phase={0.3} className="-bottom-6 left-1 sm:hidden" />
+            <span className="inline-flex h-6 items-center rounded-full bg-brand-50 px-3 text-body-sm font-semibold text-brand-dark sm:ml-1 sm:shadow-[0_2px_8px_-2px_rgb(14_155_120/0.25)]">
+              {PRICING.yearlyBadge}
+            </span>
           </div>
         </Reveal>
         <p className="sr-only" aria-live="polite" aria-atomic="true">
@@ -234,38 +208,29 @@ export default function Pricing() {
         </p>
       </div>
 
-      <div data-pricing-band className="relative mt-10 lg:mt-12">
-        {/* Desktop decor: road across the lower half of the cards, vehicles in the gutters. */}
+      <div data-pricing-band className="relative mt-6">
+        {/* Desktop decor (behind the cards): a 1920px road frame centred on the 824px card grid,
+            its top 180px below the cards' top (PricingRoad geometry). Vehicles are placed in the
+            same frame: the sedan just left of the left card, the truck's cab right of the right
+            card with its cargo box behind it. */}
         <div
           aria-hidden="true"
           data-road="desktop"
-          className="pointer-events-none absolute inset-x-0 -bottom-14 hidden h-[270px] lg:block"
+          className="pointer-events-none absolute top-[180px] left-1/2 hidden h-[210px] w-[1920px] -translate-x-1/2 lg:block"
         >
-          <RoadBand className="absolute inset-0 size-full" />
-          <div
-            data-vehicle="sedan"
-            className="absolute right-[calc(50%+404px)] bottom-[33%] xl:right-[calc(50%+452px)] w-[clamp(132px,12vw,184px)]"
-          >
-            <SedanCar className="h-auto w-full -scale-x-100" />
+          <PricingRoad className="absolute inset-0" />
+          <div data-vehicle="sedan" className="absolute top-[52px] left-[403px] w-[127px]">
+            <SedanCar3Q className="h-auto w-full" />
           </div>
-          <div
-            data-vehicle="truck"
-            className="absolute bottom-[20%] left-[calc(50%+396px)] w-[clamp(160px,15vw,224px)]"
-          >
-            <DeliveryTruck className="h-auto w-full -scale-x-100" />
+          <div data-vehicle="truck" className="absolute top-[48px] left-[1322px] w-[189px]">
+            <BoxTruck3Q className="h-auto w-full" />
           </div>
         </div>
 
         <div className="container-page relative">
-          {/* Clay 3D shield (no truck badge: the real DeliveryTruck drives the road right here).
-              Tablet (single column, 104px gutters): in the LEFT gutter beside the second card — the
-              right edge belongs to the contact CTA. lg: none (gutters too narrow). xl+: upper right
-              gutter, ≥ 84px from the viewport edge. Phones: a small one beside the savings pill. */}
-          <Float3D badge="shield" until="lg" size={72} phase={0.75} className="bottom-48 right-[calc(50%+296px)]" />
-          <Float3D badge="shield" from="xl" size={96} depth={0.9} phase={0.75} className="top-6 left-[calc(50%+460px)]" />
-          <Reveal className="mx-auto grid max-w-[560px] items-stretch gap-6 lg:max-w-[880px] lg:grid-cols-2 lg:gap-10">
+          <Reveal className="mx-auto grid max-w-[540px] gap-6 lg:max-w-[824px] lg:grid-cols-2 lg:items-start lg:gap-8">
             {PRICING.plans.map((plan) => (
-              <div key={plan.id} data-reveal className="h-full">
+              <div key={plan.id} data-reveal>
                 <PricingCard plan={plan} billing={billing} unit={PRICING.unit} popularBadge={PRICING.popularBadge} />
               </div>
             ))}
@@ -273,14 +238,14 @@ export default function Pricing() {
         </div>
       </div>
 
-      {/* Mobile / tablet decor: smaller road + vehicles below the cards. */}
+      {/* Mobile / tablet decor: a small road with the two vehicles below the cards. */}
       <div aria-hidden="true" data-road="mobile" className="pointer-events-none relative mt-2 h-32 sm:h-40 lg:hidden">
         <RoadBand className="absolute inset-x-0 bottom-0 h-20 w-full sm:h-24" />
-        <div data-vehicle="sedan" className="absolute bottom-9 left-[6%] w-28 sm:bottom-11 sm:left-[12%] sm:w-36">
-          <SedanCar className="h-auto w-full -scale-x-100" />
+        <div data-vehicle="sedan" className="absolute bottom-7 left-[8%] w-24 sm:bottom-9 sm:left-[14%] sm:w-32">
+          <SedanCar3Q className="h-auto w-full" />
         </div>
-        <div data-vehicle="truck" className="absolute right-[5%] bottom-2 w-32 sm:right-[12%] sm:w-40">
-          <DeliveryTruck className="h-auto w-full -scale-x-100" />
+        <div data-vehicle="truck" className="absolute right-[6%] bottom-3 w-32 sm:right-[14%] sm:w-44">
+          <BoxTruck3Q className="h-auto w-full" />
         </div>
       </div>
     </section>

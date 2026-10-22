@@ -9,7 +9,9 @@ export const HEADER_OFFSET = 72
  * the next Tab continues from there instead of from the link that was activated. Sections are
  * not focusable by default: they get `tabindex="-1"` (programmatic focus only, no Tab stop; its
  * focus outline is suppressed in index.css). `preventScroll` keeps the browser from jumping
- * ahead of the (smooth) scroll that is already running.
+ * ahead of the (smooth) scroll that is already running; ScrollSmoother's own focus-into-view
+ * handler is skipped for these `tabindex="-1"` targets (SmoothScroll.jsx `onFocusIn`), otherwise it
+ * would re-centre the still-lagging section and override HEADER_OFFSET.
  */
 function focusSection(el) {
   if (!el) return

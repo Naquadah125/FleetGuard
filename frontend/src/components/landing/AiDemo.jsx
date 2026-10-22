@@ -5,29 +5,36 @@ import { deferSetup } from '@/lib/motion/defer'
 import { gsap, ScrollTrigger, useGSAP } from '@/lib/motion/gsap'
 import { DUR, EASE, MQ, revealTrigger } from '@/lib/motion/presets'
 import SectionHeading from '@/components/landing/SectionHeading'
-import SectionBackdrop from '@/components/landing/decor/SectionBackdrop'
-import Float3D from '@/components/landing/decor/Float3D'
 import ScenarioCard from '@/components/landing/demo/ScenarioCard'
 import { createIdle } from '@/components/landing/demo/driverMotion'
 import MotionPauseButton from './MotionPauseButton'
 import { isMotionPaused, onMotionPauseChange } from './motionPause'
 
+/** Section wash: near-white mint like the mockup; ends match the Features / Pricing seams. */
+const WASH = [
+  'radial-gradient(ellipse 60% 55% at 50% 0%, color-mix(in oklab, var(--color-brand-100) 35%, transparent), transparent 70%)',
+  'linear-gradient(to bottom, var(--color-tint-mint), var(--color-tint-50) 38%, var(--color-tint-50) 72%, var(--color-tint-sky))',
+].join(',')
+
 /**
  * "AI giám sát như thế nào?" — 4 driver scenario cards shown side by side (horizontal
- * scroll-snap carousel on phones).
+ * scroll-snap carousel on phones). Matches the design mockup (Phase 7): plain white cards, no
+ * floating badges, no pattern, compact heading (26 px at md+).
  *
  * Motion (desktop + mobile matchMedia branches, nothing under reduced motion):
  *  - cards reveal with a stagger on enter;
  *  - every card runs its own idle loop (driverMotion.createIdle), only while the section is in view;
- *  - an "active" highlight auto-cycles through the cards every DEMO.cycleSeconds. The timer IS the
- *    active card's progress-bar tween (onComplete → next card), so it lives in the GSAP context and
- *    dies with it (StrictMode double mount / unmount safe — no setInterval);
+ *  - an "active" highlight — only a subtle lift + deeper shadow, no border / bar / marker —
+ *    auto-cycles through the cards every DEMO.cycleSeconds. The timer is a paused dummy tween
+ *    (onComplete → next card) in the GSAP context, so it dies with it (StrictMode double mount /
+ *    unmount safe — no setInterval);
  *  - hover / focus-within a card makes it active and pauses the cycle; leaving resumes it;
- *  - the shared motion pause (button under the heading, WCAG 2.2.2) stops the cycle and the idle
- *    loops until resumed; keyboard focus on a phone-carousel card scrolls it to the centre.
+ *  - the shared motion pause (small round icon button right-aligned under the cards, WCAG 2.2.2)
+ *    stops the cycle and the idle loops until resumed; keyboard focus on a phone-carousel card
+ *    scrolls it to the centre.
  * Setup is deferred (deferSetup) — the section starts below the fold.
- * React state only mirrors the active index (aria-current + CSS lift / border / shadow); the
- * timelines are built once and never recreated on index changes.
+ * React state only mirrors the active index (aria-current + CSS lift / shadow); the timelines are
+ * built once and never recreated on index changes.
  * Reduced motion: no cycle, no idle, first card statically active.
  */
 export default function AiDemo() {
@@ -66,50 +73,29 @@ export default function AiDemo() {
             createIdle(card.querySelector('[data-part="root"]'), scenarios[i].state, gsap),
           )
 
-          // Badge pop-in per card (played forward on activate, reversed fast on deactivate).
-          const pops = cards.map((card) =>
-            gsap.fromTo(
-              card.querySelector('[data-demo-badge]'),
-              { autoAlpha: 0, scale: 0.4 },
-              { autoAlpha: 1, scale: 1, duration: 0.5, ease: EASE.spring, paused: true },
-            ),
-          )
-
-          // Progress bar per card = the cycle timer.
-          const bars = cards.map((card, i) =>
-            gsap.fromTo(
-              card.querySelector('[data-demo-progress]'),
-              { scaleX: 0 },
-              {
-                scaleX: 1,
-                duration: DEMO.cycleSeconds,
-                ease: 'none',
-                paused: true,
-                onComplete: () => activate((i + 1) % n),
-              },
-            ),
-          )
+          // Cycle timer: a dummy tween whose onComplete moves the highlight on.
+          const timer = gsap.to({}, {
+            duration: DEMO.cycleSeconds,
+            paused: true,
+            onComplete: () => activate((current + 1) % n),
+          })
 
           const sync = () => {
             const live = inView && !isMotionPaused()
-            bars[current].paused(!(live && hovered === null && focused === null))
+            timer.paused(!(live && hovered === null && focused === null))
             idles.forEach((tl) => tl.paused(!live))
           }
           const offPause = onMotionPauseChange(sync)
 
           function activate(i) {
             if (i !== current) {
-              pops[current].timeScale(2.5).reverse()
-              bars[current].pause(0)
               current = i
               setActive(i)
-              pops[i].timeScale(1).play()
-              bars[i].pause(0)
+              timer.pause(0)
             }
             sync()
           }
 
-          pops[0].progress(1)
           setActive(0)
 
           // Only animate while the section is on screen.
@@ -185,40 +171,44 @@ export default function AiDemo() {
       ref={sectionRef}
       id="demo"
       aria-labelledby="demo-title"
-      // isolate: keeps the backdrop's -z-10 layer inside the section. Bottom padding is tight on
+      // isolate: keeps the wash's -z-10 layer inside the section. Bottom padding is tight on
       // purpose — Pricing follows on a matching tint (seam tint-sky), no pale empty band between them.
-      className="relative isolate overflow-hidden pt-16 pb-10 md:pt-20 md:pb-12"
+      className="relative isolate overflow-hidden pt-16 pb-8 md:pt-20 md:pb-10"
     >
-      <SectionBackdrop variant="demo" />
+      <div aria-hidden="true" data-backdrop="demo" className="pointer-events-none absolute inset-0 -z-10" style={{ background: WASH }} />
 
       <div className="relative container-page">
-        {/* Clay 3D accents flanking the heading (parallax depth on desktop, idle float in view).
-            Phones: one small steering wheel left of the pause button. md: camera only (left). lg+:
-            camera + steering, the steering ≥ 100px from the viewport edge (contact CTA). */}
-        <Float3D badge="camera" size={76} depth={1.15} phase={0.15} className="top-0 left-4 lg:left-[4%] lg:size-[104px]! xl:left-[9%]" />
-        <Float3D badge="steering" from="lg" size={96} depth={0.88} phase={0.6} className="top-14 right-[10%]" />
-        <SectionHeading id="demo-title" title={DEMO.title} subtitle={DEMO.subtitle} />
-        <div className="relative mt-6 flex justify-center">
-          <Float3D badge="steering" mobile size={56} phase={0.6} className="top-1/2 left-1 -mt-8 max-[359px]:hidden" />
-          <MotionPauseButton />
-        </div>
+        <SectionHeading
+          id="demo-title"
+          title={DEMO.title}
+          subtitle={DEMO.subtitle}
+          // Mockup scale (1440): 26 px heading, 16 px subtitle with a hair of tracking, 8 px apart.
+          // Local override — the shared heading-section utility stays as is.
+          className="gap-2 md:[&_[data-heading-title]]:text-[26px] [&_[data-heading-subtitle]]:tracking-[0.015em]"
+        />
 
         <ul
           role="list"
           data-demo-list
           className={cn(
             // phones: horizontal scroll-snap carousel, edge to edge, scrollbar hidden
-            '-mx-4 mt-4 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-4 px-4 pt-4 pb-6',
+            '-mx-4 mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-4 px-4 pt-3 pb-5',
             '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-            // tablet 2 cols, desktop 4 cols
-            'md:mx-0 md:mt-8 md:grid md:grid-cols-2 md:gap-6 md:overflow-visible md:px-0 md:pb-2',
-            'lg:grid-cols-4 lg:gap-5 xl:gap-6',
+            // tablet 2 cols, desktop 4 cols; xl: the mockup's 1200 px row (267 px cards, 44 px gaps)
+            'md:mx-0 md:mt-8 md:grid md:grid-cols-2 md:gap-6 md:overflow-visible md:px-0 md:pt-2 md:pb-0',
+            'lg:grid-cols-4 lg:gap-6 xl:-mx-8 xl:mt-6 xl:gap-11',
           )}
         >
           {scenarios.map((s, i) => (
             <ScenarioCard key={s.state} scenario={s} index={i} active={active === i} />
           ))}
         </ul>
+
+        {/* WCAG 2.2.2 pause for the auto-cycle + idle loops: a small, discreet icon button tucked
+            under the row's right edge so it doesn't read as part of the design (44 px hit area). */}
+        <div className="mt-1 flex justify-end md:mt-3 xl:-mr-8">
+          <MotionPauseButton variant="icon" className="border-[#DCEFEA] bg-white/80" />
+        </div>
       </div>
     </section>
   )

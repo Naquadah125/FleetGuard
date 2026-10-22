@@ -6,6 +6,9 @@ import { HEADER_OFFSET, scrollToSection } from '@/lib/motion/scroll'
 /** Keep focused controls this far below the fixed header (matches `scroll-padding-top`). */
 const FOCUS_MARGIN = 16
 
+/** Programmatic-only focus targets (`tabindex="-1"`, e.g. sections focused by scrollToSection). */
+const isProgrammaticFocusTarget = (el) => el?.getAttribute?.('tabindex') === '-1'
+
 /**
  * Page-level smooth scroll + parallax. Renders `#smooth-wrapper > #smooth-content`; on desktop
  * (MQ.desktop: ≥1024px, no reduced motion) it creates a ScrollSmoother with `effects: true`, so
@@ -50,6 +53,11 @@ export default function SmoothScroll({ children, ready = true }) {
             effects: true,
             smoothTouch: false,
             normalizeScroll: false,
+            // ScrollSmoother's own focusin handler re-scrolls any focused element it judges off
+            // screen to 'center center'. A section focused by scrollToSection is mid-scroll (the
+            // content still lags behind scrollTop), so that would override the header offset.
+            // Returning false skips it for those programmatic targets only.
+            onFocusIn: (_self, event) => (isProgrammaticFocusTarget(event.target) ? false : undefined),
           })
         })
 
@@ -58,7 +66,7 @@ export default function SmoothScroll({ children, ready = true }) {
           const el = event.target
           // Programmatic focus targets (sections focused by scrollToSection) are already being
           // scrolled into place; only correct real keyboard focus.
-          if (!(el instanceof Element) || el.getAttribute('tabindex') === '-1') return
+          if (!(el instanceof Element) || isProgrammaticFocusTarget(el)) return
           // Logical (not mid-smoothing) viewport position: the content lags behind scrollTop.
           const top = smoother.offset(el, 'top top') - smoother.scrollTop()
           const bottom = top + el.getBoundingClientRect().height
