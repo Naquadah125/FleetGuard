@@ -17,13 +17,16 @@ import {
 import { cn } from '@/lib/utils'
 import { DASHBOARD, formatStat } from '@/content/landing'
 import { FleetGuardMark } from '@/components/brand/FleetGuardLogo'
+import MotionPauseButton from '@/components/landing/MotionPauseButton'
 import FleetMap from './FleetMap'
 
 /**
  * FleetDashboard — the hero's code-built product mock (no image).
  * Card: icon rail · header · 4 KPI tiles · FleetMap · recent-alerts list, plus the floating
- * "distance today" card with a sparkline. Purely presentational: every animation lives in
- * Hero.jsx and reaches the DOM through these hooks:
+ * "distance today" card with a sparkline. Presentational (its only control is the shared
+ * MotionPauseButton in the header); the KPI/map/alerts block and the distance card are each exposed
+ * as role="img" with a text summary. Every animation lives in Hero.jsx and reaches the DOM through
+ * these hooks:
  *
  *   [data-dash-speed] / [data-distance-speed]  parallax wrappers (data-speed, ScrollSmoother)
  *   [data-dash-tilt]   pointer-tilt layer      [data-dash]  intro rise/scale layer (the card)
@@ -38,11 +41,11 @@ import FleetMap from './FleetMap'
  * (flushSync) so the caller can wrap it in Flip.getState()/Flip.from().
  */
 
-// Status text colors darkened from the token so small text keeps >= 4.5:1 on white/pastel.
+// Status text colors: the darkened `*-text` tokens (index.css) keep small text >= 4.5:1.
 const VALUE_TONE = {
-  info: 'text-[color:color-mix(in_oklab,var(--color-info),black_18%)]',
-  success: 'text-[color:color-mix(in_oklab,var(--color-success),black_34%)]',
-  danger: 'text-[color:color-mix(in_oklab,var(--color-danger),black_14%)]',
+  info: 'text-info-text',
+  success: 'text-success-text',
+  danger: 'text-danger-text',
   navy: 'text-navy',
 }
 const TILE_TONE = {
@@ -52,12 +55,12 @@ const TILE_TONE = {
   navy: 'bg-surface/80',
 }
 const CHIP_TONE = {
-  danger: 'bg-danger/12 text-[color:color-mix(in_oklab,var(--color-danger),black_10%)]',
-  warning: 'bg-warning/15 text-[color:color-mix(in_oklab,var(--color-warning),black_22%)]',
+  danger: 'bg-danger/12 text-danger-text',
+  warning: 'bg-warning/15 text-warning-text',
 }
-const ALERT_ICON = { 'Ngủ gật': Moon, 'Mất tập trung': Smartphone, 'Mệt mỏi': Coffee }
-const SUCCESS_TEXT = 'text-[color:color-mix(in_oklab,var(--color-success),black_38%)]'
-const LINK_TEXT = 'text-[color:color-mix(in_oklab,var(--color-info),black_22%)]'
+const ALERT_ICON = { drowsy: Moon, distracted: Smartphone, fatigued: Coffee }
+const SUCCESS_TEXT = 'text-success-text'
+const LINK_TEXT = 'text-info-text'
 
 const RAIL = [LayoutDashboard, Truck, MapPinned, ChartColumn]
 
@@ -105,15 +108,17 @@ function Header() {
   return (
     <div className="flex items-center justify-between gap-3">
       <p className="truncate text-[15px] leading-6 font-bold text-navy">{DASHBOARD.title}</p>
-      <div aria-hidden="true" className="flex shrink-0 items-center gap-1.5">
-        <span className="grid size-7 place-items-center rounded-full border border-line text-ink">
+      <div className="flex shrink-0 items-center gap-1.5">
+        {/* The one real control in the mock: pauses the live ticker / map (WCAG 2.2.2). */}
+        <MotionPauseButton variant="icon" />
+        <span aria-hidden="true" className="grid size-7 place-items-center rounded-full border border-line text-ink">
           <Search className="size-3.5" />
         </span>
-        <span className="relative grid size-7 place-items-center rounded-full border border-brand-100 bg-brand-50 text-brand-dark">
+        <span aria-hidden="true" className="relative grid size-7 place-items-center rounded-full border border-brand-100 bg-brand-50 text-brand-dark">
           <Bell className="size-3.5" />
           <span className="absolute top-1 right-1 size-1.5 rounded-full bg-danger ring-2 ring-brand-50" />
         </span>
-        <span className="grid size-7 place-items-center rounded-full border border-line text-ink">
+        <span aria-hidden="true" className="grid size-7 place-items-center rounded-full border border-line text-ink">
           <Settings className="size-3.5" />
         </span>
       </div>
@@ -152,7 +157,7 @@ const MapPanel = memo(function MapPanel() {
 })
 
 function AlertItem({ alert }) {
-  const Icon = ALERT_ICON[alert.type] ?? TriangleAlert
+  const Icon = ALERT_ICON[alert.kind] ?? TriangleAlert
   return (
     <li data-alert className="flex items-center gap-2.5 rounded-md bg-surface/70 px-2.5 py-2">
       <span
@@ -171,7 +176,8 @@ function AlertItem({ alert }) {
   )
 }
 
-// Proportionally scaled (no preserveAspectRatio="none"): DrawSVG needs a measurable length.
+// Proportionally scaled (no preserveAspectRatio="none"). The line has pathLength=1 so the Hero
+// draws it with a plain strokeDashoffset tween (no DrawSVG length measurement).
 function Sparkline({ series, className }) {
   const W = 180
   const H = 64
@@ -193,6 +199,7 @@ function Sparkline({ series, className }) {
         <path data-spark-area d={area} fill={`url(#${gid})`} />
         <path
           data-spark-line
+          pathLength="1"
           d={line}
           stroke="var(--color-brand)"
           strokeWidth="2"
@@ -215,6 +222,8 @@ function DistanceCard() {
     // Inline (< lg): text left, chart right. Floating (lg+): stacked, chart under the numbers.
     <div
       data-distance-card
+      role="img"
+      aria-label={DASHBOARD.distanceMockLabel}
       className="relative flex items-end gap-4 rounded-lg bg-white p-4 shadow-dashboard ring-1 ring-line/70 lg:block"
     >
       <Plus aria-hidden="true" className="absolute top-4 right-4 hidden size-4 text-ink-subtle lg:block" />
@@ -288,19 +297,23 @@ export default function FleetDashboard({ ref, className }) {
             <Rail />
             <div className="min-w-0 flex-1 p-4 md:p-5">
               <Header />
-              <KpiGrid />
-              <div className="mt-3 grid gap-3 md:mt-4 md:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)] lg:grid-cols-2 xl:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)]">
-                <MapPanel />
-                <div data-alerts className="flex min-w-0 flex-col rounded-lg bg-white ring-1 ring-line">
-                  <p className="px-3.5 pt-3 text-body font-bold text-navy">{DASHBOARD.alertsTitle}</p>
-                  <ul data-alert-list className="flex flex-col gap-2 p-2.5">
-                    {feed.map((a) => (
-                      <AlertItem key={a.id} alert={a} />
-                    ))}
-                  </ul>
-                  <p className={cn('mt-auto border-t border-line py-2.5 text-center text-body-sm font-semibold', LINK_TEXT)}>
-                    {DASHBOARD.viewAll}
-                  </p>
+              {/* Exposed as one image with a summary: the KPI / map / alert text is decorative mock
+                  data (and the alert list changes every few seconds). */}
+              <div role="img" aria-label={DASHBOARD.mockLabel}>
+                <KpiGrid />
+                <div className="mt-3 grid gap-3 md:mt-4 md:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)] lg:grid-cols-2 xl:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)]">
+                  <MapPanel />
+                  <div data-alerts className="flex min-w-0 flex-col rounded-lg bg-white ring-1 ring-line">
+                    <p className="px-3.5 pt-3 text-body font-bold text-navy">{DASHBOARD.alertsTitle}</p>
+                    <ul data-alert-list className="flex flex-col gap-2 p-2.5">
+                      {feed.map((a) => (
+                        <AlertItem key={a.id} alert={a} />
+                      ))}
+                    </ul>
+                    <p className={cn('mt-auto border-t border-line py-2.5 text-center text-body-sm font-semibold', LINK_TEXT)}>
+                      {DASHBOARD.viewAll}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

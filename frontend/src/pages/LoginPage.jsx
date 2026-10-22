@@ -47,14 +47,14 @@ export default function LoginPage() {
 
   return (
     <AuthShell
-      title="ĐĂNG NHẬP HỆ THỐNG"
+      title="Đăng nhập hệ thống"
       subtitle="Nền tảng giám sát an toàn tài xế AI thời gian thực"
       footer={
         <>
           <span>Chưa có tài khoản?</span>
           <Link
             to="/register"
-            className="rounded-sm font-semibold text-brand-dark underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+            className="inline-flex min-h-11 items-center rounded-sm font-semibold text-brand-dark underline-offset-4 outline-none hover:underline focus-ring"
           >
             Đăng ký trải nghiệm
           </Link>
@@ -66,7 +66,7 @@ export default function LoginPage() {
         <div className="flex flex-col gap-3 rounded-md border border-dashed border-brand/40 bg-brand-50/60 p-3.5">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-body-sm font-semibold text-brand-dark">
             <Key className="size-3.5" aria-hidden="true" />
-            <span>Tài Khoản Kiểm Thử Nhanh</span>
+            <span>Tài khoản kiểm thử nhanh</span>
             <Badge variant="neutral" className="bg-white font-medium text-ink ring-1 ring-line">
               Mật khẩu: fleet1234
             </Badge>
@@ -78,7 +78,7 @@ export default function LoginPage() {
               className={QUICK_BTN_CLASS}
               onClick={() => handleQuickFill('user@fleet.vn')}
             >
-              <span className="font-semibold">Tài Xế</span>{' '}
+              <span className="font-semibold">Tài xế</span>{' '}
               <span className="font-medium text-ink">(user@fleet.vn)</span>
             </Button>
             <Button
@@ -87,7 +87,7 @@ export default function LoginPage() {
               className={QUICK_BTN_CLASS}
               onClick={() => handleQuickFill('admin@fleet.vn')}
             >
-              <span className="font-semibold">Quản Trị</span>{' '}
+              <span className="font-semibold">Quản trị</span>{' '}
               <span className="font-medium text-ink">(admin@fleet.vn)</span>
             </Button>
           </div>
@@ -112,6 +112,7 @@ export default function LoginPage() {
             icon={Mail}
             type="email"
             placeholder="name@fleet.vn"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -123,13 +124,14 @@ export default function LoginPage() {
             icon={Lock}
             type="password"
             placeholder="••••••••"
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
 
           <Button type="submit" size="lg" className="mt-2 w-full" loading={loading}>
-            <span>{loading ? 'Đang xác thực...' : 'Đăng Nhập'}</span>
+            <span>{loading ? 'Đang xác thực...' : 'Đăng nhập'}</span>
             <ArrowRight data-icon="inline-end" aria-hidden="true" />
           </Button>
         </form>

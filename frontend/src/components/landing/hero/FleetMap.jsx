@@ -3,12 +3,14 @@
  * Streets grid on `surface`, two parks, two translucent geofence circles, one route and 4 pins.
  * Static markup; the Hero animates it through these hooks:
  *
- *   [data-map-route]     the route stroke (DrawSVG-friendly single path)
+ *   [data-map-route]     the route stroke (single path, pathLength="1": draw it by tweening
+ *                        strokeDashoffset 1 → 0 over strokeDasharray 1, no length measurement)
  *   [data-map-vehicle]   small vehicle dot (MotionPath along the route); sits at the route start
- *   [data-map-fence]     the two geofence circles
+ *   [data-map-fence]     the two geofence circles (scale them with svgOrigin = their cx cy)
  *   [data-map-pin]       pin wrapper; inside it:
  *     [data-pin-body]    the pin itself (drop: animate y / opacity, origin = pin tip)
- *     [data-pin-ring]    ground ring under the tip (pulse: scale + opacity; rest opacity 0)
+ *     [data-pin-ring]    ground ring under the tip (pulse: scale + opacity; rest opacity 0);
+ *                        centered on the pin's local 0,0 → svgOrigin '0 0'
  *
  * viewBox 0 0 400 300, `preserveAspectRatio="xMidYMid slice"` so it fills any panel ratio.
  */
@@ -161,6 +163,7 @@ export default function FleetMap({ className }) {
       <path d={ROUTE_D} stroke="white" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
       <path
         data-map-route
+        pathLength="1"
         d={ROUTE_D}
         stroke="var(--color-info)"
         strokeWidth="4"

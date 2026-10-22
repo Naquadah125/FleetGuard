@@ -16,10 +16,11 @@ import { cn } from "@/lib/utils"
  * Sizes: sm h-9 · default h-10 · lg h-12 (+ icon sizes). Disabled = 50% opacity.
  * Touch: on coarse pointers sm/default/icon sizes grow to a 44×44px minimum (WCAG 2.5.5);
  * fine-pointer (desktop) sizes are unchanged. `link` stays text-sized.
+ * Focus: shared `focus-ring` utility (index.css) — opaque brand-dark outline, ≥3:1 on white/surface.
  * `loading` disables the button, sets aria-busy and shows a spinner before the children.
  */
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent bg-clip-padding text-sm font-semibold whitespace-nowrap transition-[color,background-color,border-color,box-shadow] duration-200 outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50 aria-busy:cursor-progress aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent bg-clip-padding text-sm font-semibold whitespace-nowrap transition-[color,background-color,border-color,box-shadow] duration-200 outline-none select-none focus-ring disabled:pointer-events-none disabled:opacity-50 aria-busy:cursor-progress aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

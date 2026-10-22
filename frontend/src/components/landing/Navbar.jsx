@@ -19,9 +19,6 @@ import { DUR, EASE, MQ } from '@/lib/motion/presets'
 import { scrollToSection } from '@/lib/motion/scroll'
 import { cn } from '@/lib/utils'
 
-/** Links that open a dropdown-style group in the mockup get a chevron. */
-const WITH_CHEVRON = new Set(['Tài nguyên'])
-
 /** Scroll distance (px) after which the bar turns solid. */
 const SOLID_AFTER = 24
 
@@ -35,10 +32,15 @@ const activeIndexFor = (id) => NAV_LINKS.findLastIndex((l) => l.id === id)
 
 /**
  * Landing navbar — fixed, 72px. Transparent over the hero, white/90 + blur + shadow once the
- * page scrolls past 24px (ScrollTrigger onToggle → `data-scrolled`, no React re-render).
- * Active link follows the section in the middle of the viewport (one ScrollTrigger per
- * section id); ids that are not in the DOM are skipped and bound later on ScrollTrigger refresh.
- * < 1024px: menu button opens a right-hand Sheet; picking a link closes it, then scrolls.
+ * page scrolls past 24px (`data-scrolled`, set directly — no React re-render).
+ * Active link follows the section whose top has passed the middle of the viewport (one
+ * measuring ScrollTrigger per section id); at the very bottom of the page the last section
+ * ("Liên hệ" → the short footer, whose top never reaches the middle) is active. Ids that are not
+ * in the DOM are skipped and bound later on ScrollTrigger refresh.
+ * Both states are derived from the scroll position (not from trigger activity), so they also
+ * hold at scroll === max, where ScrollTrigger reports an `end: 'max'` trigger as inactive.
+ * < 1024px: menu button opens a right-hand Sheet; picking a link closes it, then scrolls and
+ * moves focus to the section (Radix's return-focus-to-trigger is skipped in that case).
  */
 export default function Navbar() {
   const headerRef = useRef(null)
@@ -51,41 +53,54 @@ export default function Navbar() {
     (_ctx, contextSafe) => {
       const header = headerRef.current
 
-      // Solid background state. Not an animation (CSS transitions the colours, and
-      // motion-reduce disables that), so it runs for every media query.
-      ScrollTrigger.create({
-        start: SOLID_AFTER,
-        end: 'max',
-        onToggle: (self) => {
-          header.dataset.scrolled = String(self.isActive)
-        },
-      })
-
-      // Active link per section. Bound lazily: sections may mount after the navbar.
-      const bound = new Set()
+      // Section markers: their `start` is the scroll position where the section's top reaches
+      // the middle of the viewport (ScrollTrigger keeps it right with ScrollSmoother, fonts,
+      // resizes). Bound lazily: sections may mount after the navbar.
+      /** @type {{ id: string, st: ScrollTrigger }[]} */
+      const markers = []
       const bindSections = contextSafe(() => {
         for (const id of SECTION_IDS) {
-          if (bound.has(id)) continue
+          if (markers.some((m) => m.id === id)) continue
           const el = document.getElementById(id)
           if (!el) continue
-          bound.add(id)
-          ScrollTrigger.create({
-            trigger: el,
-            start: 'top 50%',
-            end: 'bottom 50%',
-            // Refresh after other triggers (pins etc.) so section positions are final.
-            refreshPriority: -1,
-            onToggle: (self) => {
-              if (self.isActive) setActiveId(id)
-            },
-          })
+          markers.push({ id, st: ScrollTrigger.create({ trigger: el, start: 'top 50%', end: 'bottom 50%' }) })
         }
       })
+
+      // Not an animation (CSS transitions the colours, motion-reduce disables that), so it runs
+      // for every media query.
+      // Layout-derived values are cached on ScrollTrigger refresh (which measures anyway), so a
+      // scroll only reads scrollY — no extra forced layout per frame.
+      let maxScroll = Infinity
+      let sorted = []
+      const measure = () => {
+        maxScroll = ScrollTrigger.maxScroll(window)
+        sorted = markers.filter((m) => m.st.trigger?.isConnected).sort((a, b) => a.st.start - b.st.start)
+      }
+      const sync = () => {
+        const y = window.scrollY
+        const scrolled = String(y > SOLID_AFTER)
+        if (header.dataset.scrolled !== scrolled) header.dataset.scrolled = scrolled
+        let id = null
+        if (sorted.length && y >= maxScroll - 1) id = sorted[sorted.length - 1].id
+        else for (const m of sorted) if (m.st.start <= y) id = m.id
+        setActiveId(id)
+      }
+
       bindSections()
+      // A plain scroll listener, not a ScrollTrigger onUpdate: jumps straight to max scroll
+      // (focusing a footer link through ScrollSmoother, End key, hash) skip trigger callbacks,
+      // which left the bar transparent over the footer. Scroll events are dispatched once per
+      // frame, before rAF/GSAP writes, so reading scrollY here is cheap.
+      window.addEventListener('scroll', sync, { passive: true })
       const onRefresh = () => {
-        if (bound.size < SECTION_IDS.length) bindSections()
+        if (markers.length < SECTION_IDS.length) bindSections()
+        measure()
+        sync()
       }
       ScrollTrigger.addEventListener('refresh', onRefresh)
+      measure()
+      sync()
 
       // Entrance. fromTo (not from): the buttons carry a CSS opacity transition, so after a
       // StrictMode revert `from()` would read a mid-transition opacity (~0) as its end value.
@@ -107,6 +122,7 @@ export default function Navbar() {
       })
 
       return () => {
+        window.removeEventListener('scroll', sync)
         ScrollTrigger.removeEventListener('refresh', onRefresh)
         mm.revert()
       }
@@ -136,10 +152,12 @@ export default function Navbar() {
     setMenuOpen(false)
   }
 
-  const onMenuCloseAutoFocus = () => {
+  const onMenuCloseAutoFocus = (event) => {
     const id = pendingScrollRef.current
     if (!id) return
     pendingScrollRef.current = null
+    // Focus goes to the target section (scrollToSection), not back to the menu button.
+    event.preventDefault()
     requestAnimationFrame(() => scrollToSection(id))
   }
 
@@ -153,11 +171,19 @@ export default function Navbar() {
         'data-[scrolled=true]:border-line/60 data-[scrolled=true]:bg-white/90 data-[scrolled=true]:shadow-card data-[scrolled=true]:backdrop-blur-md',
       )}
     >
+      {/* Skip link: first Tab stop, visible only while focused; jumps past the nav to <main>. */}
+      <a
+        href="#main"
+        onClick={goTo('main')}
+        className="sr-only rounded-md bg-white text-body font-semibold text-brand-dark shadow-card outline-none focus:not-sr-only focus:absolute focus:top-3 focus:left-4 focus:z-50 focus:inline-flex focus:min-h-11 focus:items-center focus:px-4 focus-ring"
+      >
+        {COPY.skipToContent}
+      </a>
       <div className="container-page flex h-full items-center justify-between gap-6">
         <a
           href="#top"
           onClick={goTo('top')}
-          className="-mx-1 flex min-h-11 items-center rounded-md px-1 outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+          className="-mx-1 flex min-h-11 items-center rounded-md px-1 outline-none focus-ring"
         >
           <FleetGuardLogo className="text-xl" />
         </a>
@@ -174,12 +200,13 @@ export default function Navbar() {
                     aria-current={active ? 'location' : undefined}
                     className={cn(
                       'group/link relative flex h-11 items-center gap-1 rounded-md px-3 text-body font-medium text-ink',
-                      'transition-colors duration-200 outline-none hover:text-brand-dark focus-visible:ring-3 focus-visible:ring-ring/40',
+                      'transition-colors duration-200 outline-none hover:text-brand-dark focus-ring',
                       active && 'text-brand-dark',
                     )}
                   >
                     {link.label}
-                    {WITH_CHEVRON.has(link.label) ? (
+                    {/* `menu` links are a dropdown-style group in the mockup: chevron. */}
+                    {link.menu ? (
                       <ChevronDown
                         aria-hidden="true"
                         className="size-4 transition-transform duration-200 group-hover/link:translate-y-0.5 motion-reduce:transition-none"
@@ -244,7 +271,7 @@ export default function Navbar() {
                         aria-current={active ? 'location' : undefined}
                         className={cn(
                           'flex h-12 items-center rounded-md px-4 text-body-lg font-medium text-navy',
-                          'transition-colors duration-200 outline-none hover:bg-surface focus-visible:ring-3 focus-visible:ring-ring/40',
+                          'transition-colors duration-200 outline-none hover:bg-surface focus-ring',
                           active && 'bg-brand-50 text-brand-dark',
                         )}
                       >

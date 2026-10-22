@@ -38,9 +38,27 @@ async function newPage(browser, { width = 1440, height = 900, reducedMotion } = 
   return { context, page, errors }
 }
 
+// Deferred motion setup (lib/motion/defer.js) runs after first paint, one section per idle
+// task; wait for that queue to drain (dev hook) so trigger counts and states are final.
+async function settle(page) {
+  await page
+    .waitForFunction(() => !window.__fg?.deferPending || window.__fg.deferPending() === 0, null, { timeout: 10000 })
+    .catch(() => {})
+}
+
 async function load(page, path = '/') {
   await page.goto(`${BASE}${path}`, { waitUntil: 'load' })
   await page.waitForTimeout(500)
+  await settle(page)
+}
+
+// Header state: solid background flag, active nav link, live ScrollTrigger count.
+async function headerState(page) {
+  return page.evaluate(() => ({
+    scrolled: document.querySelector('header')?.dataset.scrolled,
+    active: document.querySelector('header nav a[aria-current]')?.textContent.trim() ?? null,
+    triggers: window.__fg?.ScrollTrigger?.getAll().length ?? null,
+  }))
 }
 
 // Scroll to the bottom in 10 steps, 150ms apart.
@@ -257,6 +275,8 @@ try {
         const top = await pricingTop(page)
         if (top === null) problems.push('1440: #pricing not found')
         else if (top < 0 || top > 120) problems.push(`1440: #pricing top ${Math.round(top)}px (want 0–120)`)
+        const focused = await page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName)
+        if (focused !== 'pricing') problems.push(`1440: focus on ${focused} after nav, want #pricing`)
       } catch (err) {
         problems.push(`1440: ${String(err?.message || err).split('\n')[0]}`)
       } finally {
@@ -277,6 +297,8 @@ try {
         else if (top < 0 || top > 120) problems.push(`375: #pricing top ${Math.round(top)}px (want 0–120)`)
         const open = await dialog.count()
         if (open > 0) problems.push('375: menu dialog still open')
+        const focused = await page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName)
+        if (focused !== 'pricing') problems.push(`375: focus on ${focused} after menu nav, want #pricing`)
       } catch (err) {
         problems.push(`375: ${String(err?.message || err).split('\n')[0]}`)
       } finally {
@@ -285,6 +307,59 @@ try {
     }
 
     return problems.length ? problems.join('; ') : null
+  })
+
+  // 6b. nav-bottom — after a jump to max scroll the header is solid and the last nav item
+  // ("Liên hệ", the short footer) is active (a trigger with end:'max' reports inactive at max
+  // scroll, and a jump skips trigger callbacks).
+  await run('nav-bottom', async () => {
+    const problems = []
+    for (const width of [1440, 375]) {
+      const { context, page } = await newPage(browser, { width, height: width === 375 ? 812 : 900 })
+      try {
+        await load(page)
+        // One jump straight to the bottom (like End / focusing a footer link): no intermediate
+        // scroll positions for trigger callbacks to catch.
+        await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+        await page.waitForTimeout(800)
+        const s = await headerState(page)
+        if (s.scrolled !== 'true') problems.push(`${width}: header data-scrolled=${s.scrolled} at bottom`)
+        if (width === 1440 && s.active !== 'Liên hệ') problems.push(`${width}: active link "${s.active}" at bottom, want "Liên hệ"`)
+      } finally {
+        await context.close()
+      }
+    }
+    return problems.length ? problems.join('; ') : null
+  })
+
+  // 6c. breakpoint-roundtrip — 1440 → 800 → 1440 must not kill navbar triggers (ScrollSmoother
+  // creation used to nest other components' gsap contexts into its matchMedia context). After
+  // the round trip, scrolled down: header solid, a link active, trigger count back to the start.
+  await run('breakpoint-roundtrip', async () => {
+    const { context, page } = await newPage(browser, { width: 1440, height: 900 })
+    try {
+      await load(page)
+      const before = await headerState(page)
+      if (before.triggers === null) return 'window.__fg.ScrollTrigger not exposed'
+      await page.setViewportSize({ width: 800, height: 900 })
+      await page.waitForTimeout(800)
+      await settle(page)
+      await page.setViewportSize({ width: 1440, height: 900 })
+      await page.waitForTimeout(800)
+      await settle(page)
+      // Count before scrolling: one-shot reveal triggers (`once`) are killed as they fire.
+      const { triggers } = await headerState(page)
+      await page.evaluate(() => window.scrollTo(0, 2000))
+      await page.waitForTimeout(1500)
+      const after = await headerState(page)
+      const problems = []
+      if (after.scrolled !== 'true') problems.push(`data-scrolled=${after.scrolled} at y=2000`)
+      if (!after.active) problems.push('no active nav link at y=2000')
+      if (triggers !== before.triggers) problems.push(`ScrollTrigger count ${before.triggers} → ${triggers}`)
+      return problems.length ? problems.join('; ') : null
+    } finally {
+      await context.close()
+    }
   })
 
   // 7. no-leak — / → /login → back to /: ScrollTrigger count unchanged.
@@ -303,6 +378,7 @@ try {
       await page.waitForURL(/\/login/)
       await page.evaluate(() => history.back())
       await page.waitForTimeout(800)
+      await settle(page)
       const second = await count()
       if (second === null) return 'window.__fg.ScrollTrigger missing after returning to /'
       return second === first ? null : `ScrollTrigger count ${first} → ${second} after / → /login → /`

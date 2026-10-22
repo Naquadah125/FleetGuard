@@ -6,7 +6,7 @@
  * white card (max 440px). Mobile/tablet: logo + back link + form card only.
  *
  * Props
- *   title     card heading (rendered as the page <h1>)
+ *   title     card heading (rendered as the page <h1>; also the document <title>)
  *   subtitle  line under the heading
  *   footer    content of the card footer (e.g. "Chưa có tài khoản? Đăng ký")
  *   children  the form body
@@ -28,14 +28,15 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { gsap, useGSAP } from '@/lib/motion/gsap'
 import { MQ, EASE, DUR } from '@/lib/motion/presets'
+import { isMotionPaused, onMotionPauseChange } from '@/components/landing/motionPause'
 
 const VALUE_LINE = 'An toàn trên mọi hành trình'
 const BACK_HOME = 'Về trang chủ'
 
 const BANNER_TONES = {
-  danger: 'border-danger/25 bg-danger/8 text-[color:color-mix(in_oklab,var(--color-danger),black_25%)]',
-  success: 'border-success/30 bg-success/10 text-[color:color-mix(in_oklab,var(--color-success),black_45%)]',
-  info: 'border-info/25 bg-info/8 text-[color:color-mix(in_oklab,var(--color-info),black_30%)]',
+  danger: 'border-danger/25 bg-danger/8 text-danger-text',
+  success: 'border-success/30 bg-success/10 text-success-text',
+  info: 'border-info/25 bg-info/8 text-info-text',
 }
 
 /** Inline status message (error / success / notice) shown above the form. */
@@ -51,8 +52,13 @@ export function AuthBanner({ tone = 'info', icon: Icon, children }) {
   )
 }
 
-/** Label + Input with a leading icon. Extra props go to the <input>. */
-export function AuthField({ id, label, icon: Icon, ...inputProps }) {
+/**
+ * Label + Input with a leading icon. Extra props go to the <input>. `hint` renders persistent
+ * helper text under the field (linked with aria-describedby) — use it for requirements instead
+ * of a placeholder, which disappears once typing starts.
+ */
+export function AuthField({ id, label, icon: Icon, hint, ...inputProps }) {
+  const hintId = hint ? `${id}-hint` : undefined
   return (
     <div className="flex flex-col gap-2">
       <Label htmlFor={id} className="text-body font-semibold text-navy">
@@ -65,8 +71,13 @@ export function AuthField({ id, label, icon: Icon, ...inputProps }) {
             aria-hidden="true"
           />
         ) : null}
-        <Input id={id} className={cn('text-body', Icon && 'pl-11')} {...inputProps} />
+        <Input id={id} aria-describedby={hintId} className={cn('text-body', Icon && 'pl-11')} {...inputProps} />
       </div>
+      {hint ? (
+        <p id={hintId} className="text-body text-ink">
+          {hint}
+        </p>
+      ) : null}
     </div>
   )
 }
@@ -75,7 +86,7 @@ function BackHomeLink() {
   return (
     <Link
       to="/"
-      className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-body font-semibold text-ink transition-colors hover:text-brand-dark focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+      className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-body font-semibold text-ink transition-colors outline-none hover:text-brand-dark focus-ring"
     >
       <ArrowLeft className="size-4" aria-hidden="true" />
       <span>{BACK_HOME}</span>
@@ -105,11 +116,26 @@ export default function AuthShell({ title, subtitle, footer, children }) {
         tl.from('[data-auth="value"]', { opacity: 0, y: 18, duration: DUR.base })
           .from(phone, { opacity: 0, y: 40, duration: DUR.slow }, '<0.1')
           .from('[data-auth="skyline"]', { opacity: 0, y: 24, duration: DUR.slow }, '<')
-          .fromTo(route, { drawSVG: '0% 0%' }, { drawSVG: '0% 100%', duration: 1.4, ease: EASE.inOut }, '-=0.3')
+          // Route draw: PhoneMap sets pathLength="1" on it, so a "1 2" dash slid from 1.05 to 0
+          // draws it in with no DrawSVG length/bbox reads.
+          .fromTo(
+            route,
+            { strokeDasharray: '1 2', strokeDashoffset: 1.05 },
+            { strokeDashoffset: 0, duration: 1.4, ease: EASE.inOut },
+            '-=0.3',
+          )
           .from(pins, { y: -28, opacity: 0, duration: 0.7, ease: 'bounce.out', stagger: 0.28 }, '<0.15')
 
-        // Gentle idle float once the intro has settled.
-        tl.to(phone, { y: -8, duration: 2.6, ease: 'sine.inOut', yoyo: true, repeat: -1 })
+        // Gentle idle float once the intro has settled. Honours the site-wide motion pause
+        // (set from the landing page's pause buttons, WCAG 2.2.2).
+        const float = gsap.to(phone, { y: -8, duration: 2.6, ease: 'sine.inOut', yoyo: true, repeat: -1, paused: true })
+        let settled = false
+        const syncFloat = () => (settled && !isMotionPaused() ? float.play() : float.pause())
+        tl.call(() => {
+          settled = true
+          syncFloat()
+        })
+        return onMotionPauseChange(syncFloat)
       })
 
       return () => mm.revert()
@@ -119,6 +145,8 @@ export default function AuthShell({ title, subtitle, footer, children }) {
 
   return (
     <div ref={root} className="min-h-svh bg-surface/60 lg:flex">
+      {/* React 19 hoists this into <head>: a route-specific document title (WCAG 2.4.2). */}
+      <title>{`${title} · FleetGuard`}</title>
       {/* Brand panel — desktop only */}
       <aside className="relative hidden shrink-0 flex-col overflow-hidden bg-brand-50 lg:sticky lg:top-0 lg:flex lg:h-svh lg:w-[44%]">
         <div
@@ -134,7 +162,7 @@ export default function AuthShell({ title, subtitle, footer, children }) {
           <Link
             to="/"
             aria-label="FleetGuard"
-            className="w-fit rounded-md focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+            className="flex min-h-11 w-fit items-center rounded-md outline-none focus-ring"
           >
             <FleetGuardLogo className="text-[22px]" />
           </Link>
@@ -167,7 +195,7 @@ export default function AuthShell({ title, subtitle, footer, children }) {
           <Link
             to="/"
             aria-label="FleetGuard"
-            className="rounded-md focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none lg:hidden"
+            className="flex min-h-11 items-center rounded-md outline-none focus-ring lg:hidden"
           >
             <FleetGuardLogo className="text-xl" />
           </Link>

@@ -9,18 +9,23 @@ import { gsap, Flip, ScrollTrigger, SplitText, useGSAP } from '@/lib/motion/gsap
 import { DUR, EASE, MQ } from '@/lib/motion/presets'
 import { scrollToSection } from '@/lib/motion/scroll'
 import FleetDashboard from './hero/FleetDashboard'
+import { isMotionPaused, onMotionPauseChange } from './motionPause'
 
 /**
  * Hero (`#top`): headline + CTAs + trust row on the left, the live code-built FleetDashboard on
  * the right, leaf branch bottom-right and a soft wave into the next section.
  *
  * Motion (all inside gsap.matchMedia; static under prefers-reduced-motion):
- *  - intro: headline words rise (SplitText lines,words), copy fades up, dashboard rises + scales
+ *  - intro: headline words rise (SplitText words), copy rises, dashboard rises + scales
  *    from 0.96, KPI/distance count up, fences pop, route draws, pins drop, alerts slide in,
  *    sparkline draws then its area fades, leaf branch grows.
- *  - live (only after the intro and only while the hero is in view): pin pulse rings, vehicle
+ *  - live (only after the intro, only while the hero is in view, and not while the shared
+ *    motion pause is on — the dashboard header has the pause button): pin pulse rings, vehicle
  *    driving the route, alert ticker (every 6s → Flip list shift, "alerts today" +1),
- *    desktop leaf sway. Out of view → paused.
+ *    desktop leaf sway. Out of view / paused → paused.
+ *  - LCP: the description paragraph only rises (no fade) and the copy starts at 0s, so the LCP
+ *    element paints with the first frame. Strokes (route, sparkline, stem) have pathLength="1" and
+ *    draw with a strokeDashoffset tween; SVG parts pivot with svgOrigin (no bbox measuring).
  *  - desktop: dashboard tilts toward the pointer (quickTo rotationX/Y ±4°, perspective 1200).
  *  - parallax via data-speed (ScrollSmoother, enabled by the page): blobs 0.8, dashboard 0.95,
  *    distance card 1.08, leaves 0.95 — all clamp()ed so the effect starts at scroll 0 (layout at load
@@ -29,6 +34,10 @@ import FleetDashboard from './hero/FleetDashboard'
 
 const TICK_SECONDS = 6
 const TILT_DEG = 4
+// Strokes with pathLength="1": the dash is pushed fully off the path (no round-cap dot) until drawn.
+const UNDRAWN = { strokeDasharray: '1 2', strokeDashoffset: 1.001 }
+const DRAWN = { strokeDashoffset: 0 }
+const centerOf = (el) => `${el.getAttribute('cx')} ${el.getAttribute('cy')}`
 
 // Tones for the decorative trust avatars (initials come from HERO.trustAvatars).
 const AVATAR_TONES = ['bg-brand-100 text-brand-darker', 'bg-info/15 text-navy', 'bg-warning/20 text-navy']
@@ -169,13 +178,10 @@ export default function Hero() {
         const leafSvg = one('[data-hero-leaf] svg')
         const leaves = all('[data-hero-leaf] [data-part^="leaf-"]')
 
-        // ---- headline: words rise (never chars — Vietnamese diacritics) ------------------
-        SplitText.create(one('[data-hero-title]'), {
-          type: 'lines,words',
-          autoSplit: true,
-          onSplit: (self) =>
-            gsap.from(self.words, { opacity: 0, y: 28, duration: 0.8, ease: EASE.out, stagger: 0.06, delay: 0.1 }),
-        })
+        // ---- headline: words rise (never chars — Vietnamese diacritics). Words only: no line
+        // detection and no font-load re-split; inline-block words re-wrap on their own. ----------
+        const split = SplitText.create(one('[data-hero-title]'), { type: 'words' })
+        gsap.from(split.words, { opacity: 0, y: 28, duration: 0.8, ease: EASE.out, stagger: 0.06, delay: 0.1 })
 
         // ---- intro timeline ----------------------------------------------------------------
         counters.forEach((el) => setText(el, formatStat(0)))
@@ -196,26 +202,29 @@ export default function Hero() {
 
         let introDone = false
         const tl = gsap.timeline({ defaults: { ease: EASE.out, duration: DUR.base } })
-        tl.from(all('[data-hero-copy]'), { opacity: 0, y: 20, stagger: 0.1 }, 0.35)
+        // The description is the LCP element: rise only, never hidden. CTAs + trust row fade too.
+        tl.from(one('[data-hero-lead]'), { y: 20 }, 0)
+          .from(all('[data-hero-copy]'), { opacity: 0, y: 20, stagger: 0.1 }, 0.1)
           .from(one('[data-dash]'), { opacity: 0, y: 48, scale: 0.96, duration: DUR.slow, transformOrigin: '50% 100%' }, 0.2)
           .from(all('[data-kpi]'), { opacity: 0, y: 14, stagger: 0.08 }, 0.6)
           .from(one('[data-map]'), { opacity: 0, duration: 0.5 }, 0.7)
-          .from(all('[data-map-fence]'), { scale: 0, opacity: 0, transformOrigin: '50% 50%', stagger: 0.15, duration: 0.8 }, 0.85)
-          .from(route, { drawSVG: 0, duration: 1.4, ease: EASE.inOut }, 0.95)
+          .from(all('[data-map-fence]'), { scale: 0, opacity: 0, svgOrigin: (i, el) => centerOf(el), stagger: 0.15, duration: 0.8 }, 0.85)
+          .fromTo(route, UNDRAWN, { ...DRAWN, duration: 1.4, ease: EASE.inOut }, 0.95)
           .from(all('[data-pin-body]'), { y: -34, opacity: 0, duration: 0.7, ease: EASE.spring, stagger: 0.14 }, 1.15)
-          .from(vehicle, { scale: 0, opacity: 0, transformOrigin: '50% 50%', duration: 0.4, ease: EASE.spring }, 2.2)
+          .from(vehicle, { scale: 0, opacity: 0, svgOrigin: centerOf(vehicle), duration: 0.4, ease: EASE.spring }, 2.2)
           .from(one('[data-alerts]'), { opacity: 0, x: 24 }, 0.75)
           .from(all('[data-alert]'), { opacity: 0, x: 32, stagger: 0.12 }, 0.95)
           .from(one('[data-distance-card]'), { opacity: 0, y: 28, duration: 0.8 }, 0.95)
-          .from(one('[data-spark-line]'), { drawSVG: 0, duration: 1.2, ease: EASE.inOut }, 1.2)
+          .fromTo(one('[data-spark-line]'), UNDRAWN, { ...DRAWN, duration: 1.2, ease: EASE.inOut }, 1.2)
           .from(one('[data-spark-area]'), { opacity: 0, duration: 0.7 }, 2.0)
           .from(one('[data-spark-dot]'), { scale: 0, duration: 0.45, ease: EASE.spring }, 2.25)
         kpiCounters.forEach((el, i) => countUp(el, 0.65 + i * 0.08))
         countUp(distanceCounter, 1.05, 1.5)
         if (leafSvg) {
-          tl.from(one('[data-hero-leaf] [data-part="stem"]'), { drawSVG: 0, duration: 1, ease: EASE.inOut }, 0.5).from(
+          tl.fromTo(one('[data-hero-leaf] [data-part="stem"]'), UNDRAWN, { ...DRAWN, duration: 1, ease: EASE.inOut }, 0.5).from(
             leaves,
-            { scale: 0, opacity: 0, transformOrigin: '50% 100%', duration: 0.6, ease: EASE.spring, stagger: 0.07 },
+            // Each leaf's base is its group's local origin (see LeafBranch JSDoc).
+            { scale: 0, opacity: 0, svgOrigin: '0 0', duration: 0.6, ease: EASE.spring, stagger: 0.07 },
             0.75,
           )
         }
@@ -230,11 +239,13 @@ export default function Hero() {
           loops.push(
             gsap.fromTo(
               ring,
-              { scale: 0.3, opacity: 0.8 },
+              // svgOrigin in BOTH vars: the ring is centered on the pin's local origin, and a from-state
+              // rendered with another origin would skew the inverse-matrix origin math.
+              { scale: 0.3, opacity: 0.8, svgOrigin: '0 0' },
               {
                 scale: 2.2,
                 opacity: 0,
-                transformOrigin: '50% 50%',
+                svgOrigin: '0 0',
                 duration: 2,
                 ease: 'power1.out',
                 repeat: -1,
@@ -262,7 +273,7 @@ export default function Hero() {
             loops.push(
               gsap.to(leaf, {
                 keyframes: { rotation: [0, 4, 0, -4, 0], easeEach: 'sine.inOut' },
-                transformOrigin: '50% 100%',
+                svgOrigin: '0 0',
                 duration: 4 + (i % 3) * 0.7,
                 delay: i * 0.15,
                 ease: 'none',
@@ -319,9 +330,10 @@ export default function Hero() {
 
         let inView = true
         function syncLive() {
-          const on = introDone && inView
+          const on = introDone && inView && !isMotionPaused()
           loops.forEach((a) => a.paused(!on))
         }
+        const offPause = onMotionPauseChange(syncLive)
         const viewTrigger = ScrollTrigger.create({
           trigger: root,
           start: 'top bottom',
@@ -341,9 +353,15 @@ export default function Hero() {
           const rx = gsap.quickTo(tiltEl, 'rotationX', { duration: 0.8, ease: EASE.out })
           const ry = gsap.quickTo(tiltEl, 'rotationY', { duration: 0.8, ease: EASE.out })
           const clamp = gsap.utils.clamp(-1, 1)
+          // Cache the rect: reading it on every pointermove forced a style recalc per event while the
+          // hero loops dirty styles each frame. Re-read only after a scroll / resize.
+          let rect = null
+          const invalidate = () => {
+            rect = null
+          }
           const onMove = (e) => {
             if (e.pointerType !== 'mouse') return
-            const r = tiltEl.getBoundingClientRect()
+            const r = rect ?? (rect = tiltEl.getBoundingClientRect())
             ry(clamp((e.clientX - (r.left + r.width / 2)) / (r.width / 2)) * TILT_DEG)
             rx(clamp((e.clientY - (r.top + r.height / 2)) / (r.height / 2)) * -TILT_DEG)
           }
@@ -353,14 +371,23 @@ export default function Hero() {
           }
           root.addEventListener('pointermove', onMove)
           root.addEventListener('pointerleave', onLeave)
+          root.addEventListener('pointerenter', invalidate)
+          window.addEventListener('scroll', invalidate, { passive: true })
+          window.addEventListener('resize', invalidate)
+          ScrollTrigger.addEventListener('scrollEnd', invalidate)
           removeTilt = () => {
             root.removeEventListener('pointermove', onMove)
             root.removeEventListener('pointerleave', onLeave)
+            root.removeEventListener('pointerenter', invalidate)
+            window.removeEventListener('scroll', invalidate)
+            window.removeEventListener('resize', invalidate)
+            ScrollTrigger.removeEventListener('scrollEnd', invalidate)
           }
         }
 
         return () => {
           alive = false
+          offPause()
           removeTilt()
           // Ticker tweens are created after this context ran, so clean them up by hand.
           const items = list ? list.querySelectorAll('[data-alert]') : []
@@ -383,13 +410,15 @@ export default function Hero() {
     <section id="top" ref={rootRef} className="relative isolate overflow-hidden bg-white pt-[72px]">
       <Backdrop />
 
-      <div className="container-page relative z-10 grid items-center gap-12 pt-10 pb-24 md:pt-14 md:pb-32 lg:grid-cols-12 lg:gap-8 lg:pt-14 lg:pb-32 xl:grid-cols-[minmax(0,520px)_minmax(0,1fr)] xl:gap-10">
+      <div className="container-page relative z-10 grid items-center gap-12 pt-10 pb-24 md:pt-14 md:pb-32 lg:grid-cols-12 lg:gap-8 lg:pt-14 lg:pb-32 xl:grid-cols-[minmax(0,560px)_minmax(0,1fr)] xl:gap-10">
         <div className="lg:col-span-5 xl:col-span-1">
-          <h1 data-hero-title className="heading-hero tracking-[-0.02em] text-navy">
-            <span className="block"><NoOrphan text={HERO.titleLine1} /></span>
+          {/* 44px at xl so line 1 fits the 560px column on one line (3-line headline, as in the
+              mockup). The {' '} keeps the two lines separate words in the accessible name. */}
+          <h1 data-hero-title className="heading-hero tracking-[-0.02em] text-navy xl:text-[44px]">
+            <span className="block"><NoOrphan text={HERO.titleLine1} /></span>{' '}
             <span className="block text-brand"><NoOrphan text={HERO.titleLine2} /></span>
           </h1>
-          <p data-reveal data-hero-copy className="mt-5 max-w-[480px] text-body-lg text-ink">
+          <p data-reveal data-hero-lead className="mt-5 max-w-[480px] text-body-lg text-ink">
             {HERO.description}
           </p>
           <div data-reveal data-hero-copy className="mt-8 flex flex-col gap-3 sm:flex-row">

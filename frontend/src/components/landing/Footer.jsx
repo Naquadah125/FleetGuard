@@ -34,10 +34,15 @@ const SOCIAL = {
 /** Product-group items that are also landing sections ("Tính năng" → #features …). */
 const PRODUCT_SECTION_IDS = Object.fromEntries(NAV_LINKS.map((l) => [l.label, l.id]))
 
+// -mx-1 px-1: the focus outline gets breathing room without shifting the text; min-w-11 keeps
+// short labels ("Blog") a 44px touch target.
 const linkClass = cn(
-  'inline-flex min-h-11 items-center rounded-sm text-body text-white/80 lg:min-h-8',
-  'transition-colors duration-200 outline-none hover:text-white focus-visible:ring-3 focus-visible:ring-white/40',
+  '-mx-1 inline-flex min-h-11 min-w-11 items-center rounded-sm px-1 text-body text-white/80 lg:min-h-8 lg:min-w-0',
+  'transition-colors duration-200 outline-none hover:text-white focus-ring-light',
 )
+
+/** Placeholder links (no destination yet) must not jump to the top or append "#" to the URL. */
+const stayPut = (event) => event.preventDefault()
 
 function SocialIcon({ name }) {
   const icon = SOCIAL[name]
@@ -45,12 +50,13 @@ function SocialIcon({ name }) {
   return (
     <a
       href="#"
+      onClick={stayPut}
       aria-label={icon.label}
       className={cn(
         // 36px circle; the ::after extends the hit area to 44px.
         'relative flex size-9 items-center justify-center rounded-full bg-white/10 text-white',
         'transition-[background-color,transform] duration-200 outline-none after:absolute after:-inset-1 after:content-[""]',
-        'hover:-translate-y-0.5 hover:bg-white/20 focus-visible:ring-3 focus-visible:ring-white/40',
+        'hover:-translate-y-0.5 hover:bg-white/20 focus-ring-light',
         'motion-reduce:transition-none motion-reduce:hover:translate-y-0',
       )}
     >
@@ -82,7 +88,7 @@ function LinkGroup({ group, sectionLinks }) {
                   {label}
                 </a>
               ) : (
-                <a href="#" className={linkClass}>
+                <a href="#" onClick={stayPut} className={linkClass}>
                   {label}
                 </a>
               )}
@@ -105,7 +111,8 @@ export default function Footer() {
   return (
     <footer id="contact" className="relative overflow-hidden bg-footer text-white/80">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-40 -left-32 size-[420px] rounded-full bg-brand/15 blur-3xl" />
+        {/* Soft glow as a radial gradient (no `filter: blur`, nothing to re-raster on scroll). */}
+        <div className="absolute -top-56 -left-48 size-[640px] rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklab,var(--color-brand)_15%,transparent),transparent)]" />
         <FleetGuardMark
           variant="light"
           data-speed="0.92"
@@ -114,6 +121,8 @@ export default function Footer() {
       </div>
 
       <div className="relative container-page pt-14 pb-8 lg:pt-16">
+        {/* Parent heading for the column h3s (otherwise they nest under the last section's h2). */}
+        <h2 className="sr-only">{FOOTER.srTitle}</h2>
         <Reveal className="grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-3 lg:grid-cols-[1.5fr_1fr_1.15fr_1fr_1.45fr] lg:gap-8">
           <div data-reveal className="col-span-2 flex flex-col gap-5 md:col-span-3 lg:col-span-1">
             <a
@@ -122,7 +131,7 @@ export default function Footer() {
                 event.preventDefault()
                 scrollToSection('top')
               }}
-              className="-mx-1 flex min-h-11 w-fit items-center rounded-md px-1 outline-none focus-visible:ring-3 focus-visible:ring-white/40"
+              className="-mx-1 flex min-h-11 w-fit items-center rounded-md px-1 outline-none focus-ring-light"
             >
               <FleetGuardLogo variant="light" className="text-xl" />
             </a>
@@ -177,7 +186,7 @@ export default function Footer() {
                     |
                   </span>
                 ) : null}
-                <a href="#" className={linkClass}>
+                <a href="#" onClick={stayPut} className={linkClass}>
                   {label}
                 </a>
               </li>

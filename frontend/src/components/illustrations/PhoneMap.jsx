@@ -6,7 +6,8 @@
  *   phone   device body + bezel + blank screen
  *   phone-ui  on-screen chrome drawn above the map: status bar, search pill, bottom trip card
  *   map     map tiles: blocks, park, water, roads (clipped to the screen)
- *   route   ONE stroked path (start → destination), ideal for DrawSVG `drawSVG: '0% 100%'`
+ *   route   ONE stroked path (start → destination) with `pathLength="1"`: draw it in with a
+ *           dash, e.g. strokeDasharray '1 2' + strokeDashoffset 1.05 → 0 (no DrawSVG needed)
  *   pin-1   destination pin, green (large)
  *   pin-2   warning pin, orange
  *   pin-3   alert pin, red
@@ -117,7 +118,7 @@ export default function PhoneMap({ className, title, ...props }) {
 
         <path d="M20 18 L120 18 L20 190 Z" fill={url('glare')} opacity="0.35" />
 
-        <path data-part="route" d={ROUTE_D} stroke="#0E9B78" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path data-part="route" d={ROUTE_D} pathLength="1" stroke="#0E9B78" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
 
         {PINS.map(([part, x, y, s, grad]) => (
           <g key={part} transform={`translate(${x} ${y})`}>

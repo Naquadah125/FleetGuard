@@ -3,18 +3,22 @@ import { Link } from 'react-router-dom'
 import { Building2, CircleCheck, Leaf } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatVnd } from '@/content/landing'
+import { deferSetup } from '@/lib/motion/defer'
 import { gsap, ScrollTrigger, useGSAP } from '@/lib/motion/gsap'
 import { DUR, EASE, MQ } from '@/lib/motion/presets'
 import { cn } from '@/lib/utils'
+import { loopWhileVisible } from '../motionPause'
 
 const PLAN_ICONS = { basic: Leaf, advanced: Building2 }
 
 /**
  * One pricing plan card (used by Pricing.jsx).
  * - Price number tweens between monthly/yearly values (formatVnd on every update). The animated
- *   number is aria-hidden; an sr-only copy with aria-live="polite" announces the final price once.
+ *   number is aria-hidden; a static sr-only copy carries the current price (Pricing.jsx owns the
+ *   single live region that announces a billing change).
  * - Popular plan: `border-2 border-brand` + full-width "PHỔ BIẾN" ribbon with a shimmer sweep
- *   loop (desktop only, plays only while the card is on screen).
+ *   loop (desktop only, deferred setup, plays only while on screen and motion is not paused).
+ * - Hover: the card lifts 4px with a stronger shadow and a brand-tinted border.
  * Static under prefers-reduced-motion (price swaps instantly).
  *
  * @param {{ plan: { id: string, name: string, monthly: number, yearly: number, desc: string,
@@ -67,27 +71,29 @@ export default function PricingCard({ plan, billing, unit, popularBadge, classNa
     { scope: ref, dependencies: [price], revertOnUpdate: true },
   )
 
-  // Ribbon shimmer (desktop, popular card only).
+  // Ribbon shimmer (desktop, popular card only; deferred — far below the fold).
   useGSAP(
-    () => {
+    (context, contextSafe) => {
       if (!plan.popular) return undefined
       const shimmer = ref.current.querySelector('[data-shimmer]')
       const mm = gsap.matchMedia()
-      mm.add(MQ.desktop, () => {
-        gsap.set(shimmer, { opacity: 1 })
-        const sweep = gsap.fromTo(
-          shimmer,
-          { xPercent: -120 },
-          { xPercent: 420, duration: 1.4, ease: EASE.inOut, repeat: -1, repeatDelay: 2.4, paused: true },
-        )
-        ScrollTrigger.create({
-          trigger: ref.current,
-          start: 'top bottom',
-          end: 'bottom top',
-          onToggle: (self) => (self.isActive ? sweep.play() : sweep.pause()),
-        })
-      })
-      return () => mm.revert()
+      const cancel = deferSetup(
+        contextSafe(() => {
+          mm.add(MQ.desktop, () => {
+            gsap.set(shimmer, { opacity: 1 })
+            const sweep = gsap.fromTo(
+              shimmer,
+              { xPercent: -120 },
+              { xPercent: 420, duration: 1.4, ease: EASE.inOut, repeat: -1, repeatDelay: 2.4, paused: true },
+            )
+            return loopWhileVisible(ref.current, [sweep], ScrollTrigger)
+          })
+        }),
+      )
+      return () => {
+        cancel()
+        mm.revert()
+      }
     },
     { scope: ref, dependencies: [plan.popular], revertOnUpdate: true },
   )
@@ -96,8 +102,13 @@ export default function PricingCard({ plan, billing, unit, popularBadge, classNa
     <article
       ref={ref}
       className={cn(
-        'relative flex h-full flex-col overflow-hidden rounded-lg bg-white transition-shadow duration-300',
-        plan.popular ? 'border-2 border-brand shadow-card-hover' : 'border border-line shadow-card hover:shadow-card-hover',
+        // The lift lives here, not on the GSAP-revealed wrapper (the reveal writes inline translate).
+        'relative flex h-full flex-col overflow-hidden rounded-lg bg-white',
+        'transition-[translate,box-shadow,border-color] duration-300 ease-out hover:-translate-y-1',
+        'motion-reduce:transition-none motion-reduce:hover:translate-y-0',
+        plan.popular
+          ? 'border-2 border-brand shadow-card-hover hover:border-brand-dark hover:shadow-dashboard'
+          : 'border border-line shadow-card hover:border-brand/40 hover:shadow-card-hover',
         className,
       )}
       {...rest}
@@ -124,9 +135,7 @@ export default function PricingCard({ plan, billing, unit, popularBadge, classNa
               <span ref={numberRef} aria-hidden="true" data-price={plan.id} className="text-h1 font-extrabold tracking-tight text-navy">
                 {initialText}
               </span>
-              <span className="sr-only" aria-live="polite" aria-atomic="true">
-                {formatVnd(price)}
-              </span>
+              <span className="sr-only">{formatVnd(price)}</span>
               <span className="text-body text-ink">{unit}</span>
             </p>
             <p className="text-body text-ink">{plan.desc}</p>

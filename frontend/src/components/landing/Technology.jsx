@@ -7,110 +7,100 @@ import CitySkyline from '@/components/illustrations/CitySkyline'
 import AnimatedIcon from '@/components/landing/AnimatedIcon'
 import Reveal from '@/components/landing/Reveal'
 import SectionHeading from '@/components/landing/SectionHeading'
-import { gsap, useGSAP } from '@/lib/motion/gsap'
+import { deferSetup } from '@/lib/motion/defer'
+import { gsap, ScrollTrigger, useGSAP } from '@/lib/motion/gsap'
 import { DUR, EASE, MQ, revealTrigger } from '@/lib/motion/presets'
 import { scrollToSection } from '@/lib/motion/scroll'
 import { cn } from '@/lib/utils'
+import { loopWhileVisible } from './motionPause'
 
 // Explicit name → component map (keeps lucide tree-shakable; no `import * as Icons`).
 const ICONS = { ScanFace, BrainCircuit, Cpu, AlarmClock }
 
-// CitySkyline layer → ScrollSmoother speed (desktop only; inert until ScrollSmoother runs).
+// CitySkyline layer → ScrollSmoother speed. Rendered statically on each layer <svg> (ScrollSmoother
+// reads data-speed when it is created); inert where no smoother runs (mobile, reduced motion).
 const SKYLINE_SPEEDS = { 'layer-back': '0.6', 'layer-mid': '0.8', 'layer-front': '0.95' }
 
 const statText = (s) => (s.text ?? formatStat(s.value, s.decimals ?? 0)) + (s.suffix ?? '')
 
+/** Update a React-rendered number without replacing its text node (React keeps its reference). */
+function setText(el, text) {
+  if (el.firstChild && el.firstChild.nodeType === 3) el.firstChild.nodeValue = text
+  else el.textContent = text
+}
+
 /**
  * "Công nghệ AI tiên tiến" — title + description + CTA on the left, 4 tech items on the right,
- * StatsBar at the bottom, CitySkyline behind. Motion (desktop + mobile, never under reduce):
- * AiChip traces draw in + glow pulse, StatsBar scales in and counts up. Skyline layers get
- * `data-speed` on desktop for ScrollSmoother parallax.
+ * StatsBar at the bottom, CitySkyline behind. Motion (desktop + mobile, never under reduce;
+ * built after first paint via deferSetup): AiChip traces draw in (strokeDashoffset on
+ * pathLength=1) + glow pulse (while on screen and not paused), StatsBar scales in and counts up.
+ * The skyline renders as three stacked <svg> layers; on desktop each gets `data-speed` for
+ * ScrollSmoother parallax (composited HTML-level transforms, no SVG re-raster per frame).
  */
 export default function Technology() {
   const ref = useRef(null)
 
   useGSAP(
-    () => {
+    (context, contextSafe) => {
       const root = ref.current
       const mm = gsap.matchMedia()
 
-      mm.add(MQ.desktop, () => {
-        const skyline = root.querySelector('[data-tech-skyline]')
-        const layers = Object.entries(SKYLINE_SPEEDS)
-          .map(([part, speed]) => {
-            const el = skyline?.querySelector(`[data-part="${part}"]`)
-            el?.setAttribute('data-speed', speed)
-            return el
-          })
-          .filter(Boolean)
-        return () => layers.forEach((el) => el.removeAttribute('data-speed'))
-      })
+      const build = contextSafe(() => {
+        mm.add({ desktop: MQ.desktop, mobile: MQ.mobile }, () => {
+          // AiChip: traces draw in once, glow breathes while the chip is on screen.
+          const chip = root.querySelector('[data-tech-chip]')
+          let offLoop = () => {}
+          if (chip) {
+            gsap.fromTo(
+              chip.querySelectorAll('[data-part="traces"] > *'),
+              { strokeDasharray: '1 2', strokeDashoffset: 1.001 },
+              { strokeDashoffset: 0, duration: DUR.base, ease: EASE.out, stagger: 0.04, scrollTrigger: revealTrigger(chip) },
+            )
+            const glow = gsap.fromTo(
+              chip.querySelector('[data-part="glow"]'),
+              { scale: 0.86, opacity: 0.55, svgOrigin: '80 80' }, // AiChip viewBox center
+              { scale: 1.08, opacity: 1, svgOrigin: '80 80', duration: 1.6, ease: 'sine.inOut', repeat: -1, yoyo: true, paused: true },
+            )
+            offLoop = loopWhileVisible(chip, [glow], ScrollTrigger)
+          }
 
-      mm.add({ desktop: MQ.desktop, mobile: MQ.mobile }, () => {
-        // AiChip: traces draw in once, glow breathes while the chip is on screen.
-        const chip = root.querySelector('[data-tech-chip]')
-        if (chip) {
-          gsap.from(chip.querySelectorAll('[data-part="traces"] > *'), {
-            drawSVG: 0,
-            duration: DUR.base,
-            ease: EASE.out,
-            stagger: 0.04,
-            scrollTrigger: revealTrigger(chip),
-          })
-          gsap.fromTo(
-            chip.querySelector('[data-part="glow"]'),
-            { scale: 0.86, opacity: 0.55, transformOrigin: '50% 50%' },
-            {
-              scale: 1.08,
-              opacity: 1,
-              duration: 1.6,
-              ease: 'sine.inOut',
-              repeat: -1,
-              yoyo: true,
-              scrollTrigger: {
-                trigger: chip,
-                start: 'top bottom',
-                end: 'bottom top',
-                toggleActions: 'play pause resume pause',
-              },
-            },
-          )
-        }
-
-        // StatsBar: scale in from 0.96, then numbers count up from 0 to their final value.
-        // The final text is server-rendered; it is only reset to 0 here (motion allowed).
-        const bar = root.querySelector('[data-stats-bar]')
-        const nums = Array.from(root.querySelectorAll('[data-stat-value]'))
-        if (!bar) return undefined
-        const tl = gsap.timeline({ scrollTrigger: revealTrigger(bar, 'top 85%') })
-        tl.from(bar, { scale: 0.96, opacity: 0, duration: DUR.base, ease: EASE.out })
-        tl.from(bar.querySelectorAll('[data-stat]'), { opacity: 0, y: 12, duration: DUR.base, ease: EASE.out, stagger: 0.08 }, 0.1)
-        nums.forEach((el) => {
-          const value = Number(el.dataset.value)
-          const decimals = Number(el.dataset.decimals)
-          const counter = { v: 0 }
-          el.textContent = formatStat(0, decimals)
-          tl.to(
-            counter,
-            {
-              v: value,
-              duration: 1.6,
-              ease: 'power2.out',
-              onUpdate: () => {
-                el.textContent = formatStat(counter.v, decimals)
-              },
-            },
-            0.15,
-          )
-        })
-        // Restore the final values when this branch reverts (unmount, breakpoint → reduce).
-        return () =>
+          // StatsBar: scale in from 0.96, then numbers count up from 0 to their final value.
+          // The final text is server-rendered; it is only reset to 0 here (motion allowed).
+          const bar = root.querySelector('[data-stats-bar]')
+          const nums = Array.from(root.querySelectorAll('[data-stat-value]'))
+          if (!bar) return offLoop
+          const tl = gsap.timeline({ scrollTrigger: revealTrigger(bar, 'top 85%') })
+          tl.from(bar, { scale: 0.96, opacity: 0, duration: DUR.base, ease: EASE.out })
+          tl.from(bar.querySelectorAll('[data-stat]'), { opacity: 0, y: 12, duration: DUR.base, ease: EASE.out, stagger: 0.08 }, 0.1)
           nums.forEach((el) => {
-            el.textContent = formatStat(Number(el.dataset.value), Number(el.dataset.decimals))
+            const value = Number(el.dataset.value)
+            const decimals = Number(el.dataset.decimals)
+            const counter = { v: 0 }
+            setText(el, formatStat(0, decimals))
+            tl.to(
+              counter,
+              {
+                v: value,
+                duration: 1.6,
+                ease: 'power2.out',
+                onUpdate: () => setText(el, formatStat(counter.v, decimals)),
+              },
+              0.15,
+            )
           })
+          // Restore the final values when this branch reverts (unmount, breakpoint → reduce).
+          return () => {
+            offLoop()
+            nums.forEach((el) => setText(el, formatStat(Number(el.dataset.value), Number(el.dataset.decimals))))
+          }
+        })
       })
+      const cancel = deferSetup(build)
 
-      return () => mm.revert()
+      return () => {
+        cancel()
+        mm.revert()
+      }
     },
     { scope: ref },
   )
@@ -125,9 +115,11 @@ export default function Technology() {
       ref={ref}
       id="technology"
       aria-labelledby="technology-title"
-      className="relative overflow-hidden bg-linear-to-b from-surface/70 to-white pt-20 pb-14 lg:pt-24 lg:pb-20"
+      className="relative overflow-hidden bg-linear-to-b from-surface/70 to-white pt-20 pb-14 lg:pt-20 lg:pb-20"
     >
       <CitySkyline
+        layered
+        layerSpeeds={SKYLINE_SPEEDS}
         data-tech-skyline
         className="pointer-events-none absolute inset-x-0 bottom-0 h-[clamp(10rem,20vw,18rem)] w-full opacity-75"
       />
@@ -145,7 +137,7 @@ export default function Technology() {
             />
             <Reveal className="mt-2">
               <div data-reveal>
-                <Button asChild variant="outline" size="lg" className="rounded-full px-8">
+                <Button asChild variant="outline" size="lg" className="px-8">
                   <a href="#demo" onClick={onCta}>
                     {TECHNOLOGY.cta}
                   </a>
@@ -160,7 +152,7 @@ export default function Technology() {
               return (
                 <li key={item.title} data-reveal data-icon-trigger className="flex flex-col items-center gap-3 text-center">
                   <span className="flex size-16 items-center justify-center rounded-full bg-white shadow-card">
-                    {Icon ? <AnimatedIcon icon={Icon} motion={item.motion} tone="brand" container="md" /> : null}
+                    {Icon ? <AnimatedIcon icon={Icon} motion={item.motion} tone="brand" container="lg" size={28} strokeWidth={1.75} /> : null}
                   </span>
                   <div className="flex flex-col gap-1">
                     <h3 className="text-body font-bold text-navy">{item.title}</h3>
@@ -184,7 +176,8 @@ function StatsBar({ className }) {
     <div
       data-stats-bar
       className={cn(
-        'relative mx-auto max-w-[840px] overflow-hidden rounded-xl bg-linear-to-b from-brand to-brand-dark to-60% px-2 py-3 text-white shadow-card-hover sm:px-4 lg:py-4',
+        // brand-dark → brand-darker: white labels stay ≥ 5.6:1 everywhere on the gradient (AA).
+        'relative mx-auto max-w-[840px] overflow-hidden rounded-xl bg-linear-to-b from-brand-dark to-brand-darker px-2 py-3 text-white shadow-card-hover sm:px-4 lg:py-4',
         className,
       )}
     >
@@ -206,7 +199,7 @@ function StatsBar({ className }) {
               </span>
               <span className="sr-only">{statText(s)}</span>
             </p>
-            <p className="text-body text-white/85 md:text-body-sm">{s.label}</p>
+            <p className="text-body text-white">{s.label}</p>
             {/* Divider rules: right edge (cols 1 & 3 on mobile, 1–3 on desktop), bottom edge (top row on mobile). */}
             {i < STATS.length - 1 ? (
               <span

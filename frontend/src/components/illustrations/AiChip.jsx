@@ -4,8 +4,8 @@
  *
  * data-part hooks (for GSAP):
  *   glow    soft radial halo behind the chip (pulse opacity / scale, origin 50% 50%)
- *   traces  group of stroked circuit paths + end pads — DrawSVG each child
- *           (`gsap.from('[data-part=traces] > *', { drawSVG: 0, stagger: .05 })`)
+ *   traces  group of stroked circuit paths + end pads, each with pathLength="1" — draw each child
+ *           with a dash tween (`strokeDasharray: '1 2', strokeDashoffset: 1.001 → 0`), no DrawSVG
  *   chip    the chip package + "AI" face
  *
  * The "AI" label is SVG text using the inherited font (Plus Jakarta Sans on the landing page).
@@ -56,10 +56,10 @@ export default function AiChip({ className, title, ...props }) {
 
       <g data-part="traces" stroke="#0E9B78" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
         {TRACES.map((d) => (
-          <path key={d} d={d} />
+          <path key={d} d={d} pathLength="1" />
         ))}
         {PADS.map(([cx, cy]) => (
-          <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3.6" fill="#fff" strokeWidth="2.4" />
+          <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3.6" fill="#fff" strokeWidth="2.4" pathLength="1" />
         ))}
       </g>
 

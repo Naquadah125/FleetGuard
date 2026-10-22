@@ -54,14 +54,14 @@ export default function RegisterPage() {
 
   return (
     <AuthShell
-      title="TẠO TÀI KHOẢN MỚI"
+      title="Tạo tài khoản mới"
       subtitle="Gia nhập nền tảng an toàn vận tải thông minh"
       footer={
         <>
           <span>Đã có tài khoản?</span>
           <Link
             to="/login"
-            className="rounded-sm font-semibold text-brand-dark underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+            className="inline-flex min-h-11 items-center rounded-sm font-semibold text-brand-dark underline-offset-4 outline-none hover:underline focus-ring"
           >
             Đăng nhập
           </Link>
@@ -108,6 +108,7 @@ export default function RegisterPage() {
               icon={Building2}
               type="text"
               placeholder="Công ty Vận Tải XYZ..."
+              autoComplete="organization"
               value={orgName}
               onChange={(e) => setOrgName(e.target.value)}
               required
@@ -120,6 +121,7 @@ export default function RegisterPage() {
             icon={User}
             type="text"
             placeholder="Nguyễn Văn A"
+            autoComplete="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
@@ -131,6 +133,7 @@ export default function RegisterPage() {
             icon={Mail}
             type="email"
             placeholder="name@fleet.vn"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -141,7 +144,8 @@ export default function RegisterPage() {
             label="Mật khẩu"
             icon={Lock}
             type="password"
-            placeholder="Tối thiểu 6 ký tự"
+            hint="Tối thiểu 6 ký tự"
+            autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             minLength={6}
@@ -149,7 +153,7 @@ export default function RegisterPage() {
           />
 
           <Button type="submit" size="lg" className="mt-2 w-full" loading={loading}>
-            <span>{loading ? 'Đang khởi tạo...' : accountType === 'ADMIN' ? 'Đăng Ký Gói Chuyên Nghiệp' : 'Bắt Đầu Miễn Phí'}</span>
+            <span>{loading ? 'Đang khởi tạo...' : accountType === 'ADMIN' ? 'Đăng ký gói chuyên nghiệp' : 'Bắt đầu miễn phí'}</span>
             <ArrowRight data-icon="inline-end" aria-hidden="true" />
           </Button>
         </form>

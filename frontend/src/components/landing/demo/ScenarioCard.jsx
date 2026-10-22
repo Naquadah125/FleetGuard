@@ -13,7 +13,7 @@ const TONE = {
 
 /**
  * One AI-demo scenario: tone dot + label, a DriverIllustration fixed to one state, caption,
- * a "detected" Badge and a 3px cycle progress bar.
+ * a round "detected" marker (top-right of the illustration) and a 3px cycle progress bar.
  *
  * Purely presentational. The parent (AiDemo) owns all motion and finds the moving parts through
  * `data-demo-card` / `data-demo-badge` / `data-demo-progress` / `[data-part="root"]`.
@@ -57,14 +57,14 @@ export default function ScenarioCard({ scenario, index, active }) {
             data-demo-badge
             variant={scenario.tone}
             className={cn(
-              // HUD-style detection tag over the steering wheel
-              'absolute bottom-3 left-1/2 -translate-x-1/2 bg-white/95 shadow-card ring-1 ring-current/20',
+              // Round HUD "detected" marker in the illustration's top-right corner (component sheet 08):
+              // keeps the face, hands and wheel — the expressive part of each state — clear.
+              'absolute top-2.5 right-2.5 size-8 bg-white/95 p-0 shadow-card ring-1 ring-current/25 [&>svg]:size-4!',
               // Static fallback (reduced motion); with motion GSAP drives opacity inline.
               'group-data-[active=false]:opacity-0',
             )}
           >
             <ScanFace strokeWidth={2.25} />
-            {scenario.label}
           </Badge>
         </div>
 

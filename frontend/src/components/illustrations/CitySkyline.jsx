@@ -10,6 +10,11 @@
  *
  * viewBox 0 0 1200 240, ground at y=240. Uses preserveAspectRatio "xMidYMax slice" by default so
  * it can fill a wide strip; override via props if needed.
+ *
+ * `layered` (opt-in): renders a <div> (className/props go on it) holding three stacked, absolutely
+ * positioned <svg>s — one per layer, each carrying its data-part — so parallax transforms land on
+ * HTML-level boxes the compositor can move, instead of SVG <g>s that re-raster the whole skyline on
+ * every scroll frame. `layerSpeeds` ({ 'layer-back': '0.6', … }) puts data-speed on those layers.
  */
 import { useId } from 'react'
 
@@ -67,7 +72,14 @@ function Building({ b, fill, windows, cap }) {
   )
 }
 
-export default function CitySkyline({ className, title, preserveAspectRatio = 'xMidYMax slice', ...props }) {
+export default function CitySkyline({
+  className,
+  title,
+  preserveAspectRatio = 'xMidYMax slice',
+  layered = false,
+  layerSpeeds,
+  ...props
+}) {
   const uid = `fg${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   const id = (n) => `${uid}-${n}`
   const url = (n) => `url(#${id(n)})`
@@ -87,31 +99,24 @@ export default function CitySkyline({ className, title, preserveAspectRatio = 'x
     </pattern>
   )
 
-  return (
-    <svg
-      viewBox="0 0 1200 240"
-      preserveAspectRatio={preserveAspectRatio}
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      {...a11y}
-      {...props}
-    >
-      {title ? <title id={id('title')}>{title}</title> : null}
-      <defs>
-        {layerGrad('back', '#A8E0C9', 0.5, 0.08)}
-        {layerGrad('mid', '#7FD2B1', 0.5, 0.12)}
-        {layerGrad('front', '#4FC097', 0.45, 0.16)}
-        {winPattern('winBack', '#FFFFFF', 0.4, 9, 13)}
-        {winPattern('winMid', '#FFFFFF', 0.35, 10, 14)}
-        {winPattern('winFront', '#FFFFFF', 0.35, 11, 12)}
-        <radialGradient id={id('tree')} cx="0.38" cy="0.32" r="0.7">
-          <stop offset="0" stopColor="#8FE0BE" stopOpacity="0.8" />
-          <stop offset="1" stopColor="#3DB98C" stopOpacity="0.5" />
-        </radialGradient>
-      </defs>
+  const defs = (
+    <defs>
+      {layerGrad('back', '#A8E0C9', 0.5, 0.08)}
+      {layerGrad('mid', '#7FD2B1', 0.5, 0.12)}
+      {layerGrad('front', '#4FC097', 0.45, 0.16)}
+      {winPattern('winBack', '#FFFFFF', 0.4, 9, 13)}
+      {winPattern('winMid', '#FFFFFF', 0.35, 10, 14)}
+      {winPattern('winFront', '#FFFFFF', 0.35, 11, 12)}
+      <radialGradient id={id('tree')} cx="0.38" cy="0.32" r="0.7">
+        <stop offset="0" stopColor="#8FE0BE" stopOpacity="0.8" />
+        <stop offset="1" stopColor="#3DB98C" stopOpacity="0.5" />
+      </radialGradient>
+    </defs>
+  )
 
-      <g data-part="layer-back">
+  const layers = {
+    'layer-back': (
+      <>
         <g fill="#C9EEDD" opacity="0.7">
           <ellipse cx="190" cy="30" rx="26" ry="8" />
           <ellipse cx="204" cy="24" rx="15" ry="10" />
@@ -123,15 +128,13 @@ export default function CitySkyline({ className, title, preserveAspectRatio = 'x
         {BACK.map((b) => (
           <Building key={b[0]} b={b} fill={url('back')} windows={url('winBack')} cap="#C4EBDB" />
         ))}
-      </g>
-
-      <g data-part="layer-mid">
-        {MID.map((b) => (
-          <Building key={b[0]} b={b} fill={url('mid')} windows={url('winMid')} cap="#ABE0C9" />
-        ))}
-      </g>
-
-      <g data-part="layer-front">
+      </>
+    ),
+    'layer-mid': MID.map((b) => (
+      <Building key={b[0]} b={b} fill={url('mid')} windows={url('winMid')} cap="#ABE0C9" />
+    )),
+    'layer-front': (
+      <>
         {FRONT.map((b) => (
           <Building key={b[0]} b={b} fill={url('front')} windows={url('winFront')} cap="#8AD6B6" />
         ))}
@@ -142,7 +145,52 @@ export default function CitySkyline({ className, title, preserveAspectRatio = 'x
             <circle cx={x - r * 0.35} cy={GROUND - h - r * 0.3} r={r * 0.35} fill="#fff" opacity="0.18" />
           </g>
         ))}
-      </g>
+      </>
+    ),
+  }
+
+  if (layered) {
+    return (
+      <div className={className} {...a11y} {...props}>
+        {title ? <span id={id('title')} className="sr-only">{title}</span> : null}
+        {Object.entries(layers).map(([part, content], i) => (
+          <svg
+            key={part}
+            data-part={part}
+            data-speed={layerSpeeds?.[part]}
+            viewBox="0 0 1200 240"
+            preserveAspectRatio={preserveAspectRatio}
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+            focusable="false"
+            className="absolute inset-0 size-full"
+          >
+            {i === 0 ? defs : null}
+            {content}
+          </svg>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <svg
+      viewBox="0 0 1200 240"
+      preserveAspectRatio={preserveAspectRatio}
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      {...a11y}
+      {...props}
+    >
+      {title ? <title id={id('title')}>{title}</title> : null}
+      {defs}
+      {Object.entries(layers).map(([part, content]) => (
+        <g key={part} data-part={part}>
+          {content}
+        </g>
+      ))}
     </svg>
   )
 }

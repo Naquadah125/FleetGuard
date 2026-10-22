@@ -18,7 +18,8 @@ export default function HomePage() {
     <>
       <Navbar />
       <SmoothScroll>
-        <main>
+        {/* id + tabIndex: target of the navbar's skip link (focusable, not a Tab stop). */}
+        <main id="main" tabIndex={-1}>
           <Hero />
           <Features />
           <AiDemo />

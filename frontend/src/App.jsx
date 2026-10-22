@@ -1,25 +1,31 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 
-// Public Pages
+// Public Pages. Only the landing page is in the entry chunk; every other route is split into its
+// own chunk so `/` does not download, parse or evaluate the auth pages and dashboards.
 import HomePage from './pages/HomePage'
-import LoginPage from './pages/LoginPage'
-import RegisterPage from './pages/RegisterPage'
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const RegisterPage = lazy(() => import('./pages/RegisterPage'))
+
+// Dashboards use JetBrains Mono (var(--font-mono)); load its @font-face CSS with their layouts.
+const withMonoFont = (load) => () =>
+  Promise.all([import('@fontsource-variable/jetbrains-mono'), load()]).then(([, mod]) => mod)
 
 // Driver Area
-import DriverLayout from './pages/driver/DriverLayout'
-import DriverOverview from './pages/driver/DriverOverview'
-import DriverCamera from './pages/driver/DriverCamera'
-import DriverHistory from './pages/driver/DriverHistory'
+const DriverLayout = lazy(withMonoFont(() => import('./pages/driver/DriverLayout')))
+const DriverOverview = lazy(() => import('./pages/driver/DriverOverview'))
+const DriverCamera = lazy(() => import('./pages/driver/DriverCamera'))
+const DriverHistory = lazy(() => import('./pages/driver/DriverHistory'))
 
 // Admin Area
-import AdminLayout from './pages/admin/AdminLayout'
-import AdminOverview from './pages/admin/AdminOverview'
-import AdminCameras from './pages/admin/AdminCameras'
-import AdminEmployees from './pages/admin/AdminEmployees'
-import AdminVehicles from './pages/admin/AdminVehicles'
-import AdminHistory from './pages/admin/AdminHistory'
-import AdminReports from './pages/admin/AdminReports'
+const AdminLayout = lazy(withMonoFont(() => import('./pages/admin/AdminLayout')))
+const AdminOverview = lazy(() => import('./pages/admin/AdminOverview'))
+const AdminCameras = lazy(() => import('./pages/admin/AdminCameras'))
+const AdminEmployees = lazy(() => import('./pages/admin/AdminEmployees'))
+const AdminVehicles = lazy(() => import('./pages/admin/AdminVehicles'))
+const AdminHistory = lazy(() => import('./pages/admin/AdminHistory'))
+const AdminReports = lazy(() => import('./pages/admin/AdminReports'))
 
 // Route Guard
 function ProtectedRoute({ children, requireAdmin = false }) {
@@ -40,47 +46,49 @@ function ProtectedRoute({ children, requireAdmin = false }) {
 export default function App() {
   return (
     <AuthProvider>
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/user" element={<Navigate to="/driver" replace />} />
+      <Suspense fallback={null}>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/user" element={<Navigate to="/driver" replace />} />
 
-        {/* Driver Area (ADMIN allowed, DRIVER allowed) */}
-        <Route
-          path="/driver"
-          element={
-            <ProtectedRoute>
-              <DriverLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<DriverOverview />} />
-          <Route path="camera" element={<DriverCamera />} />
-          <Route path="history" element={<DriverHistory />} />
-        </Route>
+          {/* Driver Area (ADMIN allowed, DRIVER allowed) */}
+          <Route
+            path="/driver"
+            element={
+              <ProtectedRoute>
+                <DriverLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<DriverOverview />} />
+            <Route path="camera" element={<DriverCamera />} />
+            <Route path="history" element={<DriverHistory />} />
+          </Route>
 
-        {/* Admin Area (ADMIN only, plan pro) */}
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute requireAdmin>
-              <AdminLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<AdminOverview />} />
-          <Route path="cameras" element={<AdminCameras />} />
-          <Route path="employees" element={<AdminEmployees />} />
-          <Route path="vehicles" element={<AdminVehicles />} />
-          <Route path="history" element={<AdminHistory />} />
-          <Route path="reports" element={<AdminReports />} />
-        </Route>
+          {/* Admin Area (ADMIN only, plan pro) */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<AdminOverview />} />
+            <Route path="cameras" element={<AdminCameras />} />
+            <Route path="employees" element={<AdminEmployees />} />
+            <Route path="vehicles" element={<AdminVehicles />} />
+            <Route path="history" element={<AdminHistory />} />
+            <Route path="reports" element={<AdminReports />} />
+          </Route>
 
-        {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Catch-all */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </AuthProvider>
   )
 }

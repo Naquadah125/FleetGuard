@@ -3,11 +3,13 @@
  * Designed to sit in a corner (bottom edge of the viewBox = ground line). Static: no animation inside.
  *
  * data-part hooks (for GSAP):
- *   stem          the curved branch stroke (DrawSVG-friendly single path)
+ *   stem          the curved branch stroke (single path, pathLength="1": draw it with
+ *                 strokeDasharray 1 + strokeDashoffset 1 → 0, no length measurement needed)
  *   leaf-1 … leaf-10
  *                 leaves from bottom → top; each leaf's base is the bottom-center of its own box,
  *                 so `transformOrigin: '50% 100%'` pivots it on the branch (GSAP resolves the % origin
- *                 against the leaf's own bbox; no CSS transform-box is set). leaf-10 is the tip bud.
+ *                 against the leaf's own bbox; no CSS transform-box is set). Cheaper and identical:
+ *                 `svgOrigin: '0 0'` (the leaf base is its group's local origin). leaf-10 is the tip bud.
  *   (root <svg>)  sway the whole branch with `transformOrigin: '80% 100%'` (the base).
  *
  * viewBox 40 -14 240 334 (branch base at 200,318).
@@ -101,7 +103,7 @@ export default function LeafBranch({ className, title, ...props }) {
         </linearGradient>
       </defs>
 
-      <path data-part="stem" d={STEM_D} stroke={url('stem')} strokeWidth="5" strokeLinecap="round" />
+      <path data-part="stem" pathLength="1" d={STEM_D} stroke={url('stem')} strokeWidth="5" strokeLinecap="round" />
       {LEAVES.map((leaf, i) => (
         <Leaf key={i} n={i + 1} {...leaf} url={url} />
       ))}

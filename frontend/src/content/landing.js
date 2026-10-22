@@ -9,7 +9,7 @@ export const NAV_LINKS = [
   { label: 'Tính năng', id: 'features' },
   { label: 'Công nghệ', id: 'technology' },
   { label: 'Bảng giá', id: 'pricing' },
-  { label: 'Tài nguyên', id: 'contact' },
+  { label: 'Tài nguyên', id: 'contact', menu: true },
   { label: 'Liên hệ', id: 'contact' },
 ]
 
@@ -20,6 +20,8 @@ export const NAV_ACTIONS = {
   openMenu: 'Mở menu',
   closeMenu: 'Đóng menu',
   navLabel: 'Điều hướng chính',
+  /** Skip link (sr-only until focused) → <main>. */
+  skipToContent: 'Bỏ qua đến nội dung chính',
 }
 
 export const HERO = {
@@ -48,13 +50,13 @@ export const DASHBOARD = {
   ],
   alertsTitle: 'Cảnh báo gần đây',
   alerts: [
-    { type: 'Ngủ gật', time: '15:30', plate: '29C-123.45', tone: 'danger' },
-    { type: 'Mất tập trung', time: '15:28', plate: '29C-678.90', tone: 'warning' },
-    { type: 'Mệt mỏi', time: '15:20', plate: '29D-246.80', tone: 'warning' },
+    { kind: 'drowsy', type: 'Ngủ gật', time: '15:30', plate: '29C-123.45', tone: 'danger' },
+    { kind: 'distracted', type: 'Mất tập trung', time: '15:28', plate: '29C-678.90', tone: 'warning' },
+    { kind: 'fatigued', type: 'Mệt mỏi', time: '15:20', plate: '29D-246.80', tone: 'warning' },
   ],
   extraAlerts: [
-    { type: 'Mất tập trung', time: '15:34', plate: '30A-512.07', tone: 'warning' },
-    { type: 'Ngủ gật', time: '15:37', plate: '51B-889.21', tone: 'danger' },
+    { kind: 'distracted', type: 'Mất tập trung', time: '15:34', plate: '30A-512.07', tone: 'warning' },
+    { kind: 'drowsy', type: 'Ngủ gật', time: '15:37', plate: '51B-889.21', tone: 'danger' },
   ],
   viewAll: 'Xem tất cả',
   /** Alert meta line: `{time} - {alertMetaPrefix} {plate}`. */
@@ -64,6 +66,16 @@ export const DASHBOARD = {
   distanceKm: 1245,
   distanceDelta: '↑ 12% so với hôm qua',
   distanceSeries: [12, 18, 15, 24, 22, 30, 28, 36, 34, 42, 40, 48],
+  /** Accessible names: the mock is exposed as one image instead of ~25 loose paragraphs. */
+  mockLabel:
+    'Minh hoạ bảng điều khiển FleetGuard: 128 xe, 96 xe đang hoạt động, 12 cảnh báo hôm nay, 86 tài xế online, bản đồ lộ trình và danh sách cảnh báo gần đây (ngủ gật, mất tập trung, mệt mỏi).',
+  distanceMockLabel: 'Quãng đường hôm nay: 1.245 km, tăng 12% so với hôm qua.',
+}
+
+/** Pause / resume control for the auto-playing landing motion (WCAG 2.2.2). */
+export const MOTION_CONTROL = {
+  pause: 'Tạm dừng chuyển động',
+  resume: 'Tiếp tục chuyển động',
 }
 
 export const FEATURES_HEADING = 'FleetGuard có thể giúp gì cho bạn?'
@@ -138,6 +150,8 @@ export const PRICING = {
     {
       id: 'basic',
       name: 'CƠ BẢN',
+      /** Sentence-case name for screen-reader announcements. */
+      label: 'Cơ bản',
       monthly: 199000,
       yearly: 159000,
       desc: 'Phù hợp với doanh nghiệp vừa và nhỏ',
@@ -153,6 +167,7 @@ export const PRICING = {
     {
       id: 'advanced',
       name: 'NÂNG CAO',
+      label: 'Nâng cao',
       monthly: 299000,
       yearly: 239000,
       desc: 'Đầy đủ tính năng cho doanh nghiệp',
@@ -171,6 +186,8 @@ export const PRICING = {
 export const COMPARISON = {
   title: 'So sánh chi tiết tính năng',
   columns: ['Tính năng', 'Cơ bản', 'Nâng cao'],
+  /** Accessible name of the (horizontally scrollable on phones) table container. */
+  scrollLabel: 'Bảng so sánh tính năng các gói',
   /** Screen-reader text for the check / dash cells. */
   yes: 'Có',
   no: 'Không',
@@ -218,10 +235,22 @@ export const FOOTER = {
   address: 'Tòa nhà ABC, 123 Đường XYZ, Quận 1, TP.HCM',
   socials: ['facebook', 'youtube', 'linkedin', 'zalo'],
   copyright: 'FleetGuard. All rights reserved.',
+  /** sr-only h2 heading the footer's h3 groups. */
+  srTitle: 'Thông tin FleetGuard',
   legal: ['Điều khoản sử dụng', 'Chính sách bảo mật'],
 }
 
 const VI = 'vi-VN'
+
+/**
+ * Single polite announcement after the billing toggle changes, e.g.
+ * "Thanh toán năm: Cơ bản 159.000đ, Nâng cao 239.000đ /xe/tháng".
+ */
+export function pricingAnnouncement(billing) {
+  const period = billing === 'yearly' ? PRICING.yearlyLabel : PRICING.monthlyLabel
+  const prices = PRICING.plans.map((p) => `${p.label} ${formatVnd(p[billing])}`).join(', ')
+  return `${period}: ${prices} ${PRICING.unit}`
+}
 
 /** 199000 → '199.000đ' (vi-VN grouping with '.'). */
 export function formatVnd(n) {

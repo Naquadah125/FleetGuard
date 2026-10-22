@@ -26,6 +26,18 @@ const isVerticalBar = (p) => /^M\s*[\d.]+[\s,]+[\d.]+\s*[vV]\s*-?[\d.]+\s*$/.tes
 
 const paused = (gsap) => gsap.timeline({ paused: true })
 
+/*
+ * Stroke draw-in without DrawSVGPlugin: with `pathLength="1"` every stroke is 1 unit long, so a
+ * dash pattern of "1 2" (one full-length dash, then a longer gap) slid from offset 1.05 (dash
+ * fully before the start: nothing drawn, not even a round-cap dot) to 0 draws the whole stroke.
+ * Setting the attribute is a write only — no getTotalLength()/getBBox() reads at setup.
+ * The dash styles are cleared when the draw finishes, so the icon ends exactly at rest.
+ */
+const DASH = '1 2'
+const DASH_HIDDEN = 1.05
+const DRAW_PROPS = 'strokeDasharray,strokeDashoffset'
+const prepStrokeDraw = (els) => els.forEach((el) => el.setAttribute('pathLength', '1'))
+
 export const ICON_MOTIONS = {
   /** Bell rings: decaying ±14° wiggle hinged at the top. */
   bell(el, gsap) {
@@ -54,10 +66,11 @@ export const ICON_MOTIONS = {
     tl.to(bars, { scaleY: 0.1, transformOrigin: '50% 100%', duration: 0.15, ease: 'power2.in' })
       .to(bars, { scaleY: 1, duration: 0.5, ease: EASE.spring, stagger: 0.07 })
     if (lines.length) {
+      prepStrokeDraw(lines)
       tl.fromTo(
         lines,
-        { drawSVG: '0%' },
-        { drawSVG: '100%', duration: 0.6, ease: 'power2.out', immediateRender: false },
+        { strokeDasharray: DASH, strokeDashoffset: DASH_HIDDEN },
+        { strokeDashoffset: 0, duration: 0.6, ease: 'power2.out', immediateRender: false, clearProps: DRAW_PROPS },
         0.2,
       )
     }
@@ -165,13 +178,15 @@ export const ICON_MOTIONS = {
 }
 
 /**
- * Draw the icon's strokes in (DrawSVG 0% → 100%), staggered. Extra tween vars (e.g. a
- * scrollTrigger) are merged into the "to" vars. Returns the tween.
+ * Draw the icon's strokes in (dash offset on `pathLength="1"`, see DASH above), staggered.
+ * Extra tween vars (e.g. a scrollTrigger) are merged into the "to" vars. Returns the tween.
  */
 export function drawIconIn(svgEl, gsap, vars = {}) {
+  const parts = strokeParts(svgEl)
+  prepStrokeDraw(parts)
   return gsap.fromTo(
-    strokeParts(svgEl),
-    { drawSVG: '0%' },
-    { drawSVG: '100%', duration: 0.8, stagger: 0.05, ease: 'power2.out', ...vars },
+    parts,
+    { strokeDasharray: DASH, strokeDashoffset: DASH_HIDDEN },
+    { strokeDashoffset: 0, duration: 0.8, stagger: 0.05, ease: 'power2.out', clearProps: DRAW_PROPS, ...vars },
   )
 }

@@ -1,13 +1,14 @@
 /**
  * Single GSAP entry point for the app. Registers every plugin once.
  * Import gsap / plugins / useGSAP from here — never from 'gsap' directly.
+ *
+ * Not registered on purpose: DrawSVGPlugin (stroke draw-ins use `pathLength="1"` + a
+ * strokeDashoffset tween — no getTotalLength/getBBox reads) and MorphSVGPlugin (unused).
  */
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { ScrollSmoother } from 'gsap/ScrollSmoother'
 import { SplitText } from 'gsap/SplitText'
-import { DrawSVGPlugin } from 'gsap/DrawSVGPlugin'
-import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import { Flip } from 'gsap/Flip'
 import { CustomEase } from 'gsap/CustomEase'
@@ -20,8 +21,6 @@ gsap.registerPlugin(
   ScrollTrigger,
   ScrollSmoother,
   SplitText,
-  DrawSVGPlugin,
-  MorphSVGPlugin,
   MotionPathPlugin,
   Flip,
   CustomEase,
@@ -30,7 +29,8 @@ gsap.registerPlugin(
 
 // Web fonts swapping in after ScrollTrigger's first measurement shift every trigger position
 // (and break clamp() starts near the page bottom). Re-measure whenever a font batch finishes.
-// Module-level, registered once for the app's lifetime.
+// Module-level, registered once for the app's lifetime. This is the ONLY font-driven refresh
+// (SmoothScroll no longer refreshes on document.fonts.ready).
 if (typeof document !== 'undefined' && document.fonts?.addEventListener) {
   document.fonts.addEventListener('loadingdone', () => ScrollTrigger.refresh())
 }
@@ -48,8 +48,6 @@ export {
   Flip,
   useGSAP,
   // Extra re-exports so sections never need to import from 'gsap/*' themselves.
-  DrawSVGPlugin,
-  MorphSVGPlugin,
   MotionPathPlugin,
   CustomEase,
   CustomWiggle,
