@@ -88,8 +88,8 @@ export const CONTACT_CTA = {
   hotline: '1900 1234',
   hotlineHref: 'tel:19001234',
   hotlineLabel: 'Gọi 1900 1234',
-  ariaZalo: 'Chat qua Zalo',
-  ariaHotline: 'Gọi hotline 1900 1234',
+  ariaZalo: 'Chat Zalo với FleetGuard',
+  ariaHotline: 'Gọi 1900 1234 – hotline FleetGuard',
 }
 
 export const FEATURES_HEADING = 'FleetGuard có thể giúp gì cho bạn?'

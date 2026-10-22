@@ -5,6 +5,8 @@
  *
  *   [data-map-route]     the route stroke (single path, pathLength="1": draw it by tweening
  *                        strokeDashoffset 1 → 0 over strokeDasharray 1, no length measurement)
+ *   [data-map-route-flow] white dots along the route (pathLength="1", dash period FLOW_PERIOD);
+ *                        rest opacity 0 — fade it in, then loop strokeDashoffset 0 → -FLOW_PERIOD
  *   [data-map-vehicle]   small vehicle dot (MotionPath along the route); sits at the route start
  *   [data-map-fence]     the two geofence circles (scale them with svgOrigin = their cx cy)
  *   [data-map-pin]       pin wrapper; inside it:
@@ -36,6 +38,8 @@ const STREETS_MINOR = [
 ]
 
 export const ROUTE_D = 'M30 262 H118 V196 H214 L250 140 V92 H352 V44'
+/** Spacing of the flowing route dots, in pathLength units (the route is pathLength="1"). */
+export const FLOW_PERIOD = 0.04
 
 const PINS = [
   { x: 74, y: 262, tone: 'brand' },
@@ -169,6 +173,21 @@ export default function FleetMap({ className }) {
         strokeWidth="4"
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+      {/* "live data" dots flowing along the route (idle loop: strokeDashoffset 0 → -FLOW_PERIOD).
+          Hidden until the Hero's idle loop fades it in, so it never shows before the route draws
+          and stays hidden under reduced motion. */}
+      <path
+        data-map-route-flow
+        pathLength="1"
+        d={ROUTE_D}
+        stroke="white"
+        strokeOpacity="0.9"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeDasharray={`0.001 ${FLOW_PERIOD - 0.001}`}
+        opacity="0"
       />
       <circle
         data-map-vehicle

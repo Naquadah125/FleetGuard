@@ -5,15 +5,12 @@ import { deferSetup } from '@/lib/motion/defer'
 import { gsap, ScrollTrigger, useGSAP } from '@/lib/motion/gsap'
 import { DUR, EASE, MQ, revealTrigger } from '@/lib/motion/presets'
 import SectionHeading from '@/components/landing/SectionHeading'
+import SectionBackdrop from '@/components/landing/decor/SectionBackdrop'
+import Float3D from '@/components/landing/decor/Float3D'
 import ScenarioCard from '@/components/landing/demo/ScenarioCard'
 import { createIdle } from '@/components/landing/demo/driverMotion'
 import MotionPauseButton from './MotionPauseButton'
 import { isMotionPaused, onMotionPauseChange } from './motionPause'
-
-// Soft blob = radial gradient (no blur filter: nothing to re-raster while scrolling).
-const blob = (alpha) => ({
-  background: `radial-gradient(closest-side, color-mix(in oklab, var(--color-brand-100) ${alpha}%, transparent) 35%, transparent)`,
-})
 
 /**
  * "AI giám sát như thế nào?" — 4 driver scenario cards shown side by side (horizontal
@@ -188,23 +185,16 @@ export default function AiDemo() {
       ref={sectionRef}
       id="demo"
       aria-labelledby="demo-title"
-      className="relative overflow-hidden bg-linear-to-b from-brand-50/50 via-brand-50 to-brand-50/40 py-16 md:py-20"
+      // isolate: keeps the backdrop's -z-10 layer inside the section. Bottom padding is tight on
+      // purpose — Pricing follows on a matching tint (seam tint-sky), no pale empty band between them.
+      className="relative isolate overflow-hidden pt-16 pb-10 md:pt-20 md:pb-12"
     >
-      {/* soft mint glows */}
-      <div
-        aria-hidden="true"
-        data-speed="0.85"
-        className="pointer-events-none absolute -top-40 -left-40 size-[30rem] rounded-full"
-        style={blob(60)}
-      />
-      <div
-        aria-hidden="true"
-        data-speed="1.1"
-        className="pointer-events-none absolute -right-36 -bottom-16 size-[26rem] rounded-full"
-        style={blob(50)}
-      />
+      <SectionBackdrop variant="demo" />
 
       <div className="relative container-page">
+        {/* Clay 3D accents flanking the heading (md+; parallax depth on desktop, idle float in view). */}
+        <Float3D badge="camera" size={76} depth={1.15} phase={0.15} className="top-0 left-4 lg:left-[4%] lg:size-[104px]! xl:left-[9%]" />
+        <Float3D badge="steering" size={68} depth={0.88} phase={0.6} className="top-14 right-4 lg:right-[5%] lg:size-[96px]! xl:right-[10%]" />
         <SectionHeading id="demo-title" title={DEMO.title} subtitle={DEMO.subtitle} />
         <div className="mt-6 flex justify-center">
           <MotionPauseButton />

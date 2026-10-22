@@ -9,11 +9,13 @@ import Reveal from '@/components/landing/Reveal'
 import SectionHeading from '@/components/landing/SectionHeading'
 import { useCountUp } from '@/lib/motion/countUp'
 import { deferSetup } from '@/lib/motion/defer'
-import { gsap, ScrollTrigger, useGSAP } from '@/lib/motion/gsap'
+import { gsap, useGSAP } from '@/lib/motion/gsap'
+import { bindIdle } from '@/lib/motion/idle'
 import { DUR, EASE, MQ, revealTrigger } from '@/lib/motion/presets'
 import { scrollToSection } from '@/lib/motion/scroll'
 import { cn } from '@/lib/utils'
-import { loopWhileVisible } from './motionPause'
+import Float3D from './decor/Float3D'
+import SectionBackdrop from './decor/SectionBackdrop'
 
 // Explicit name → component map (keeps lucide tree-shakable; no `import * as Icons`).
 const ICONS = { ScanFace, BrainCircuit, Cpu, AlarmClock }
@@ -22,14 +24,27 @@ const ICONS = { ScanFace, BrainCircuit, Cpu, AlarmClock }
 // reads data-speed when it is created); inert where no smoother runs (mobile, reduced motion).
 const SKYLINE_SPEEDS = { 'layer-back': '0.6', 'layer-mid': '0.8', 'layer-front': '0.95' }
 
+// Idle drift per skyline layer: [amplitude px, half-period s]. Nearer layers travel further and
+// faster (depth). The skyline box overhangs the section by 3rem each side (clipped by the section's
+// overflow-hidden), so ±amplitude never exposes an edge.
+const SKYLINE_DRIFT = { 'layer-back': [10, 26], 'layer-mid': [18, 20], 'layer-front': [30, 15] }
+
+// AiChip traces in clockwise order (top → right → bottom → left), for the signal sweep. Indices
+// follow AiChip's TRACES / PADS arrays (top 0–2, bottom 3–5, left 6–8, right 9–11).
+const TRACE_SWEEP = [0, 1, 2, 9, 10, 11, 5, 4, 3, 8, 7, 6]
+const SWEEP_RANK = TRACE_SWEEP.reduce((rank, trace, i) => ((rank[trace] = i), rank), [])
+
 const statText = (s) => (s.text ?? formatStat(s.value, s.decimals ?? 0)) + (s.suffix ?? '')
 
 /**
  * "Công nghệ AI tiên tiến" — title + description + CTA on the left, 4 tech items on the right,
- * StatsBar at the bottom, CitySkyline behind. Motion (desktop + mobile, never under reduce;
- * built after first paint via deferSetup): AiChip traces draw in (strokeDashoffset on
- * pathLength=1) + glow pulse (while on screen and not paused), StatsBar scales in while its
- * numbers count up (StatsBar's own useCountUp, same 'top 85%' trigger).
+ * StatsBar at the bottom, CitySkyline behind, on the `technology` SectionBackdrop (navy/ink text
+ * only on it — brand-coloured text fails AA where its violet/info glows overlap).
+ * Motion (desktop + mobile, never under reduce; built after first paint via deferSetup):
+ * AiChip traces draw in (strokeDashoffset on pathLength=1), then idle while on screen and not
+ * paused (bindIdle): a clockwise signal sweep over the traces/pads + glow breathing; the skyline
+ * layers drift sideways at different paces; StatsBar scales in while its numbers count up
+ * (StatsBar's own useCountUp, same 'top 85%' trigger).
  * The skyline renders as three stacked <svg> layers; on desktop each gets `data-speed` for
  * ScrollSmoother parallax (composited HTML-level transforms, no SVG re-raster per frame).
  */
@@ -42,32 +57,71 @@ export default function Technology() {
       const mm = gsap.matchMedia()
 
       const build = contextSafe(() => {
-        mm.add({ desktop: MQ.desktop, mobile: MQ.mobile }, () => {
-          // AiChip: traces draw in once, glow breathes while the chip is on screen.
+        mm.add({ desktop: MQ.desktop, mobile: MQ.mobile }, (mctx) => {
+          const { desktop } = mctx.conditions
+          const unbind = []
+
+          // AiChip: traces draw in once; then, while the chip is on screen, a signal sweeps round
+          // the traces (opacity dip + pad blink, clockwise) and the glow breathes.
           const chip = root.querySelector('[data-tech-chip]')
-          let offLoop = () => {}
           if (chip) {
+            const traceGroup = chip.querySelector('[data-part="traces"]')
+            const paths = gsap.utils.toArray('path', traceGroup)
+            const pads = gsap.utils.toArray('circle', traceGroup)
             gsap.fromTo(
-              chip.querySelectorAll('[data-part="traces"] > *'),
+              traceGroup.children,
               { strokeDasharray: '1 2', strokeDashoffset: 1.001 },
-              { strokeDashoffset: 0, duration: DUR.base, ease: EASE.out, stagger: 0.04, scrollTrigger: revealTrigger(chip) },
+              // autoRound off: GSAP rounds px by default, which would snap a 0–1 (pathLength) offset.
+              { strokeDashoffset: 0, duration: DUR.base, ease: EASE.out, stagger: 0.04, autoRound: false, scrollTrigger: revealTrigger(chip) },
             )
-            const glow = gsap.fromTo(
+            const sweep = (i) => SWEEP_RANK[i] * 0.09
+            const chipIdle = gsap.timeline()
+            chipIdle.fromTo(
               chip.querySelector('[data-part="glow"]'),
               { scale: 0.86, opacity: 0.55, svgOrigin: '80 80' }, // AiChip viewBox center
-              { scale: 1.08, opacity: 1, svgOrigin: '80 80', duration: 1.6, ease: 'sine.inOut', repeat: -1, yoyo: true, paused: true },
+              { scale: 1.08, opacity: 1, svgOrigin: '80 80', duration: 1.6, ease: 'sine.inOut', repeat: -1, yoyo: true },
+              0,
             )
-            offLoop = loopWhileVisible(chip, [glow], ScrollTrigger)
+            const signal = gsap.timeline({ repeat: -1, repeatDelay: 1.1, delay: 0.8 })
+            signal
+              .to(paths, { keyframes: [{ opacity: 0.3, duration: 0.22 }, { opacity: 1, duration: 0.4 }], ease: 'sine.inOut', stagger: sweep }, 0)
+              .to(pads, { keyframes: [{ scale: 1.45, duration: 0.22 }, { scale: 1, duration: 0.4 }], transformOrigin: '50% 50%', ease: 'sine.inOut', stagger: sweep }, 0.12)
+            chipIdle.add(signal, 0)
+            unbind.push(bindIdle(chipIdle, chip))
+          }
+
+          // CitySkyline: each layer drifts sideways at its own pace (on top of the ScrollSmoother
+          // parallax on y, desktop). One timeline, gated by the skyline being on screen.
+          const skyline = root.querySelector('[data-tech-skyline]')
+          if (skyline) {
+            const amp = desktop ? 1 : 0.6
+            const drift = gsap.timeline()
+            // Phase offsets: layer i starts (i × 0.6) half-periods into its swing, so the layers are
+            // never in step. Children sit at (lead − offset) and the playhead starts at `lead`.
+            const layers = Object.entries(SKYLINE_DRIFT).map(([part, [px, half]], i) => ({
+              el: skyline.querySelector(`[data-part="${part}"]`),
+              px: px * amp,
+              half,
+              offset: i * 0.6 * half,
+            }))
+            const lead = Math.max(...layers.map((l) => l.offset))
+            layers.forEach(({ el, px, half, offset }) => {
+              if (!el) return
+              drift.fromTo(el, { x: -px }, { x: px, duration: half, ease: 'sine.inOut', repeat: -1, yoyo: true }, lead - offset)
+            })
+            drift.time(lead)
+            unbind.push(bindIdle(drift, skyline))
           }
 
           // StatsBar entrance: scale in from 0.96 and fade the figures in. Their count-up (StatsBar's
           // useCountUp) fires on the same 'top 85%' line, so a number resets to 0 while it is hidden.
           const bar = root.querySelector('[data-stats-bar]')
-          if (!bar) return offLoop
-          const tl = gsap.timeline({ scrollTrigger: revealTrigger(bar, 'top 85%') })
-          tl.from(bar, { scale: 0.96, opacity: 0, duration: DUR.base, ease: EASE.out })
-          tl.from(bar.querySelectorAll('[data-stat]'), { opacity: 0, y: 12, duration: DUR.base, ease: EASE.out, stagger: 0.08 }, 0.1)
-          return offLoop
+          if (bar) {
+            const tl = gsap.timeline({ scrollTrigger: revealTrigger(bar, 'top 85%') })
+            tl.from(bar, { scale: 0.96, opacity: 0, duration: DUR.base, ease: EASE.out })
+            tl.from(bar.querySelectorAll('[data-stat]'), { opacity: 0, y: 12, duration: DUR.base, ease: EASE.out, stagger: 0.08 }, 0.1)
+          }
+          return () => unbind.forEach((off) => off())
         })
       })
       const cancel = deferSetup(build)
@@ -90,14 +144,20 @@ export default function Technology() {
       ref={ref}
       id="technology"
       aria-labelledby="technology-title"
-      className="relative overflow-hidden bg-linear-to-b from-surface/70 to-white pt-20 pb-14 lg:pt-20 lg:pb-20"
+      className="relative isolate overflow-hidden pt-20 pb-14 lg:pt-20 lg:pb-20"
     >
+      <SectionBackdrop variant="technology" />
+      {/* Overhangs the section by 3rem a side (clipped) so the layers' sideways drift never shows an edge. */}
       <CitySkyline
         layered
         layerSpeeds={SKYLINE_SPEEDS}
         data-tech-skyline
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-[clamp(10rem,20vw,18rem)] w-full opacity-75"
+        className="pointer-events-none absolute -inset-x-12 bottom-0 h-[clamp(10rem,20vw,18rem)] opacity-75"
       />
+      {/* 3D accents. Tablet (md–lg): one camera in the free top-right corner. xl+: camera and chart
+          flank the stats bar (it leaves a ≥ 150px gutter each side) at different heights, depths and
+          phases so they never move in step. */}
+      <Float3D badge="camera" size={80} depth={1.1} phase={0.1} className="top-28 right-[4%] xl:hidden" />
 
       <div className="relative container-page">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-center lg:gap-16">
@@ -139,7 +199,11 @@ export default function Technology() {
           </Reveal>
         </div>
 
-        <StatsBar className="mt-14 lg:mt-16" />
+        <div className="relative mt-14 lg:mt-16">
+          <Float3D badge="chart" size={104} depth={0.9} phase={0.55} className="md:hidden xl:block top-1/2 -mt-16 right-[calc(50%+440px)]" />
+          <Float3D badge="camera" size={96} depth={1.15} phase={0.1} className="md:hidden xl:block -top-16 left-[calc(50%+444px)]" />
+          <StatsBar />
+        </div>
       </div>
     </section>
   )

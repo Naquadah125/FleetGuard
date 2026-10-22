@@ -7,10 +7,13 @@ import LeafBranch from '@/components/illustrations/LeafBranch'
 import { HERO, formatStat } from '@/content/landing'
 import { countUp } from '@/lib/motion/countUp'
 import { gsap, Flip, ScrollTrigger, SplitText, useGSAP } from '@/lib/motion/gsap'
+import { bindIdle } from '@/lib/motion/idle'
 import { DUR, EASE, MQ } from '@/lib/motion/presets'
 import { scrollToSection } from '@/lib/motion/scroll'
+import SectionBackdrop from './decor/SectionBackdrop'
+import Float3D from './decor/Float3D'
 import FleetDashboard from './hero/FleetDashboard'
-import { isMotionPaused, onMotionPauseChange } from './motionPause'
+import { FLOW_PERIOD } from './hero/FleetMap'
 
 /**
  * Hero (`#top`): headline + CTAs + trust row on the left, the live code-built FleetDashboard on
@@ -20,17 +23,21 @@ import { isMotionPaused, onMotionPauseChange } from './motionPause'
  *  - intro: headline words rise (SplitText words), copy rises, dashboard rises + scales
  *    from 0.96, KPI/distance count up (lib/motion/countUp in timeline mode, each starting with
  *    its tile / card fade so the reset to 0 is never seen), fences pop, route draws, pins drop,
- *    alerts slide in, sparkline draws then its area fades, leaf branch grows.
- *  - live (only after the intro, only while the hero is in view, and not while the shared
- *    motion pause is on — the dashboard header has the pause button): pin pulse rings, vehicle
- *    driving the route, alert ticker (every 6s → Flip list shift, "alerts today" +1),
- *    desktop leaf sway. Out of view / paused → paused.
+ *    alerts slide in, sparkline draws then its area fades, leaf branch grows, 3D badges pop in.
+ *  - idle (built when the intro ends — never in the first-paint path — as ONE timeline
+ *    `gsap.getById('hero-idle')`, bound with lib/motion/idle `bindIdle`: plays only while the hero
+ *    is on screen and the shared motion pause is off; the dashboard header has the pause button):
+ *    pin pulse rings, vehicle driving the route, white data dots flowing along the route,
+ *    sparkline halo pulse, alert ticker (every 6s → Flip list shift, "alerts today" +1),
+ *    desktop leaf sway.
+ *  - backdrop: SectionBackdrop variant "hero" (tint gradient, route pattern, drifting blobs);
+ *    3 Float3D clay badges (shield, bell, pin) around the dashboard float on their own idle loop.
  *  - LCP: the description paragraph only rises (no fade) and the copy starts at 0s, so the LCP
  *    element paints with the first frame. Strokes (route, sparkline, stem) have pathLength="1" and
  *    draw with a strokeDashoffset tween; SVG parts pivot with svgOrigin (no bbox measuring).
  *  - desktop: dashboard tilts toward the pointer (quickTo rotationX/Y ±4°, perspective 1200).
- *  - parallax via data-speed (ScrollSmoother, enabled by the page): blobs 0.8, dashboard 0.95,
- *    distance card 1.08, leaves 0.95 — all clamp()ed so the effect starts at scroll 0 (layout at load
+ *  - parallax via data-speed (ScrollSmoother, enabled by the page): dashboard 0.95, distance
+ *    card 1.08, leaves 0.95, badges 0.9–1.2 (backdrop blobs: SectionBackdrop) — all clamp()ed so the effect starts at scroll 0 (layout at load
  *    = design layout; the card and trust row only move vertically, never closer horizontally).
  */
 
@@ -38,7 +45,9 @@ const TICK_SECONDS = 6
 const TILT_DEG = 4
 // Strokes with pathLength="1": the dash is pushed fully off the path (no round-cap dot) until drawn.
 const UNDRAWN = { strokeDasharray: '1 2', strokeDashoffset: 1.001 }
-const DRAWN = { strokeDashoffset: 0 }
+// autoRound: false — CSSPlugin rounds px values by default, which snaps a 0–1 offset (1 → 0)
+// instead of drawing it.
+const DRAWN = { strokeDashoffset: 0, autoRound: false }
 const centerOf = (el) => `${el.getAttribute('cx')} ${el.getAttribute('cy')}`
 
 // Tones for the decorative trust avatars (initials come from HERO.trustAvatars).
@@ -64,32 +73,8 @@ function NoOrphan({ text }) {
   )
 }
 
-function Backdrop() {
-  return (
-    <div aria-hidden="true" data-speed="clamp(0.8)" className="pointer-events-none absolute inset-0 -z-10">
-      <div
-        className="absolute -top-40 -left-48 size-[620px] rounded-full opacity-90"
-        style={{ background: 'radial-gradient(closest-side, var(--color-brand-50), transparent)' }}
-      />
-      <div
-        className="absolute top-24 left-[38%] size-[420px] rounded-full opacity-70"
-        style={{ background: 'radial-gradient(closest-side, var(--color-brand-50), transparent)' }}
-      />
-      <div
-        className="absolute -top-24 -right-40 size-[560px] rounded-full"
-        style={{
-          background: 'radial-gradient(closest-side, color-mix(in oklab, var(--color-brand-100) 70%, transparent), transparent)',
-        }}
-      />
-      <div
-        className="absolute -right-24 bottom-0 size-[420px] rounded-full opacity-80"
-        style={{ background: 'radial-gradient(closest-side, var(--color-brand-50), transparent)' }}
-      />
-    </div>
-  )
-}
-
-/** Light curved wave closing the hero into the white Features section, green swell on the right. */
+/** Soft curved wave closing the hero into Features: a pale crest over the backdrop, a green swell
+ *  on the right, and a front that ends on `tint-mint` (the hero → features seam colour). */
 function Wave() {
   return (
     <svg
@@ -112,10 +97,10 @@ function Wave() {
       />
       <path
         d="M0 62 C220 34 470 34 720 64 S1160 112 1440 70 L1440 120 L0 120 Z"
-        fill="var(--color-surface)"
-        opacity="0.7"
+        fill="white"
+        opacity="0.55"
       />
-      <path d="M0 78 C260 52 520 60 760 84 S1180 116 1440 96 L1440 120 L0 120 Z" fill="white" />
+      <path d="M0 78 C260 52 520 60 760 84 S1180 116 1440 96 L1440 120 L0 120 Z" fill="var(--color-tint-mint)" />
     </svg>
   )
 }
@@ -185,7 +170,6 @@ export default function Hero() {
         gsap.from(split.words, { opacity: 0, y: 28, duration: 0.8, ease: EASE.out, stagger: 0.06, delay: 0.1 })
 
         // ---- intro timeline ----------------------------------------------------------------
-        let introDone = false
         const tl = gsap.timeline({ defaults: { ease: EASE.out, duration: DUR.base } })
         // The description is the LCP element: rise only, never hidden. CTAs + trust row fade too.
         tl.from(one('[data-hero-lead]'), { y: 20 }, 0)
@@ -203,6 +187,8 @@ export default function Hero() {
           .fromTo(one('[data-spark-line]'), UNDRAWN, { ...DRAWN, duration: 1.2, ease: EASE.inOut }, 1.2)
           .from(one('[data-spark-area]'), { opacity: 0, duration: 0.7 }, 2.0)
           .from(one('[data-spark-dot]'), { scale: 0, duration: 0.45, ease: EASE.spring }, 2.25)
+          // 3D accents pop in around the dashboard (their idle float is Float3D's own, deferred).
+          .from(all('[data-float3d] > svg'), { opacity: 0, scale: 0.5, y: 16, duration: 0.7, ease: EASE.spring, stagger: 0.12 }, 1.0)
         // Count-ups start with their tile / card fade (0.6 + i·0.08 and 0.95 above). countUp restores
         // the final text when this branch reverts and never replays an element that already counted.
         kpiCounters.forEach((el, i) =>
@@ -219,77 +205,70 @@ export default function Hero() {
             0.75,
           )
         }
-        tl.call(() => {
-          introDone = true
-          syncLive()
-        })
-
-        // ---- live loops (paused until intro done + hero in view) ---------------------------
-        const loops = []
-        all('[data-pin-ring]').forEach((ring, i) => {
-          loops.push(
-            gsap.fromTo(
+        // ---- idle (live) loops: built when the intro ends (never in the first-paint path),
+        // then bound with bindIdle — they run only while the hero is on screen and the shared
+        // motion pause (dashboard header button) is off. One timeline, id 'hero-idle'. -------
+        let unbindIdle = () => {}
+        let alive = true
+        const startIdle = ctx.add('startIdle', () => {
+          const idle = gsap.timeline({ id: 'hero-idle' })
+          // Map pins: ground rings pulse in turn.
+          all('[data-pin-ring]').forEach((ring, i) => {
+            idle.fromTo(
               ring,
-              // svgOrigin in BOTH vars: the ring is centered on the pin's local origin, and a from-state
-              // rendered with another origin would skew the inverse-matrix origin math.
+              // svgOrigin in BOTH vars: the ring is centered on the pin's local origin, and a
+              // from-state rendered with another origin would skew the inverse-matrix origin math.
               { scale: 0.3, opacity: 0.8, svgOrigin: '0 0' },
-              {
-                scale: 2.2,
-                opacity: 0,
-                svgOrigin: '0 0',
-                duration: 2,
-                ease: 'power1.out',
-                repeat: -1,
-                repeatDelay: 0.6,
-                delay: i * 0.5,
-                paused: true,
-                immediateRender: false,
-              },
-            ),
-          )
-        })
-        loops.push(
-          gsap.to(vehicle, {
-            motionPath: { path: route, align: route, alignOrigin: [0.5, 0.5] },
-            duration: 9,
-            ease: 'none',
-            repeat: -1,
-            yoyo: true,
-            repeatDelay: 0.8,
-            paused: true,
-          }),
-        )
-        if (desktop && leafSvg) {
-          leaves.forEach((leaf, i) => {
-            loops.push(
-              gsap.to(leaf, {
-                keyframes: { rotation: [0, 4, 0, -4, 0], easeEach: 'sine.inOut' },
-                svgOrigin: '0 0',
-                duration: 4 + (i % 3) * 0.7,
-                delay: i * 0.15,
-                ease: 'none',
-                repeat: -1,
-                paused: true,
-              }),
+              { scale: 2.2, opacity: 0, svgOrigin: '0 0', duration: 2, ease: 'power1.out', repeat: -1, repeatDelay: 0.6, immediateRender: false },
+              i * 0.5,
             )
           })
-          loops.push(
-            gsap.to(leafSvg, {
-              keyframes: { rotation: [0, 1.5, 0, -1.5, 0], easeEach: 'sine.inOut' },
-              transformOrigin: '80% 100%',
-              duration: 7,
-              ease: 'none',
-              repeat: -1,
-              paused: true,
-            }),
+          // Vehicle drives the route; white "live data" dots flow along it.
+          idle.to(
+            vehicle,
+            { motionPath: { path: route, align: route, alignOrigin: [0.5, 0.5] }, duration: 9, ease: 'none', repeat: -1, yoyo: true, repeatDelay: 0.8 },
+            0,
           )
-        }
+          const flow = one('[data-map-route-flow]')
+          if (flow) {
+            gsap.set(flow, { opacity: 1 })
+            // attr (not CSS): CSSPlugin rounds px values, which would freeze a sub-pixel offset.
+            idle.fromTo(flow, { attr: { 'stroke-dashoffset': 0 } }, { attr: { 'stroke-dashoffset': -FLOW_PERIOD }, duration: 0.9, ease: 'none', repeat: -1 }, 0)
+          }
+          // Sparkline: a soft halo pulses out of the live point.
+          const halo = one('[data-spark-halo]')
+          if (halo) {
+            idle.fromTo(halo, { scale: 1, opacity: 0.45 }, { scale: 3.2, opacity: 0, duration: 1.6, ease: 'power2.out', repeat: -1, repeatDelay: 1.2 }, 0.3)
+          }
+          // Desktop: leaf branch sways (each leaf on its base + the whole branch on its root).
+          if (desktop && leafSvg) {
+            // Two counter-phased groups (alternate leaves) instead of one tween per leaf: same look,
+            // 2 tweens instead of 10 (on-screen tween budget ≤ ~30).
+            const groups = [leaves.filter((_, i) => i % 2 === 0), leaves.filter((_, i) => i % 2 === 1)]
+            groups.forEach((group, g) => {
+              const a = g ? -4 : 4
+              idle.to(
+                group,
+                { keyframes: { rotation: [0, a, 0, -a, 0], easeEach: 'sine.inOut' }, svgOrigin: '0 0', duration: 4 + g * 0.9, ease: 'none', repeat: -1 },
+                g * 0.4,
+              )
+            })
+            idle.to(
+              leafSvg,
+              { keyframes: { rotation: [0, 1.5, 0, -1.5, 0], easeEach: 'sine.inOut' }, transformOrigin: '80% 100%', duration: 7, ease: 'none', repeat: -1 },
+              0,
+            )
+          }
+          // Alert ticker: every 6s prepend the next alert (Flip list shift, "alerts today" +1).
+          idle.add(gsap.timeline({ repeat: -1 }).call(tick, null, TICK_SECONDS), 0)
+          unbindIdle = bindIdle(idle, root)
+        })
+        tl.call(() => startIdle())
 
-        // ---- alert ticker: every 6s prepend the next alert, Flip the list ----------------
-        let alive = true
+        // ---- alert ticker step --------------------------------------------------------------
         let bumped = 0
         const liveBase = liveCounter ? Number(liveCounter.dataset.count) : 0
-        const tick = () => {
+        function tick() {
           if (!alive || !list || !dashRef.current) return
           const items = list.querySelectorAll('[data-alert]')
           gsap.to(items[items.length - 1], {
@@ -316,25 +295,6 @@ export default function Hero() {
             },
           })
         }
-        const ticker = gsap.timeline({ repeat: -1, paused: true }).call(tick, null, TICK_SECONDS)
-        loops.push(ticker)
-
-        let inView = true
-        function syncLive() {
-          const on = introDone && inView && !isMotionPaused()
-          loops.forEach((a) => a.paused(!on))
-        }
-        const offPause = onMotionPauseChange(syncLive)
-        const viewTrigger = ScrollTrigger.create({
-          trigger: root,
-          start: 'top bottom',
-          end: 'bottom top',
-          onToggle: (self) => {
-            inView = self.isActive
-            syncLive()
-          },
-        })
-        inView = viewTrigger.isActive
 
         // ---- desktop: dashboard tilts toward the pointer ---------------------------------
         let removeTilt = () => {}
@@ -378,7 +338,7 @@ export default function Hero() {
 
         return () => {
           alive = false
-          offPause()
+          unbindIdle()
           removeTilt()
           // Ticker tweens are created after this context ran, so clean them up by hand.
           const items = list ? list.querySelectorAll('[data-alert]') : []
@@ -397,8 +357,8 @@ export default function Hero() {
   )
 
   return (
-    <section id="top" ref={rootRef} className="relative isolate overflow-hidden bg-white pt-[72px]">
-      <Backdrop />
+    <section id="top" ref={rootRef} className="relative isolate overflow-hidden pt-[72px]">
+      <SectionBackdrop variant="hero" />
 
       <div className="container-page relative z-10 grid items-center gap-12 pt-10 pb-24 md:pt-14 md:pb-32 lg:grid-cols-12 lg:gap-8 lg:pt-14 lg:pb-32 xl:grid-cols-[minmax(0,560px)_minmax(0,1fr)] xl:gap-10">
         <div className="lg:col-span-5 xl:col-span-1">
@@ -423,8 +383,13 @@ export default function Hero() {
           <TrustRow />
         </div>
 
-        <div data-reveal className="lg:col-span-7 xl:col-span-1">
+        <div data-reveal className="relative lg:col-span-7 xl:col-span-1">
           <FleetDashboard ref={dashRef} className="xl:-mr-10" />
+          {/* Clay 3D accents around the dashboard, at three depths (clamp(): parallax from scroll 0).
+              Tablet shows two, phones none (hero first paint stays light). */}
+          <Float3D badge="shield" size={84} depth="clamp(1.12)" phase={0} className="-top-12 -left-7 md:-top-14 lg:-top-16 lg:-left-12" />
+          <Float3D badge="bell" size={68} depth="clamp(0.9)" phase={0.4} className="-top-14 right-[30%] md:hidden lg:block" />
+          <Float3D badge="pin" size={76} depth="clamp(1.2)" phase={0.75} className="right-[38%] -bottom-14 lg:-bottom-16 xl:right-[34%]" />
         </div>
       </div>
 

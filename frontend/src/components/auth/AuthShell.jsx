@@ -2,7 +2,9 @@
  * AuthShell — shared frame for /login and /register.
  *
  * Desktop (≥ 1024px): split screen. Left: pastel-teal brand panel (logo → "/", value line,
- * PhoneMap whose route draws in and pins drop, CitySkyline along the bottom). Right: the form in a
+ * PhoneMap whose route draws in and pins drop, CitySkyline along the bottom). After the intro the
+ * panel idles (phone float, pins pulse, route dash flow, skyline layer drift) unless the shared
+ * MotionPause is on; nothing moves under reduced motion. Right: the form in a
  * white card (max 440px). Mobile/tablet: logo + back link + form card only.
  *
  * Props
@@ -121,21 +123,71 @@ export default function AuthShell({ title, subtitle, footer, children }) {
           .fromTo(
             route,
             { strokeDasharray: '1 2', strokeDashoffset: 1.05 },
-            { strokeDashoffset: 0, duration: 1.4, ease: EASE.inOut },
+            { strokeDashoffset: 0, duration: 1.4, ease: EASE.inOut, autoRound: false }, // keep sub-px offsets
             '-=0.3',
           )
           .from(pins, { y: -28, opacity: 0, duration: 0.7, ease: 'bounce.out', stagger: 0.28 }, '<0.15')
 
-        // Gentle idle float once the intro has settled. Honours the site-wide motion pause
-        // (set from the landing page's pause buttons, WCAG 2.2.2).
-        const float = gsap.to(phone, { y: -8, duration: 2.6, ease: 'sine.inOut', yoyo: true, repeat: -1, paused: true })
+        // Idle loop once the intro has settled (the panel is sticky, so it is always on screen
+        // while it exists): phone float, pins pulse in turn, a light "data" dash flows along the
+        // route, skyline layers drift sideways at their own pace. Honours the site-wide motion
+        // pause (set from the landing page's pause buttons, WCAG 2.2.2). Transform/opacity and
+        // one dash offset on a 4.5px stroke — nothing that re-rasters the panel.
+        // Skyline layers: [part, amplitude px, half-period s]; layer i starts i × 0.6 half-periods
+        // into its swing. Every other loop sits at `lead` and the playhead starts there.
+        const drift = [
+          ['layer-back', 8, 24],
+          ['layer-mid', 14, 18],
+          ['layer-front', 24, 14],
+        ].map(([part, px, half], i) => ({ part, px, half, offset: i * 0.6 * half }))
+        const lead = Math.max(...drift.map((d) => d.offset))
+
+        const idle = gsap.timeline({ paused: true })
+        idle.to(phone, { y: -8, duration: 2.6, ease: 'sine.inOut', yoyo: true, repeat: -1 }, lead)
+
+        const pulse = gsap.timeline({ repeat: -1, repeatDelay: 1.4 })
+        pulse.to(pins, {
+          keyframes: [
+            { scale: 1.14, duration: 0.28, ease: 'power2.out' },
+            { scale: 1, duration: 0.5, ease: 'sine.inOut' },
+          ],
+          transformOrigin: '50% 100%', // pin tip
+          stagger: 0.32,
+        })
+        idle.add(pulse, lead)
+
+        // Flow: a white dashed copy of the route laid over it (the drawn route stays solid). The
+        // copy drops pathLength so the dash is in viewBox units. `autoRound: false` everywhere a
+        // dash offset tweens: GSAP rounds px values by default, which snaps sub-unit offsets.
+        const flow = route.cloneNode(false)
+        flow.removeAttribute('data-part')
+        flow.removeAttribute('pathLength')
+        flow.setAttribute('stroke', '#fff')
+        flow.setAttribute('stroke-width', '2')
+        flow.setAttribute('stroke-opacity', '0.9')
+        route.after(flow)
+        gsap.set(flow, { strokeDasharray: '6 10', strokeDashoffset: 0, opacity: 0 })
+        idle.to(flow, { opacity: 1, duration: 0.6 }, lead)
+        idle.to(flow, { strokeDashoffset: -16, duration: 0.9, ease: 'none', repeat: -1, autoRound: false }, lead)
+
+        const skyline = root.current.querySelector('[data-auth="skyline"]')
+        drift.forEach(({ part, px, half, offset }) => {
+          const layer = skyline.querySelector(`[data-part="${part}"]`)
+          if (layer) idle.fromTo(layer, { x: -px }, { x: px, duration: half, ease: 'sine.inOut', yoyo: true, repeat: -1 }, lead - offset)
+        })
+        idle.time(lead)
+
         let settled = false
-        const syncFloat = () => (settled && !isMotionPaused() ? float.play() : float.pause())
+        const sync = () => (settled && !isMotionPaused() ? idle.play() : idle.pause())
         tl.call(() => {
           settled = true
-          syncFloat()
+          sync()
         })
-        return onMotionPauseChange(syncFloat)
+        const off = onMotionPauseChange(sync)
+        return () => {
+          off()
+          flow.remove()
+        }
       })
 
       return () => mm.revert()
@@ -179,9 +231,12 @@ export default function AuthShell({ title, subtitle, footer, children }) {
           />
         </div>
 
+        {/* Layered (one <svg> per depth) so each layer drifts as its own composited box; overhangs
+            the panel by 2.5rem a side (clipped) so the drift never shows an edge. */}
         <CitySkyline
+          layered
           data-auth="skyline"
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-[180px] w-full"
+          className="pointer-events-none absolute -inset-x-10 bottom-0 h-[180px]"
         />
       </aside>
 

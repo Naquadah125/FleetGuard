@@ -6,12 +6,14 @@ import RoadBand from '@/components/illustrations/RoadBand'
 import SedanCar from '@/components/illustrations/SedanCar'
 import Reveal from '@/components/landing/Reveal'
 import SectionHeading from '@/components/landing/SectionHeading'
+import SectionBackdrop from '@/components/landing/decor/SectionBackdrop'
+import Float3D from '@/components/landing/decor/Float3D'
 import PricingCard from '@/components/landing/pricing/PricingCard'
 import { PRICING, pricingAnnouncement } from '@/content/landing'
 import { deferSetup } from '@/lib/motion/defer'
-import { Flip, gsap, ScrollTrigger, useGSAP } from '@/lib/motion/gsap'
+import { Flip, gsap, useGSAP } from '@/lib/motion/gsap'
+import { bindIdle } from '@/lib/motion/idle'
 import { EASE, MQ } from '@/lib/motion/presets'
-import { loopWhileVisible } from './motionPause'
 
 // Wheel radius as a fraction of each illustration's viewBox width (SedanCar r18/300, DeliveryTruck r19/320):
 // lets the scrub roll the wheels exactly as far as the car travels.
@@ -19,6 +21,7 @@ const SEDAN_WHEEL = 18 / 300
 const TRUCK_WHEEL = 19 / 320
 const TRAVEL = 120
 const DASH_PERIOD = 48 // RoadBand dash rhythm (26 + 22)
+const IDLE_LOOP = 1.8 // s — one wheel turn per loop
 
 /** Degrees a wheel turns while its vehicle travels `distance` px on screen. */
 function rollDeg(svg, ratio, distance) {
@@ -26,20 +29,56 @@ function rollDeg(svg, ratio, distance) {
   return radius > 0 ? (distance / radius) * (180 / Math.PI) : 0
 }
 
-function dashLoop(dashes) {
-  return gsap.fromTo(
-    dashes,
-    { strokeDashoffset: 0 },
-    { strokeDashoffset: -DASH_PERIOD, duration: 0.9, ease: 'none', repeat: -1, paused: true },
-  )
+/**
+ * Wheel rotation = entrance roll offset (desktop scrub) + idle spin, written with one quickSetter
+ * per vehicle so the scrub and the idle loop never tween the same property.
+ * Wheel geometry is centred on each part's local origin → svgOrigin '0 0' (no bbox read).
+ */
+function createWheels(decor) {
+  const sedanWheels = decor.querySelectorAll('[data-vehicle="sedan"] [data-part^="wheel-"]')
+  const truckWheels = decor.querySelectorAll('[data-vehicle="truck"] [data-part^="wheel-"]')
+  gsap.set([...sedanWheels, ...truckWheels], { rotation: 0, svgOrigin: '0 0' })
+  const setSedan = gsap.quickSetter(sedanWheels, 'rotation', 'deg')
+  const setTruck = gsap.quickSetter(truckWheels, 'rotation', 'deg')
+  const roll = { sedan: 0, truck: 0 }
+  const spin = { deg: 0 }
+  const apply = () => {
+    // Each vehicle drives "forward" for the way it faces on screen: the sedan faces left (local CW,
+    // both SVGs are mirrored), the truck faces right (local CCW).
+    setSedan(roll.sedan + spin.deg)
+    setTruck(roll.truck - spin.deg)
+  }
+  return { roll, spin, apply }
+}
+
+/**
+ * Continuous idle while the road is on screen (bindIdle: paused off screen, under MotionPause and
+ * reduced motion): wheels spin, both bodies bob on their suspension (out of phase), road dashes
+ * flow. One 1.8s loop: 1 wheel turn, 2 bobs, 2 dash periods (≈53px/s). 4 tweens.
+ */
+function roadIdle(decor, wheels) {
+  const part = (vehicle, name) => decor.querySelectorAll(`[data-vehicle="${vehicle}"] [data-part="${name}"]`)
+  const bob = { y: -2, duration: IDLE_LOOP / 4, ease: 'sine.inOut', yoyo: true, repeat: 3 }
+  return gsap
+    .timeline({ repeat: -1, paused: true })
+    .fromTo(wheels.spin, { deg: 0 }, { deg: 360, duration: IDLE_LOOP, ease: 'none', onUpdate: wheels.apply }, 0)
+    .to(part('sedan', 'body'), bob, 0)
+    .to([...part('truck', 'body'), ...part('truck', 'cab')], { ...bob, y: -1.6 }, IDLE_LOOP / 8)
+    .fromTo(
+      decor.querySelector('[data-part="dashes"]'),
+      { strokeDashoffset: 0 },
+      { strokeDashoffset: -2 * DASH_PERIOD, duration: IDLE_LOOP, ease: 'none' },
+      0,
+    )
 }
 
 /**
  * Pricing (#pricing): heading, billing toggle (monthly/yearly) and two plan cards over a road band
  * with a sedan (left) and a delivery truck (right).
  * Motion — desktop: vehicles scrub in from ±120px as the cards enter, wheels roll by the distance
- * travelled, road dashes loop while in view. Mobile: road + vehicles sit small below the cards,
- * only the wheels spin and the dashes loop (loops honour the shared motion pause). Toggle thumb
+ * travelled. Then, on every size, a continuous idle runs while the road is on screen (bindIdle —
+ * paused off screen, under the shared motion pause and under reduced motion): wheels spin, bodies
+ * bob, road dashes flow. Mobile: road + vehicles sit small below the cards (idle only). Toggle thumb
  * moves with Flip; prices tween; one polite live region announces both new prices.
  * The road/vehicle setup is deferred (deferSetup) — the section is far below the fold.
  * Reduced motion: everything static and in its final place.
@@ -91,9 +130,10 @@ export default function Pricing() {
           const truck = decor.querySelector('[data-vehicle="truck"]')
           const sedanSvg = sedan.querySelector('svg')
           const truckSvg = truck.querySelector('svg')
-          const sedanWheels = sedan.querySelectorAll('[data-part^="wheel-"]')
-          const truckWheels = truck.querySelectorAll('[data-part^="wheel-"]')
+          const wheels = createWheels(decor)
 
+          // Entrance: vehicles scrub in from the gutters; their wheels roll by the distance travelled
+          // (the roll is an offset added to the idle spin, so both can run without fighting).
           // Both SVGs are mirrored (-scale-x-100), so on-screen clockwise = negative local rotation.
           // Sedan rolls right (−120 → 0): screen CW → local starts positive. Truck rolls left: the opposite.
           gsap
@@ -108,42 +148,24 @@ export default function Pricing() {
               },
             })
             .fromTo(sedan, { x: -TRAVEL }, { x: 0 }, 0)
-            .fromTo(
-              sedanWheels,
-              // Wheel geometry is centered on the part's local origin → svgOrigin '0 0' (no bbox read).
-              { rotation: () => rollDeg(sedanSvg, SEDAN_WHEEL, TRAVEL), svgOrigin: '0 0' },
-              { rotation: 0, svgOrigin: '0 0' },
-              0,
-            )
             .fromTo(truck, { x: TRAVEL }, { x: 0 }, 0)
             .fromTo(
-              truckWheels,
-              { rotation: () => -rollDeg(truckSvg, TRUCK_WHEEL, TRAVEL), svgOrigin: '0 0' },
-              { rotation: 0, svgOrigin: '0 0' },
+              wheels.roll,
+              {
+                sedan: () => rollDeg(sedanSvg, SEDAN_WHEEL, TRAVEL),
+                truck: () => -rollDeg(truckSvg, TRUCK_WHEEL, TRAVEL),
+              },
+              { sedan: 0, truck: 0, onUpdate: wheels.apply },
               0,
             )
+          wheels.apply() // the scrub's first render does not fire onUpdate
 
-          return loopWhileVisible(decor, [dashLoop(decor.querySelector('[data-part="dashes"]'))], ScrollTrigger)
+          return bindIdle(roadIdle(decor, wheels), decor)
         })
 
         mm.add(MQ.mobile, () => {
           const decor = root.querySelector('[data-road="mobile"]')
-          // Static vehicles, wheels spinning "forward" for the way each one faces on screen
-          // (sedan faces left → local CW; truck faces right → local CCW, both mirrored).
-          const spin = (selector, dir) =>
-            gsap.to(decor.querySelectorAll(`[data-vehicle="${selector}"] [data-part^="wheel-"]`), {
-              rotation: 360 * dir,
-              svgOrigin: '0 0',
-              duration: 1.1,
-              ease: 'none',
-              repeat: -1,
-              paused: true,
-            })
-          return loopWhileVisible(
-            decor,
-            [spin('sedan', 1), spin('truck', -1), dashLoop(decor.querySelector('[data-part="dashes"]'))],
-            ScrollTrigger,
-          )
+          return bindIdle(roadIdle(decor, createWheels(decor)), decor)
         })
       })
       const cancel = deferSetup(build)
@@ -161,8 +183,11 @@ export default function Pricing() {
       ref={ref}
       id="pricing"
       aria-labelledby="pricing-title"
-      className="relative overflow-hidden bg-linear-to-b from-brand-50/40 via-white to-surface/70 pt-16 pb-12 lg:pt-20 lg:pb-20"
+      // isolate: keeps the backdrop's -z-10 layer inside the section. Tight top padding: AiDemo above
+      // ends on the same tint (seam tint-sky), so the heading follows the cards without a pale band.
+      className="relative isolate overflow-hidden pt-10 pb-12 lg:pt-12 lg:pb-20"
     >
+      <SectionBackdrop variant="pricing" />
       <div className="container-page flex flex-col items-center gap-8">
         <SectionHeading id="pricing-title" title={PRICING.title} />
 
@@ -230,6 +255,16 @@ export default function Pricing() {
         </div>
 
         <div className="container-page relative">
+          {/* Clay 3D accents in the upper gutters beside the cards (xl: the gutters are too narrow below). */}
+          <Float3D badge="truck" size={112} depth={1.12} phase={0.3} className="md:hidden xl:block -top-10 right-[calc(50%+452px)]" />
+          {/* Tablet (single column, 104px gutters): only the shield, smaller, beside the second card. */}
+          <Float3D
+            badge="shield"
+            size={96}
+            depth={0.9}
+            phase={0.75}
+            className="bottom-48 left-[calc(50%+292px)] size-[72px]! lg:hidden xl:bottom-auto xl:top-6 xl:left-[calc(50%+460px)] xl:block xl:size-[96px]!"
+          />
           <Reveal className="mx-auto grid max-w-[560px] items-stretch gap-6 lg:max-w-[880px] lg:grid-cols-2 lg:gap-10">
             {PRICING.plans.map((plan) => (
               <div key={plan.id} data-reveal className="h-full">

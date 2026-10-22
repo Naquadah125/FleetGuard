@@ -3,21 +3,19 @@ import { Minus } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import PottedPlant from '@/components/illustrations/PottedPlant'
 import SectionHeading from '@/components/landing/SectionHeading'
+import SectionBackdrop from '@/components/landing/decor/SectionBackdrop'
+import Float3D from '@/components/landing/decor/Float3D'
 import { COMPARISON } from '@/content/landing'
 import { deferSetup } from '@/lib/motion/defer'
-import { gsap, ScrollTrigger, useGSAP } from '@/lib/motion/gsap'
+import { gsap, useGSAP } from '@/lib/motion/gsap'
+import { bindIdle } from '@/lib/motion/idle'
 import { DUR, EASE, MQ, revealTrigger } from '@/lib/motion/presets'
 import { cn } from '@/lib/utils'
-import { loopWhileVisible } from './motionPause'
 
 // The plant is only displayed at xl (≥1280px), so its sway only runs there.
 const MQ_PLANT = '(min-width: 1280px) and (prefers-reduced-motion: no-preference)'
 // PottedPlant: the stem base (viewBox units) — the whole plant sways around it.
 const PLANT_BASE = '100 207'
-// Soft blob = radial gradient (no blur filter: nothing to re-raster while scrolling).
-const blob = (alpha) => ({
-  background: `radial-gradient(closest-side, color-mix(in oklab, var(--color-brand-100) ${alpha}%, transparent) 35%, transparent)`,
-})
 
 /** Lucide "check" path with pathLength=1, so it draws with a strokeDashoffset tween. */
 function CheckMark() {
@@ -105,7 +103,8 @@ export default function Comparison() {
             .fromTo(
               checks,
               { strokeDasharray: '1 2', strokeDashoffset: 1.001 },
-              { strokeDashoffset: 0, duration: 0.45, ease: 'power2.out', stagger: 0.04 },
+              // autoRound off: GSAP rounds these to whole units by default, which snaps a pathLength=1 draw.
+              { strokeDashoffset: 0, duration: 0.45, ease: 'power2.out', stagger: 0.04, autoRound: false },
               0.25,
             )
         })
@@ -125,7 +124,8 @@ export default function Comparison() {
               { rotation: 4, svgOrigin: '0 0', duration: 1.3, stagger: { each: 0.12, from: 'end' } },
               0,
             )
-          return loopWhileVisible(plant, [sway], ScrollTrigger)
+          // Continuous sway while the plant is on screen (paused off screen / under MotionPause).
+          return bindIdle(sway, plant)
         })
       })
       const cancel = deferSetup(build)
@@ -143,14 +143,11 @@ export default function Comparison() {
       ref={ref}
       id="comparison"
       aria-labelledby="comparison-title"
-      className="relative overflow-hidden bg-surface/70 py-16 lg:py-20"
+      // isolate: keeps the backdrop's -z-10 layer inside the section. Top padding is tight: the
+      // pricing road band above already closes that seam (tint-mist).
+      className="relative isolate overflow-hidden pt-12 pb-16 lg:pt-14 lg:pb-20"
     >
-      {/* soft green blobs in the bottom corners (mockup); kept clear of the bottom edge and masked out
-          toward it, so the section clip never shows as a hard band against Technology below */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 mask-b-from-60% mask-b-to-100%">
-        <div className="absolute bottom-0 -left-56 size-[540px] rounded-full" style={blob(60)} />
-        <div className="absolute -right-56 bottom-0 size-[580px] rounded-full" style={blob(50)} />
-      </div>
+      <SectionBackdrop variant="comparison" />
 
       <div className="container-page relative flex flex-col gap-8">
         <SectionHeading id="comparison-title" title={COMPARISON.title} />
@@ -164,6 +161,10 @@ export default function Comparison() {
           >
             <PottedPlant className="h-auto w-full" />
           </div>
+
+          {/* Clay 3D accents right of the table (xl), balancing the plant on the left. */}
+          <Float3D badge="lock" size={96} depth={1.12} phase={0.2} className="md:hidden xl:block top-2 left-full ml-10" />
+          <Float3D badge="shield" size={72} depth={0.9} phase={0.65} className="md:hidden xl:block bottom-10 left-full ml-24" />
 
           <div
             data-comparison-table

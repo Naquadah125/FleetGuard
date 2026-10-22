@@ -36,6 +36,7 @@ import FleetMap from './FleetMap'
  *   [data-alerts]      alerts panel            [data-alert-list] > [data-alert] items
  *   [data-distance-card]  floating card        [data-distance-count] km number
  *   [data-spark-line] / [data-spark-area] / [data-spark-dot]  sparkline parts
+ *   [data-spark-halo]  pulse halo behind the live point (rest opacity 0)
  *
  * Imperative handle (React 19 `ref` prop): `pushAlert()` prepends the next alert synchronously
  * (flushSync) so the caller can wrap it in Flip.getState()/Flip.from().
@@ -208,6 +209,11 @@ function Sparkline({ series, className }) {
           fill="none"
         />
       </svg>
+      {/* Halo behind the live point (idle pulse: scale + fade; rest opacity 0). The wrapper holds
+          the centring translate so GSAP's scale on the halo never touches it. */}
+      <span className="absolute right-0 size-2.5 translate-x-1/2 -translate-y-1/2" style={{ top: `${(lastY / H) * 100}%` }}>
+        <span data-spark-halo className="absolute inset-0 rounded-full bg-brand opacity-0" />
+      </span>
       <span
         data-spark-dot
         className="absolute right-0 size-2.5 translate-x-1/2 -translate-y-1/2 rounded-full bg-brand ring-2 ring-white"

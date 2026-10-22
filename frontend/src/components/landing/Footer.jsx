@@ -31,6 +31,61 @@ const SOCIAL = {
   },
 }
 
+/*
+ * Faint route map behind the footer (static; decorative). Streets are white at a few percent, the
+ * routes mint dashes, so the dark ground only lifts a hair and every text colour keeps its contrast
+ * (white/70 stays ≥ 7:1). Masked to the outer edges so the link columns sit on calm ground.
+ */
+const FOOTER_STREETS = [
+  'M-40 330C180 270 330 360 560 300S900 140 1120 190 1380 120 1500 60',
+  'M980 -20C1010 120 940 210 1060 300S1300 380 1260 520',
+  'M-40 120C140 160 260 90 420 140S640 260 600 400',
+  'M1500 300C1360 330 1280 280 1180 330S1040 460 1100 540',
+]
+const FOOTER_ROUTES = [FOOTER_STREETS[0], FOOTER_STREETS[1]]
+const FOOTER_STOPS = [
+  [560, 300],
+  [1060, 300],
+  [420, 140],
+  [1180, 330],
+]
+const FOOTER_MASK = 'radial-gradient(ellipse 70% 90% at 50% 45%, transparent 35%, #000 85%)'
+
+function FooterRoutes() {
+  return (
+    <svg
+      viewBox="0 0 1440 520"
+      preserveAspectRatio="xMidYMid slice"
+      focusable="false"
+      className="absolute inset-0 size-full"
+      style={{ maskImage: FOOTER_MASK, WebkitMaskImage: FOOTER_MASK }}
+    >
+      <g fill="none" strokeLinecap="round">
+        {FOOTER_STREETS.map((d) => (
+          <path key={d} d={d} stroke="#fff" strokeOpacity="0.045" strokeWidth="12" vectorEffect="non-scaling-stroke" />
+        ))}
+        {FOOTER_ROUTES.map((d) => (
+          <path
+            key={`r${d}`}
+            d={d}
+            stroke="#34D3A4"
+            strokeOpacity="0.22"
+            strokeWidth="2"
+            strokeDasharray="2 10"
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+        {FOOTER_STOPS.map(([x, y]) => (
+          <g key={`${x}-${y}`}>
+            <circle cx={x} cy={y} r="11" fill="#fff" fillOpacity="0.035" />
+            <circle cx={x} cy={y} r="4" fill="var(--color-footer)" stroke="#34D3A4" strokeOpacity="0.35" strokeWidth="2" />
+          </g>
+        ))}
+      </g>
+    </svg>
+  )
+}
+
 /** Product-group items that are also landing sections ("Tính năng" → #features …). */
 const PRODUCT_SECTION_IDS = Object.fromEntries(NAV_LINKS.map((l) => [l.label, l.id]))
 
@@ -102,15 +157,25 @@ function LinkGroup({ group, sectionLinks }) {
 
 /**
  * Landing footer (`#contact`): brand + socials, three link groups, contact block, bottom bar.
- * Columns reveal with a stagger (Reveal); a faint oversized brand mark sits behind as
- * decoration (parallax via `data-speed` once ScrollSmoother is on).
+ * Columns reveal with a stagger (Reveal). Depth comes from a dark-teal gradient, a faint static
+ * route map on the outer edges, a soft brand glow and an oversized brand mark (parallax via
+ * `data-speed` once ScrollSmoother is on). No teal 3D badges here (they vanish on the dark ground).
  */
 export default function Footer() {
   const year = new Date().getFullYear()
 
   return (
-    <footer id="contact" className="relative overflow-hidden bg-footer text-white/80">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+    <footer id="contact" className="relative isolate overflow-hidden bg-footer text-white/80">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+        {/* Depth: a dark-teal fall (lifted toward brand at the top seam, deepening at the base). */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(to bottom, color-mix(in oklab, var(--color-footer) 88%, var(--color-brand)), var(--color-footer) 45%, color-mix(in oklab, var(--color-footer) 80%, black))',
+          }}
+        />
+        <FooterRoutes />
         {/* Soft glow as a radial gradient (no `filter: blur`, nothing to re-raster on scroll). */}
         <div className="absolute -top-56 -left-48 size-[640px] rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklab,var(--color-brand)_15%,transparent),transparent)]" />
         <FleetGuardMark
