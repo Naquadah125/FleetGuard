@@ -154,8 +154,9 @@
   }
 }
 
+/* No `scroll-behavior: smooth` here: smooth scrolling is done in JS (scrollToSection /
+   ScrollSmoother) so it can honor prefers-reduced-motion and not fight ScrollTrigger. */
 html {
-  scroll-behavior: smooth;
   background-color: var(--bg-primary);
 }
 

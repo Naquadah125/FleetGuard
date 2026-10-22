@@ -14,6 +14,8 @@ import { cn } from "@/lib/utils"
  *            (`<ChevronRight data-icon="inline-end" />`) nudges right on hover
  *   secondary, destructive — shadcn extras
  * Sizes: sm h-9 · default h-10 · lg h-12 (+ icon sizes). Disabled = 50% opacity.
+ * Touch: on coarse pointers sm/default/icon sizes grow to a 44×44px minimum (WCAG 2.5.5);
+ * fine-pointer (desktop) sizes are unchanged. `link` stays text-sized.
  * `loading` disables the button, sets aria-busy and shows a spinner before the children.
  */
 const buttonVariants = cva(
@@ -26,18 +28,18 @@ const buttonVariants = cva(
           "border-brand bg-white text-brand-dark hover:bg-brand-50 aria-expanded:bg-brand-50",
         ghost:
           "text-navy hover:bg-surface aria-expanded:bg-surface",
-        link: "h-auto! px-0! text-brand-dark underline-offset-4 hover:underline [&_[data-icon=inline-end]]:transition-transform [&_[data-icon=inline-end]]:duration-200 hover:[&_[data-icon=inline-end]]:translate-x-0.5",
+        link: "h-auto! min-h-0! px-0! text-brand-dark underline-offset-4 hover:underline [&_[data-icon=inline-end]]:transition-transform [&_[data-icon=inline-end]]:duration-200 hover:[&_[data-icon=inline-end]]:translate-x-0.5",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-line aria-expanded:bg-line",
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:ring-destructive/20",
       },
       size: {
-        sm: "h-9 px-4",
-        default: "h-10 px-5",
+        sm: "h-9 px-4 pointer-coarse:min-h-11",
+        default: "h-10 px-5 pointer-coarse:min-h-11",
         lg: "h-12 px-6 text-[15px]",
-        icon: "size-10",
-        "icon-sm": "size-9",
+        icon: "size-10 pointer-coarse:min-h-11 pointer-coarse:min-w-11",
+        "icon-sm": "size-9 pointer-coarse:min-h-11 pointer-coarse:min-w-11",
         "icon-lg": "size-12",
       },
     },
