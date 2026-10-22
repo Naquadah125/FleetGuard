@@ -90,6 +90,10 @@ export const CONTACT_CTA = {
   hotlineLabel: 'Gọi 1900 1234',
   ariaZalo: 'Chat Zalo với FleetGuard',
   ariaHotline: 'Gọi 1900 1234 – hotline FleetGuard',
+  /** Name of the dock's `<aside>` landmark. */
+  regionLabel: 'Liên hệ nhanh',
+  /** Appended to the Zalo link's accessible name: it opens in a new tab. */
+  newTabHint: '(mở tab mới)',
 }
 
 export const FEATURES_HEADING = 'FleetGuard có thể giúp gì cho bạn?'

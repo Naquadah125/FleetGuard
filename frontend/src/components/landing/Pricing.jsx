@@ -67,7 +67,7 @@ function roadIdle(decor, wheels) {
     .fromTo(
       decor.querySelector('[data-part="dashes"]'),
       { strokeDashoffset: 0 },
-      { strokeDashoffset: -2 * DASH_PERIOD, duration: IDLE_LOOP, ease: 'none' },
+      { strokeDashoffset: -2 * DASH_PERIOD, duration: IDLE_LOOP, ease: 'none', autoRound: false },
       0,
     )
 }
@@ -194,7 +194,7 @@ export default function Pricing() {
         {/* Billing toggle: on ≥sm the badge sits inside the pill, on phones it wraps below.
             Revealed (like the heading above it) so it never shows before its heading. */}
         <Reveal y={12}>
-          <div data-reveal className="flex flex-col items-center gap-2.5 sm:flex-row sm:gap-1 sm:rounded-full sm:bg-surface sm:p-1 sm:pr-3">
+          <div data-reveal className="relative flex flex-col items-center gap-2.5 sm:flex-row sm:gap-1 sm:rounded-full sm:bg-surface sm:p-1 sm:pr-3">
             <ToggleGroup
               type="single"
               value={billing}
@@ -225,6 +225,8 @@ export default function Pricing() {
               ))}
             </ToggleGroup>
             <Badge variant="success">{PRICING.yearlyBadge}</Badge>
+            {/* Phones (pill wrapped below the toggle): a small shield left of the savings pill. */}
+            <Float3D badge="shield" mobile size={56} phase={0.3} className="-bottom-6 left-1 sm:hidden" />
           </div>
         </Reveal>
         <p className="sr-only" aria-live="polite" aria-atomic="true">
@@ -255,16 +257,12 @@ export default function Pricing() {
         </div>
 
         <div className="container-page relative">
-          {/* Clay 3D accents in the upper gutters beside the cards (xl: the gutters are too narrow below). */}
-          <Float3D badge="truck" size={112} depth={1.12} phase={0.3} className="md:hidden xl:block -top-10 right-[calc(50%+452px)]" />
-          {/* Tablet (single column, 104px gutters): only the shield, smaller, beside the second card. */}
-          <Float3D
-            badge="shield"
-            size={96}
-            depth={0.9}
-            phase={0.75}
-            className="bottom-48 left-[calc(50%+292px)] size-[72px]! lg:hidden xl:bottom-auto xl:top-6 xl:left-[calc(50%+460px)] xl:block xl:size-[96px]!"
-          />
+          {/* Clay 3D shield (no truck badge: the real DeliveryTruck drives the road right here).
+              Tablet (single column, 104px gutters): in the LEFT gutter beside the second card — the
+              right edge belongs to the contact CTA. lg: none (gutters too narrow). xl+: upper right
+              gutter, ≥ 84px from the viewport edge. Phones: a small one beside the savings pill. */}
+          <Float3D badge="shield" until="lg" size={72} phase={0.75} className="bottom-48 right-[calc(50%+296px)]" />
+          <Float3D badge="shield" from="xl" size={96} depth={0.9} phase={0.75} className="top-6 left-[calc(50%+460px)]" />
           <Reveal className="mx-auto grid max-w-[560px] items-stretch gap-6 lg:max-w-[880px] lg:grid-cols-2 lg:gap-10">
             {PRICING.plans.map((plan) => (
               <div key={plan.id} data-reveal className="h-full">

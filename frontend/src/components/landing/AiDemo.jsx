@@ -192,11 +192,14 @@ export default function AiDemo() {
       <SectionBackdrop variant="demo" />
 
       <div className="relative container-page">
-        {/* Clay 3D accents flanking the heading (md+; parallax depth on desktop, idle float in view). */}
+        {/* Clay 3D accents flanking the heading (parallax depth on desktop, idle float in view).
+            Phones: one small steering wheel left of the pause button. md: camera only (left). lg+:
+            camera + steering, the steering ≥ 100px from the viewport edge (contact CTA). */}
         <Float3D badge="camera" size={76} depth={1.15} phase={0.15} className="top-0 left-4 lg:left-[4%] lg:size-[104px]! xl:left-[9%]" />
-        <Float3D badge="steering" size={68} depth={0.88} phase={0.6} className="top-14 right-4 lg:right-[5%] lg:size-[96px]! xl:right-[10%]" />
+        <Float3D badge="steering" from="lg" size={96} depth={0.88} phase={0.6} className="top-14 right-[10%]" />
         <SectionHeading id="demo-title" title={DEMO.title} subtitle={DEMO.subtitle} />
-        <div className="mt-6 flex justify-center">
+        <div className="relative mt-6 flex justify-center">
+          <Float3D badge="steering" mobile size={56} phase={0.6} className="top-1/2 left-1 -mt-8 max-[359px]:hidden" />
           <MotionPauseButton />
         </div>
 

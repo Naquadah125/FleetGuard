@@ -154,14 +154,15 @@ export default function Technology() {
         data-tech-skyline
         className="pointer-events-none absolute -inset-x-12 bottom-0 h-[clamp(10rem,20vw,18rem)] opacity-75"
       />
-      {/* 3D accents. Tablet (md–lg): one camera in the free top-right corner. xl+: camera and chart
-          flank the stats bar (it leaves a ≥ 150px gutter each side) at different heights, depths and
-          phases so they never move in step. */}
-      <Float3D badge="camera" size={80} depth={1.1} phase={0.1} className="top-28 right-[4%] xl:hidden" />
+      {/* 3D accents. xl+ only: camera and chart flank the stats bar (it leaves a ≥ 150px gutter each
+          side) at different heights, depths and phases so they never move in step. md–lg: none (the
+          only free corner is top-right, which the parallax / contact CTA cross). Phones: a small
+          camera beside the AI chip. */}
 
       <div className="relative container-page">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-center lg:gap-16">
-          <div className="flex flex-col items-start gap-5">
+          <div className="relative flex flex-col items-start gap-5">
+            <Float3D badge="camera" mobile size={56} phase={0.1} className="top-1 left-28" />
             <AiChip data-tech-chip className="-mb-1 -ml-2 size-16 lg:size-[72px]" />
             <SectionHeading
               id="technology-title"
@@ -191,7 +192,7 @@ export default function Technology() {
                   </span>
                   <div className="flex flex-col gap-1">
                     <h3 className="text-body font-bold text-navy">{item.title}</h3>
-                    <p className="text-body text-ink md:text-body-sm">{item.desc}</p>
+                    <p className="text-body text-ink md:text-body-sm xl:text-body">{item.desc}</p>
                   </div>
                 </li>
               )
@@ -200,8 +201,8 @@ export default function Technology() {
         </div>
 
         <div className="relative mt-14 lg:mt-16">
-          <Float3D badge="chart" size={104} depth={0.9} phase={0.55} className="md:hidden xl:block top-1/2 -mt-16 right-[calc(50%+440px)]" />
-          <Float3D badge="camera" size={96} depth={1.15} phase={0.1} className="md:hidden xl:block -top-16 left-[calc(50%+444px)]" />
+          <Float3D badge="chart" from="xl" size={104} depth={0.9} phase={0.55} className="top-1/2 -mt-16 right-[calc(50%+440px)]" />
+          <Float3D badge="camera" from="xl" size={96} depth={1.1} phase={0.1} className="-top-16 left-[calc(50%+444px)]" />
           <StatsBar />
         </div>
       </div>
@@ -237,7 +238,7 @@ function StatsBar({ className }) {
             <p data-stat-number className="text-h2 font-extrabold tabular-nums">
               <span aria-hidden="true">
                 {s.text ?? (
-                  <span data-countup={s.value} data-countup-decimals={s.decimals ?? 0} className="inline-block">
+                  <span data-countup={s.value} data-countup-decimals={s.decimals ?? 0} className="inline-block text-right">
                     {formatStat(s.value, s.decimals ?? 0)}
                   </span>
                 )}

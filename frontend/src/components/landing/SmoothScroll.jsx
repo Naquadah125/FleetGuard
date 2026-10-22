@@ -27,15 +27,18 @@ const FOCUS_MARGIN = 16
  * Also honours a section hash on first load (`/#pricing`) once fonts are ready, landing it just
  * below the header. (Font-driven ScrollTrigger refreshes live in lib/motion/gsap.js.)
  *
- * Child components create their ScrollTriggers / data-speed attributes in their own useGSAP,
- * which React runs before this (parent) effect, so the smoother sees them all at creation.
+ * `ready` (default true): the smoother (and the first-load hash jump) is set up only once it is
+ * true. HomePage mounts its below-the-fold sections in stages after the first paint and passes
+ * `ready` when the last one is in, so the smoother sees every `data-speed` layer at creation —
+ * and ScrollSmoother.create() (a synchronous global refresh) stays out of the first-paint path.
  */
-export default function SmoothScroll({ children }) {
+export default function SmoothScroll({ children, ready = true }) {
   const wrapperRef = useRef(null)
   const contentRef = useRef(null)
 
   useGSAP(
     () => {
+      if (!ready) return undefined
       const mm = gsap.matchMedia()
       mm.add(MQ.desktop, (ctx) => {
         let smoother
@@ -65,7 +68,31 @@ export default function SmoothScroll({ children }) {
         }
         content.addEventListener('focusin', onFocusIn)
 
+        // Parallax layers that mount / unmount while the smoother runs (e.g. a Float3D placement
+        // whose breakpoint range is entered on resize) are added to / dropped from its effects;
+        // `effects: true` only reads `data-speed` once, at creation. Only added / removed ELEMENT
+        // nodes are inspected (text updates such as count-ups cost a type check).
+        const PARALLAX = '[data-speed], [data-lag]'
+        const hasParallax = (n) => n.nodeType === 1 && (n.matches(PARALLAX) || n.querySelector(PARALLAX))
+        const observer = new MutationObserver((records) => {
+          let added = false
+          let removed = false
+          for (const r of records) {
+            for (const n of r.addedNodes) if (!added && hasParallax(n)) added = true
+            for (const n of r.removedNodes) if (!removed && hasParallax(n)) removed = true
+          }
+          if (removed) smoother.effects().forEach((st) => st.trigger?.isConnected || st.kill())
+          if (!added) return
+          const known = new Set(smoother.effects().map((st) => st.trigger))
+          const fresh = [...content.querySelectorAll(PARALLAX)].filter((el) => !known.has(el))
+          // Outside any gsap context on purpose (see ctx.ignore above): effects() runs a global
+          // refresh; smoother.kill() removes these effects with the rest.
+          if (fresh.length) smoother.effects(fresh)
+        })
+        observer.observe(content, { childList: true, subtree: true })
+
         return () => {
+          observer.disconnect()
           content.removeEventListener('focusin', onFocusIn)
           smoother.kill()
         }
@@ -88,7 +115,7 @@ export default function SmoothScroll({ children }) {
         mm.revert()
       }
     },
-    { scope: wrapperRef },
+    { scope: wrapperRef, dependencies: [ready], revertOnUpdate: true },
   )
 
   return (

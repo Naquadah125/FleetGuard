@@ -68,7 +68,7 @@ function FooterRoutes() {
           <path
             key={`r${d}`}
             d={d}
-            stroke="#34D3A4"
+            stroke="var(--color-brand-glow)"
             strokeOpacity="0.22"
             strokeWidth="2"
             strokeDasharray="2 10"
@@ -78,7 +78,7 @@ function FooterRoutes() {
         {FOOTER_STOPS.map(([x, y]) => (
           <g key={`${x}-${y}`}>
             <circle cx={x} cy={y} r="11" fill="#fff" fillOpacity="0.035" />
-            <circle cx={x} cy={y} r="4" fill="var(--color-footer)" stroke="#34D3A4" strokeOpacity="0.35" strokeWidth="2" />
+            <circle cx={x} cy={y} r="4" fill="var(--color-footer)" stroke="var(--color-brand-glow)" strokeOpacity="0.35" strokeWidth="2" />
           </g>
         ))}
       </g>
@@ -185,7 +185,11 @@ export default function Footer() {
         />
       </div>
 
-      <div className="relative container-page pt-14 pb-8 lg:pt-16">
+      {/* Below ~1360px the content runs to ≤ 80px from the viewport edge, so the floating contact CTA
+          (fixed bottom-right, ~68 × 132px) would sit on the bottom bar at the very end of the page,
+          where it cannot be scrolled away: the bottom bar reserves 80px on its right (and the
+          bottom padding adds the safe-area inset, once viewport-fit=cover is set). */}
+      <div className="relative container-page pt-14 pb-8 max-lg:pb-[calc(2rem+env(safe-area-inset-bottom))] lg:pt-16">
         {/* Parent heading for the column h3s (otherwise they nest under the last section's h2). */}
         <h2 className="sr-only">{FOOTER.srTitle}</h2>
         <Reveal className="grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-3 lg:grid-cols-[1.5fr_1fr_1.15fr_1fr_1.45fr] lg:gap-8">
@@ -239,7 +243,7 @@ export default function Footer() {
 
         <Separator className="mt-12 bg-white/10 lg:mt-14" />
 
-        <div className="flex flex-col-reverse gap-3 pt-6 text-body md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col-reverse gap-3 pt-6 text-body pr-20 min-[1360px]:pr-0 md:flex-row md:items-center md:justify-between">
           <p className="text-white/70">
             © {year} {FOOTER.copyright}
           </p>

@@ -1,15 +1,8 @@
-import { useRef } from 'react'
-import { gsap, ScrollTrigger, useGSAP } from '@/lib/motion/gsap'
-import { deferSetup } from '@/lib/motion/defer'
-import { MQ } from '@/lib/motion/presets'
-import { loopWhileVisible } from '@/components/landing/motionPause'
+import { startTransition, useEffect, useRef, useState } from 'react'
+import { bindCssIdle, whenNearViewport } from '@/lib/motion/idle'
 import { cn } from '@/lib/utils'
 import Pattern from './patterns'
 import { BLOB_TONES, TONES, VARIANTS } from './backdrops'
-
-/** Seam fade on the decor layer (pattern + blobs), so nothing is clipped hard at a section edge. */
-/** Below the md breakpoint (phones): 2 blobs, smaller drift. Combined with MQ.mobile. */
-const PHONE = '(max-width: 767px)'
 
 /** Soft disc: eased falloff (no plateau edge, less visible 8-bit banding than a 2-stop ramp). */
 const blobGradient = (color) => {
@@ -17,7 +10,14 @@ const blobGradient = (color) => {
   return `radial-gradient(closest-side, ${color}, ${at(80)} 22%, ${at(48)} 48%, ${at(20)} 72%, ${at(5)} 88%, transparent)`
 }
 
+/** Seam fade on the decor layer (pattern + blobs), so nothing is clipped hard at a section edge. */
 const SEAM_FADE = 'linear-gradient(to bottom, transparent, #000 72px, #000 calc(100% - 72px), transparent)'
+
+/** Deferred decor mounts when the section is within this distance of the viewport. */
+const MOUNT_MARGIN = '100% 0px'
+
+/** Blob drift phase offsets (fraction of the period) so no two blobs move in lockstep. */
+const PHASES = [0, 0.37, 0.71]
 
 /**
  * Section atmosphere: tinted base gradient + one pattern layer + 2–3 soft blobs.
@@ -35,66 +35,72 @@ const SEAM_FADE = 'linear-gradient(to bottom, transparent, #000 72px, #000 calc(
  * Variants (see ./backdrops.js; SECTION_BACKDROPS maps section → variant + seam colours):
  * `hero`, `mint` (features), `demo`, `pricing`, `comparison`, `technology`.
  *
- * Motion (decorative, aria-hidden, pointer-events none):
- *  - parallax: each blob wrapper carries `data-speed` — ScrollSmoother (desktop only) picks it up;
- *    inert on touch sizes and under reduced motion. The hero uses `clamp()` speeds.
- *  - idle drift: each blob's inner disc drifts (x/y/scale, sine yoyo, 17–25s) — set up after the
- *    first paint (deferSetup), runs only while the section is on screen and motion is not paused
- *    (loopWhileVisible: one ScrollTrigger per backdrop); nothing moves under reduced motion.
- *    Phones drift 2 blobs at 60% amplitude.
- *  - transform only; blobs are radial gradients (no CSS blur / filter).
+ * Render cost (Phase 6 fix):
+ *  - Only the base gradient (one div) is in the first render. The pattern + blobs mount when the
+ *    section comes within one viewport of the screen (IntersectionObserver, in a transition), and
+ *    fade in (CSS `@starting-style`). `eager` (default: the hero only) renders everything at once.
+ *  - Idle drift is a CSS `@keyframes` on each blob disc (transform only → compositor thread, no
+ *    per-frame main-thread style work; index.css `[data-blob]`). It runs only while the section is
+ *    on screen and MotionPause is off (bindCssIdle: one IntersectionObserver, no ScrollTrigger),
+ *    holds in place while paused, and never runs under reduced motion. Phones drift 2 blobs at 60%
+ *    amplitude. Blobs are radial gradients (no CSS blur / filter).
+ *  - Parallax: only the hero has one, on a single blob-layer wrapper (`data-speed="clamp(0.9)"`,
+ *    ScrollSmoother, desktop only). Below-the-fold blobs have no `data-speed` (the drift gives the
+ *    depth), keeping the page-wide smoother effect count low.
  *
  * @param {{
  *   variant?: keyof typeof VARIANTS,
  *   tone?: keyof typeof TONES,              // blob palette override: 'brand' | 'cool' | 'ai'
  *   pattern?: 'dots'|'routes'|'topo'|'grid'|'none', // pattern override
  *   blobs?: number,                         // max blobs (0–3), default all of the variant's
+ *   eager?: boolean,                        // render the decor in the first commit (default: hero)
  *   className?: string,
  * }} props
  */
-export default function SectionBackdrop({ variant = 'mint', tone, pattern, blobs, className }) {
+export default function SectionBackdrop({ variant = 'mint', tone, pattern, blobs, eager, className }) {
   const ref = useRef(null)
   const v = VARIANTS[variant] ?? VARIANTS.mint
+  const isEager = eager ?? variant === 'hero'
+  const [near, setNear] = useState(isEager)
   const palette = TONES[tone ?? v.tone] ?? TONES.brand
   const blobSpecs = v.blobs.slice(0, blobs ?? v.blobs.length)
+  const patternName = pattern ?? v.pattern
   const [top, mid, bottom] = v.stops
 
-  useGSAP(
-    (_ctx, contextSafe) => {
-      const root = ref.current
-      if (!root.querySelector('[data-blob]')) return undefined
-      const cancel = deferSetup(
-        contextSafe(() => {
-          const mm = gsap.matchMedia()
-          mm.add({ desktop: MQ.desktop, mobile: MQ.mobile, phone: PHONE }, (mctx) => {
-            const { desktop, mobile } = mctx.conditions
-            if (!desktop && !mobile) return undefined // reduced motion: nothing drifts
-            const phone = mobile && mctx.conditions.phone
-            const scale = phone ? 0.6 : 1
-            const discs = gsap.utils
-              .toArray('[data-blob]', root)
-              .filter((el) => !(phone && el.hasAttribute('data-desktop-only')))
-            const loops = discs.map((el) => {
-              const [dx, dy, period] = (el.dataset.drift || '24,18,20').split(',').map(Number)
-              return gsap.to(el, {
-                x: dx * scale,
-                y: dy * scale,
-                scale: 1.06,
-                duration: period / 2,
-                ease: 'sine.inOut',
-                yoyo: true,
-                repeat: -1,
-                paused: true,
-              })
-            })
-            return loopWhileVisible(root, loops, ScrollTrigger)
-          })
-        }),
-      )
-      return cancel
-    },
-    { scope: ref },
-  )
+  useEffect(() => {
+    if (near) return undefined
+    return whenNearViewport(ref.current, () => startTransition(() => setNear(true)), { rootMargin: MOUNT_MARGIN })
+  }, [near])
+
+  useEffect(() => {
+    if (!near || !blobSpecs.length) return undefined
+    return bindCssIdle(ref.current)
+  }, [near, blobSpecs.length])
+
+  const blobNodes = blobSpecs.map((b, i) => {
+    const color = BLOB_TONES[palette[i % palette.length]]
+    const [dx, dy, period] = b.drift
+    return (
+      <div
+        key={i}
+        data-blob
+        className={cn('absolute rounded-full', b.desktopOnly && 'max-md:hidden')}
+        style={{
+          top: b.top,
+          left: b.left,
+          right: b.right,
+          bottom: b.bottom,
+          width: b.size,
+          height: b.size,
+          background: blobGradient(color),
+          '--blob-dx': `${dx}px`,
+          '--blob-dy': `${dy}px`,
+          '--blob-half': `${period / 2}s`,
+          '--blob-delay': `${-(PHASES[i % PHASES.length] * period).toFixed(2)}s`,
+        }}
+      />
+    )
+  })
 
   return (
     <div
@@ -104,30 +110,22 @@ export default function SectionBackdrop({ variant = 'mint', tone, pattern, blobs
       className={cn('pointer-events-none absolute inset-0 -z-10 overflow-hidden', className)}
       style={{ background: `linear-gradient(to bottom, ${top}, ${mid} 50%, ${bottom})` }}
     >
-      <div className="absolute inset-0" style={{ maskImage: SEAM_FADE, WebkitMaskImage: SEAM_FADE }}>
-        {blobSpecs.map((b, i) => {
-          const color = BLOB_TONES[palette[i % palette.length]]
-          return (
-            <div
-              key={i}
-              data-speed={b.speed}
-              className={cn('absolute', b.desktopOnly && 'max-md:hidden')}
-              style={{ top: b.top, left: b.left, right: b.right, bottom: b.bottom, width: b.size, height: b.size }}
-            >
-              <div
-                data-blob
-                data-drift={b.drift.join(',')}
-                data-desktop-only={b.desktopOnly ? '' : undefined}
-                className="size-full rounded-full"
-                style={{ background: blobGradient(color) }}
-              />
+      {near ? (
+        <div
+          data-backdrop-decor={isEager ? undefined : 'deferred'}
+          className="absolute inset-0"
+          style={{ maskImage: SEAM_FADE, WebkitMaskImage: SEAM_FADE }}
+        >
+          {v.parallax ? (
+            <div data-speed={v.parallax} className="absolute inset-0">
+              {blobNodes}
             </div>
-          )
-        })}
-        {(pattern ?? v.pattern) !== 'none' ? (
-          <Pattern name={pattern ?? v.pattern} mask={v.patternMask} seed={v.patternSeed} />
-        ) : null}
-      </div>
+          ) : (
+            blobNodes
+          )}
+          {patternName !== 'none' ? <Pattern name={patternName} mask={v.patternMask} seed={v.patternSeed} /> : null}
+        </div>
+      ) : null}
     </div>
   )
 }

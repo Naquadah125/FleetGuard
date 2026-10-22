@@ -110,8 +110,9 @@ export function countUp(el, opts = {}) {
     // The final string is in the element right now: its used width is the widest frame (tabular
     // digits; intermediate values have the same or fewer glyphs).
     el.style.fontVariantNumeric = 'tabular-nums'
-    if (getComputedStyle(el).display === 'inline') el.style.display = 'inline-block'
-    el.style.minWidth = getComputedStyle(el).width
+    const cs = getComputedStyle(el) // live: one read, `width` reflects the display change below
+    if (cs.display === 'inline') el.style.display = 'inline-block'
+    el.style.minWidth = cs.width
     reserved = true
   }
   const restore = () => {

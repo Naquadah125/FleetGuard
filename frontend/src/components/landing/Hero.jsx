@@ -37,7 +37,7 @@ import { FLOW_PERIOD } from './hero/FleetMap'
  *    draw with a strokeDashoffset tween; SVG parts pivot with svgOrigin (no bbox measuring).
  *  - desktop: dashboard tilts toward the pointer (quickTo rotationX/Y ±4°, perspective 1200).
  *  - parallax via data-speed (ScrollSmoother, enabled by the page): dashboard 0.95, distance
- *    card 1.08, leaves 0.95, badges 0.9–1.2 (backdrop blobs: SectionBackdrop) — all clamp()ed so the effect starts at scroll 0 (layout at load
+ *    card 1.08, leaves 0.95, badges 0.9–1.1 (backdrop blobs: SectionBackdrop) — all clamp()ed so the effect starts at scroll 0 (layout at load
  *    = design layout; the card and trust row only move vertically, never closer horizontally).
  */
 
@@ -187,8 +187,13 @@ export default function Hero() {
           .fromTo(one('[data-spark-line]'), UNDRAWN, { ...DRAWN, duration: 1.2, ease: EASE.inOut }, 1.2)
           .from(one('[data-spark-area]'), { opacity: 0, duration: 0.7 }, 2.0)
           .from(one('[data-spark-dot]'), { scale: 0, duration: 0.45, ease: EASE.spring }, 2.25)
-          // 3D accents pop in around the dashboard (their idle float is Float3D's own, deferred).
-          .from(all('[data-float3d] > svg'), { opacity: 0, scale: 0.5, y: 16, duration: 0.7, ease: EASE.spring, stagger: 0.12 }, 1.0)
+        // 3D accents pop in around the dashboard (their idle float is Float3D's own, deferred).
+        // Only mounted badges exist (none on phones), so there may be nothing to pop.
+        const badgeArt = all('[data-float3d] svg')
+        if (badgeArt.length) {
+          tl.from(badgeArt, { opacity: 0, scale: 0.5, y: 16, duration: 0.7, ease: EASE.spring, stagger: 0.12 }, 1.0)
+            .from(all('[data-float3d-shadow]'), { opacity: 0, duration: 0.5, stagger: 0.12 }, 1.1)
+        }
         // Count-ups start with their tile / card fade (0.6 + i·0.08 and 0.95 above). countUp restores
         // the final text when this branch reverts and never replays an element that already counted.
         kpiCounters.forEach((el, i) =>
@@ -385,11 +390,15 @@ export default function Hero() {
 
         <div data-reveal className="relative lg:col-span-7 xl:col-span-1">
           <FleetDashboard ref={dashRef} className="xl:-mr-10" />
-          {/* Clay 3D accents around the dashboard, at three depths (clamp(): parallax from scroll 0).
-              Tablet shows two, phones none (hero first paint stays light). */}
-          <Float3D badge="shield" size={84} depth="clamp(1.12)" phase={0} className="-top-12 -left-7 md:-top-14 lg:-top-16 lg:-left-12" />
-          <Float3D badge="bell" size={68} depth="clamp(0.9)" phase={0.4} className="-top-14 right-[30%] md:hidden lg:block" />
-          <Float3D badge="pin" size={76} depth="clamp(1.2)" phase={0.75} className="right-[38%] -bottom-14 lg:-bottom-16 xl:right-[34%]" />
+          {/* Clay 3D accents around the dashboard (clamp(): parallax from scroll 0). Phones: none
+              (LCP path). Tablet: shield above the dashboard's top-right (clear of the trust row and
+              ≥ 80px from the viewport edge, where the contact CTA sits) + pin below it. lg+: shield
+              top-left, bell top-right, pin below — the pin's depth is < 1 so its parallax drifts
+              it down into the empty wave band, never up over the map / alerts. */}
+          <Float3D badge="shield" size={72} until="lg" eager phase={0} className="-top-[84px] right-16" />
+          <Float3D badge="shield" size={84} from="lg" eager depth="clamp(1.1)" phase={0} className="-top-[72px] -left-12" />
+          <Float3D badge="bell" size={68} from="lg" eager depth="clamp(1.04)" phase={0.4} className="-top-14 right-[30%]" />
+          <Float3D badge="pin" size={76} eager depth="clamp(0.96)" phase={0.75} className="right-[38%] -bottom-[72px] lg:-bottom-20 xl:right-[34%]" />
         </div>
       </div>
 

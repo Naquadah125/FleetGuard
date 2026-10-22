@@ -8,6 +8,9 @@ import { isMotionPaused, onMotionPauseChange } from './motionPause'
 
 /** Mount delay: nothing is added to the hero's first-paint path. */
 const ENTRANCE_DELAY_MS = 1500
+/** Phones: also wait until the page has scrolled this far (the dock would cover hero content). */
+const PHONE = '(max-width: 767px)'
+const PHONE_SCROLL_PX = 200
 /** Pulse cycle: 1.4s ring + 2.6s rest ≈ one pulse every 4s. */
 const PULSE = { duration: 1.4, rest: 2.6 }
 
@@ -154,8 +157,9 @@ function Dock() {
   )
 
   return (
-    <div
+    <aside
       ref={ref}
+      aria-label={CONTACT_CTA.regionLabel}
       data-floating-contact
       className={cn(
         'fixed z-30 flex flex-col items-end gap-3 print:hidden',
@@ -165,7 +169,7 @@ function Dock() {
       <ContactButton
         href={`https://zalo.me/${CONTACT_CTA.zaloNumber}`}
         label={CONTACT_CTA.zaloLabel}
-        ariaLabel={CONTACT_CTA.ariaZalo}
+        ariaLabel={`${CONTACT_CTA.ariaZalo} ${CONTACT_CTA.newTabHint}`}
         discClassName="bg-zalo"
         external
       >
@@ -180,7 +184,7 @@ function Dock() {
       >
         <Phone aria-hidden="true" className="size-[22px] md:size-6" strokeWidth={2.25} />
       </ContactButton>
-    </div>
+    </aside>
   )
 }
 
@@ -188,8 +192,12 @@ function Dock() {
  * Floating contact CTA (Zalo + Hotline), fixed bottom-right, safe-area aware. Mount it OUTSIDE
  * `#smooth-wrapper` (ScrollSmoother transforms the content, which breaks `position: fixed`).
  *
- * - Appears 1.5s after mount (not rendered before: no work in the hero's first-paint path), with a
- *   short pop-in; under reduced motion it simply appears.
+ * - Appears 1.5s after mount (not rendered before: no work in the hero's first-paint path; HomePage
+ *   mounts it once every section is in), with a short pop-in; under reduced motion it simply
+ *   appears. Phones (<768px) additionally wait until the page has scrolled 200px, so the dock
+ *   does not sit over the hero dashboard at load (p6-review-v M7).
+ * - Rendered as an `<aside>` landmark (axe `region`) named `CONTACT_CTA.regionLabel`; the Zalo link
+ *   opens a new tab, so its accessible name ends with `CONTACT_CTA.newTabHint`.
  * - z-30: above page content, below the fixed navbar (z-40) and the mobile Sheet (z-50).
  * - Sits 16px from the right/bottom edges; the hero dashboard and AI-demo pause buttons are
  *   inline (they scroll past it) and never under it at rest — see the Phase 6 V report.
@@ -198,8 +206,21 @@ function Dock() {
 export default function FloatingContact() {
   const [shown, setShown] = useState(false)
   useEffect(() => {
-    const t = setTimeout(() => setShown(true), ENTRANCE_DELAY_MS)
-    return () => clearTimeout(t)
+    let timer = 0
+    const onScroll = () => {
+      if (window.scrollY < PHONE_SCROLL_PX) return
+      window.removeEventListener('scroll', onScroll)
+      setShown(true)
+    }
+    timer = setTimeout(() => {
+      if (window.matchMedia(PHONE).matches && window.scrollY < PHONE_SCROLL_PX) {
+        window.addEventListener('scroll', onScroll, { passive: true })
+      } else setShown(true)
+    }, ENTRANCE_DELAY_MS)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('scroll', onScroll)
+    }
   }, [])
   return shown ? <Dock /> : null
 }

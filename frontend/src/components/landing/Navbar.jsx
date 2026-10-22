@@ -16,6 +16,7 @@ import {
 import { NAV_ACTIONS as COPY, NAV_LINKS } from '@/content/landing'
 import { ScrollTrigger, gsap, useGSAP } from '@/lib/motion/gsap'
 import { DUR, EASE, MQ } from '@/lib/motion/presets'
+import { deferSetup } from '@/lib/motion/defer'
 import { scrollToSection } from '@/lib/motion/scroll'
 import { cn } from '@/lib/utils'
 
@@ -30,6 +31,9 @@ const SECTION_IDS = [...new Set(NAV_LINKS.map((l) => l.id))]
  */
 const activeIndexFor = (id) => NAV_LINKS.findLastIndex((l) => l.id === id)
 
+/** Active section at scroll 0 (the hero): shown from the first paint, before the markers exist. */
+const LOAD_ACTIVE_ID = NAV_LINKS[0].id
+
 /**
  * Landing navbar — fixed, 72px. Transparent over the hero, white/90 + blur + shadow once the
  * page scrolls past 24px (`data-scrolled`, set directly — no React re-render).
@@ -39,13 +43,19 @@ const activeIndexFor = (id) => NAV_LINKS.findLastIndex((l) => l.id === id)
  * in the DOM are skipped and bound later on ScrollTrigger refresh.
  * Both states are derived from the scroll position (not from trigger activity), so they also
  * hold at scroll === max, where ScrollTrigger reports an `end: 'max'` trigger as inactive.
+ * The section binding + first measure run through `deferSetup` (after first paint):
+ * `ScrollTrigger.create` forces the page's first full layout, which otherwise lands inside the
+ * hero's first commit (~150ms at 4x CPU, on the LCP path). The markup already carries the load
+ * state (`data-scrolled="false"`, "Trang chủ" active), and the scroll listener is attached at
+ * once, so any scroll before the deferred bind (restore, hash jump) still updates `data-scrolled`;
+ * the active link follows as soon as the markers are measured.
  * < 1024px: menu button opens a right-hand Sheet; picking a link closes it, then scrolls and
  * moves focus to the section (Radix's return-focus-to-trigger is skipped in that case).
  */
 export default function Navbar() {
   const headerRef = useRef(null)
   const pendingScrollRef = useRef(null)
-  const [activeId, setActiveId] = useState(null)
+  const [activeId, setActiveId] = useState(LOAD_ACTIVE_ID)
   const [menuOpen, setMenuOpen] = useState(false)
   const activeIndex = activeId ? activeIndexFor(activeId) : -1
 
@@ -73,7 +83,9 @@ export default function Navbar() {
       // scroll only reads scrollY — no extra forced layout per frame.
       let maxScroll = Infinity
       let sorted = []
+      let measured = false
       const measure = () => {
+        measured = true
         maxScroll = ScrollTrigger.maxScroll(window)
         sorted = markers.filter((m) => m.st.trigger?.isConnected).sort((a, b) => a.st.start - b.st.start)
       }
@@ -81,13 +93,14 @@ export default function Navbar() {
         const y = window.scrollY
         const scrolled = String(y > SOLID_AFTER)
         if (header.dataset.scrolled !== scrolled) header.dataset.scrolled = scrolled
+        // Markers not measured yet (deferred bind pending): keep the load state's active link.
+        if (!measured) return
         let id = null
         if (sorted.length && y >= maxScroll - 1) id = sorted[sorted.length - 1].id
         else for (const m of sorted) if (m.st.start <= y) id = m.id
         setActiveId(id)
       }
 
-      bindSections()
       // A plain scroll listener, not a ScrollTrigger onUpdate: jumps straight to max scroll
       // (focusing a footer link through ScrollSmoother, End key, hash) skip trigger callbacks,
       // which left the bar transparent over the footer. Scroll events are dispatched once per
@@ -99,8 +112,15 @@ export default function Navbar() {
         sync()
       }
       ScrollTrigger.addEventListener('refresh', onRefresh)
-      measure()
-      sync()
+      // Deferred past first paint (see the component doc). Until it runs, `sync` only keeps
+      // `data-scrolled` in step; the active link stays at its load state (the hero).
+      const cancelBind = deferSetup(
+        contextSafe(() => {
+          bindSections()
+          measure()
+          sync()
+        }),
+      )
 
       // Entrance. fromTo (not from): the buttons carry a CSS opacity transition, so after a
       // StrictMode revert `from()` would read a mid-transition opacity (~0) as its end value.
@@ -122,6 +142,7 @@ export default function Navbar() {
       })
 
       return () => {
+        cancelBind()
         window.removeEventListener('scroll', sync)
         ScrollTrigger.removeEventListener('refresh', onRefresh)
         mm.revert()

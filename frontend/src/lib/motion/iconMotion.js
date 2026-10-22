@@ -70,7 +70,7 @@ export const ICON_MOTIONS = {
       tl.fromTo(
         lines,
         { strokeDasharray: DASH, strokeDashoffset: DASH_HIDDEN },
-        { strokeDashoffset: 0, duration: 0.6, ease: 'power2.out', immediateRender: false, clearProps: DRAW_PROPS },
+        { strokeDashoffset: 0, autoRound: false, duration: 0.6, ease: 'power2.out', immediateRender: false, clearProps: DRAW_PROPS },
         0.2,
       )
     }
@@ -187,6 +187,6 @@ export function drawIconIn(svgEl, gsap, vars = {}) {
   return gsap.fromTo(
     parts,
     { strokeDasharray: DASH, strokeDashoffset: DASH_HIDDEN },
-    { strokeDashoffset: 0, duration: 0.8, stagger: 0.05, ease: 'power2.out', clearProps: DRAW_PROPS, ...vars },
+    { strokeDashoffset: 0, autoRound: false, duration: 0.8, stagger: 0.05, ease: 'power2.out', clearProps: DRAW_PROPS, ...vars },
   )
 }

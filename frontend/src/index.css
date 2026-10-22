@@ -270,6 +270,37 @@ body {
   to   { opacity: 1; }
 }
 
+/* Section backdrop blob drift (SectionBackdrop.jsx). Transform only, so it runs on the compositor
+   with no per-frame main-thread work. Per-blob inline vars: --blob-dx/-dy (amplitude),
+   --blob-half (half period), --blob-delay (negative: phase offset). The animation exists only
+   while bindCssIdle marks the backdrop on screen (`data-idle`; off screen there is no animation
+   and no composited layer); `hold` = MotionPause, frozen in place. Easing = sine in-out. */
+@keyframes fg-blob-drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(calc(var(--blob-dx) * var(--blob-amp)), calc(var(--blob-dy) * var(--blob-amp)), 0) scale(1.06); }
+}
+[data-blob] { --blob-amp: 1; }
+[data-idle] [data-blob] {
+  animation: fg-blob-drift var(--blob-half, 10s) cubic-bezier(0.37, 0, 0.63, 1) var(--blob-delay, 0s) infinite alternate both;
+  animation-play-state: paused;
+}
+[data-idle='run'] [data-blob] { animation-play-state: running; }
+@media (max-width: 767px) {
+  [data-blob] { --blob-amp: 0.6; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-idle] [data-blob] { animation: none; }
+}
+
+/* Deferred backdrop decor (pattern + blobs mounted near the viewport) fades in instead of popping. */
+[data-backdrop-decor='deferred'] {
+  transition: opacity 0.6s ease-out;
+  @starting-style { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-backdrop-decor='deferred'] { transition: none; }
+}
+
 /* =============================================
    TAILWIND THEME
    ============================================= */
@@ -280,6 +311,7 @@ body {
   --color-brand: #0E9B78;
   --color-brand-dark: #08765E;
   --color-brand-darker: #065F4C;
+  --color-brand-glow: #34D3A4; /* light brand accent on the dark footer (route strokes) */
   --color-brand-50: #ECFDF5;
   --color-brand-100: #D1FAE5;
   --color-navy: #0D2232;

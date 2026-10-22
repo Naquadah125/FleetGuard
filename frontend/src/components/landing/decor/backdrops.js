@@ -30,19 +30,22 @@ export const TONES = {
 
 /**
  * Blob layout per variant. Position values are CSS lengths relative to the section; `size` is the
- * blob diameter; `speed` the ScrollSmoother data-speed (desktop parallax, `clamp()` for the hero
- * so it starts aligned at scroll 0); `drift` the idle loop amplitude [x, y] in px and its period
- * in seconds; `desktopOnly` hides the blob below 768px (phones get 2 blobs).
+ * blob diameter; `drift` the idle loop (CSS keyframes) amplitude [x, y] in px and its full
+ * there-and-back period in seconds; `desktopOnly` hides the blob below 768px (phones get 2 blobs).
  *
  * @typedef {{ top?: string, left?: string, right?: string, bottom?: string, size: string,
- *   speed: string, drift: [number, number, number], desktopOnly?: boolean }} BlobSpec
+ *   drift: [number, number, number], desktopOnly?: boolean }} BlobSpec
  */
 
 /**
  * @typedef {'dots'|'routes'|'topo'|'grid'|'none'} PatternName
  * @typedef {'edges'|'left'|'right'|'top'|'bottom'|'diagonal'} PatternMask
+ * `parallax` (optional): ScrollSmoother `data-speed` on ONE wrapper around all the variant's blobs
+ * (desktop only; `clamp()` so it starts aligned at scroll 0). Only the hero has one — the page-wide
+ * smoother effect budget is ~20 (badges + legacy layers); below the fold the drift gives depth.
+ *
  * @typedef {{ stops: [string, string, string], pattern: PatternName, patternMask: PatternMask,
- *   patternSeed: number, tone: keyof TONES, blobs: BlobSpec[] }} Variant
+ *   patternSeed: number, tone: keyof TONES, parallax?: string, blobs: BlobSpec[] }} Variant
  */
 
 /** @type {Record<string, Variant>} */
@@ -54,10 +57,11 @@ export const VARIANTS = {
     patternMask: 'right',
     patternSeed: 0,
     tone: 'cool',
+    parallax: 'clamp(0.9)',
     blobs: [
-      { top: '-12rem', left: '-12rem', size: 'clamp(34rem, 65vw, 59rem)', speed: 'clamp(0.82)', drift: [36, 24, 19] },
-      { top: '-8rem', right: '-10rem', size: 'clamp(29rem, 54vw, 51rem)', speed: 'clamp(0.9)', drift: [-28, 30, 23] },
-      { bottom: '-6rem', left: '38%', size: 'clamp(23rem, 40vw, 38rem)', speed: 'clamp(1.08)', drift: [30, -20, 17], desktopOnly: true },
+      { top: '-12rem', left: '-12rem', size: 'clamp(34rem, 65vw, 59rem)', drift: [36, 24, 19] },
+      { top: '-8rem', right: '-10rem', size: 'clamp(29rem, 54vw, 51rem)', drift: [-28, 30, 23] },
+      { bottom: '-6rem', left: '38%', size: 'clamp(23rem, 40vw, 38rem)', drift: [30, -20, 17], desktopOnly: true },
     ],
   },
   // Features: calm mint wash with a dot grid in the corners.
@@ -68,9 +72,9 @@ export const VARIANTS = {
     patternSeed: 1,
     tone: 'brand',
     blobs: [
-      { top: '-6rem', left: '-14rem', size: 'clamp(31rem, 54vw, 49rem)', speed: '1.1', drift: [30, 26, 21] },
-      { bottom: '-8rem', right: '-12rem', size: 'clamp(29rem, 51vw, 46rem)', speed: '0.88', drift: [-26, -22, 18] },
-      { top: '35%', left: '45%', size: 'clamp(21rem, 35vw, 32rem)', speed: '1.15', drift: [24, 18, 24], desktopOnly: true },
+      { top: '-6rem', left: '-14rem', size: 'clamp(31rem, 54vw, 49rem)', drift: [30, 26, 21] },
+      { bottom: '-8rem', right: '-12rem', size: 'clamp(29rem, 51vw, 46rem)', drift: [-26, -22, 18] },
+      { top: '35%', left: '45%', size: 'clamp(21rem, 35vw, 32rem)', drift: [24, 18, 24], desktopOnly: true },
     ],
   },
   // AI demo: the deepest mint of the page, topographic contours, a violet "AI" glow.
@@ -81,9 +85,9 @@ export const VARIANTS = {
     patternSeed: 2,
     tone: 'ai',
     blobs: [
-      { top: '-8rem', right: '-10rem', size: 'clamp(29rem, 51vw, 46rem)', speed: '0.85', drift: [-30, 24, 20] },
-      { top: '20%', left: '-14rem', size: 'clamp(31rem, 57vw, 51rem)', speed: '1.1', drift: [32, -18, 23] },
-      { bottom: '-10rem', right: '22%', size: 'clamp(23rem, 40vw, 38rem)', speed: '0.92', drift: [26, -24, 17], desktopOnly: true },
+      { top: '-8rem', right: '-10rem', size: 'clamp(29rem, 51vw, 46rem)', drift: [-30, 24, 20] },
+      { top: '20%', left: '-14rem', size: 'clamp(31rem, 57vw, 51rem)', drift: [32, -18, 23] },
+      { bottom: '-10rem', right: '22%', size: 'clamp(23rem, 40vw, 38rem)', drift: [26, -24, 17], desktopOnly: true },
     ],
   },
   // Pricing: cool teal-blue to mist (meets the grey road band); map routes in the upper corners.
@@ -94,9 +98,9 @@ export const VARIANTS = {
     patternSeed: 1,
     tone: 'cool',
     blobs: [
-      { top: '-6rem', left: '-12rem', size: 'clamp(29rem, 51vw, 46rem)', speed: '0.86', drift: [28, 22, 22] },
-      { top: '10%', right: '-12rem', size: 'clamp(29rem, 54vw, 49rem)', speed: '1.12', drift: [-30, 26, 19] },
-      { bottom: '12%', left: '30%', size: 'clamp(23rem, 43vw, 40rem)', speed: '0.94', drift: [24, -20, 25], desktopOnly: true },
+      { top: '-6rem', left: '-12rem', size: 'clamp(29rem, 51vw, 46rem)', drift: [28, 22, 22] },
+      { top: '10%', right: '-12rem', size: 'clamp(29rem, 54vw, 49rem)', drift: [-30, 26, 19] },
+      { bottom: '12%', left: '30%', size: 'clamp(23rem, 43vw, 40rem)', drift: [24, -20, 25], desktopOnly: true },
     ],
   },
   // Comparison: mist to sea-glass; a dot grid in the corners around the table.
@@ -107,9 +111,9 @@ export const VARIANTS = {
     patternSeed: 0,
     tone: 'brand',
     blobs: [
-      { bottom: '-6rem', left: '-14rem', size: 'clamp(31rem, 54vw, 49rem)', speed: '0.9', drift: [30, -22, 21] },
-      { bottom: '-4rem', right: '-14rem', size: 'clamp(31rem, 57vw, 51rem)', speed: '1.08', drift: [-28, -26, 18] },
-      { top: '-6rem', left: '40%', size: 'clamp(21rem, 35vw, 32rem)', speed: '0.94', drift: [22, 20, 24], desktopOnly: true },
+      { bottom: '-6rem', left: '-14rem', size: 'clamp(31rem, 54vw, 49rem)', drift: [30, -22, 21] },
+      { bottom: '-4rem', right: '-14rem', size: 'clamp(31rem, 57vw, 51rem)', drift: [-28, -26, 18] },
+      { top: '-6rem', left: '40%', size: 'clamp(21rem, 35vw, 32rem)', drift: [22, 20, 24], desktopOnly: true },
     ],
   },
   // Technology: sea-glass with a teal-blue middle and a violet/info "tech" glow; blueprint grid
@@ -121,9 +125,9 @@ export const VARIANTS = {
     patternSeed: 3,
     tone: 'ai',
     blobs: [
-      { top: '-8rem', left: '-10rem', size: 'clamp(29rem, 51vw, 46rem)', speed: '0.88', drift: [28, 24, 20] },
-      { top: '15%', right: '-12rem', size: 'clamp(31rem, 57vw, 51rem)', speed: '1.1', drift: [-30, 20, 23] },
-      { bottom: '-4rem', left: '35%', size: 'clamp(23rem, 40vw, 38rem)', speed: '0.92', drift: [26, -18, 18], desktopOnly: true },
+      { top: '-8rem', left: '-10rem', size: 'clamp(29rem, 51vw, 46rem)', drift: [28, 24, 20] },
+      { top: '15%', right: '-12rem', size: 'clamp(31rem, 57vw, 51rem)', drift: [-30, 20, 23] },
+      { bottom: '-4rem', left: '35%', size: 'clamp(23rem, 40vw, 38rem)', drift: [26, -18, 18], desktopOnly: true },
     ],
   },
 }

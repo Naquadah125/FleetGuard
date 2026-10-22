@@ -236,7 +236,7 @@ function DistanceCard() {
       <div className="shrink-0 lg:pr-5">
         <p className="text-body-sm font-medium text-ink">{DASHBOARD.distanceLabel}</p>
         <p className="mt-1.5 flex items-baseline gap-1.5 text-navy">
-          <span data-count={DASHBOARD.distanceKm} data-distance-count className="text-[26px] leading-8 font-extrabold tabular-nums">
+          <span data-count={DASHBOARD.distanceKm} data-distance-count className="inline-block text-right text-[26px] leading-8 font-extrabold tabular-nums">
             {formatStat(DASHBOARD.distanceKm)}
           </span>
           <span className="text-body-sm font-semibold text-ink">{DASHBOARD.distanceUnit}</span>

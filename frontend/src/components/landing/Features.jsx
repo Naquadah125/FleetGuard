@@ -24,9 +24,9 @@ const GLINT_STEP = 1.4
  * The list bleeds out by the card padding (-mx), so icons align with the page's left edge.
  *
  * Atmosphere: SectionBackdrop variant "mint" (tinted gradient, dot pattern, drifting blobs with
- * parallax); three Float3D clay badges (chart, lock, headset) in the side gutters at different
- * depths (chart + lock beside the heading from md, headset in the left gutter beside the grid from xl —
- * the right gutter is where the fixed contact CTA sits).
+ * parallax); Float3D clay badges (chart, lock, headset) in the side gutters at different depths:
+ * phones one small chart beside the heading; md chart; lg+ chart + lock beside the heading; xl+ also
+ * the headset in the left gutter beside the grid (the right edge is the fixed contact CTA's).
  *
  * Idle accent (subtle): the icon tiles "glint" one after another — a small lift + scale on the
  * tile, never on the icon strokes (AnimatedIcon's hover motion owns those). Built after first
@@ -80,10 +80,13 @@ export default function Features() {
       <div className="relative container-page">
         <SectionHeading id="features-title" title={FEATURES_HEADING} underline />
 
-        {/* Side-gutter accents: beside the (centred) heading, and next to the grid on wide screens. */}
+        {/* Side-gutter accents beside the (centred) heading, and next to the grid on wide screens.
+            Phones: one small chart left of the heading. Right-side badges only from lg and ≥ 100px
+            from the viewport edge (the fixed contact CTA owns the right edge). */}
+        <Float3D badge="chart" mobile size={56} phase={0.15} className="top-0 -left-1 max-[359px]:hidden" />
         <Float3D badge="chart" size={84} depth={1.15} phase={0.15} className="top-[-14px] left-0 lg:left-[4%] xl:left-[6%]" />
-        <Float3D badge="lock" size={72} depth={0.9} phase={0.55} className="top-[2px] right-0 lg:right-[5%] xl:right-[8%]" />
-        <Float3D badge="headset" size={80} depth={1.2} phase={0.85} className="top-[56%] -left-24 md:hidden xl:block 2xl:-left-28" />
+        <Float3D badge="lock" from="lg" size={72} depth={0.9} phase={0.55} className="top-[2px] right-[10%] xl:right-[8%]" />
+        <Float3D badge="headset" from="xl" size={80} depth={1.12} phase={0.85} className="top-[56%] -left-24 2xl:-left-28" />
 
         <Reveal
           as="ul"

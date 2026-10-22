@@ -162,9 +162,11 @@ export default function Comparison() {
             <PottedPlant className="h-auto w-full" />
           </div>
 
-          {/* Clay 3D accents right of the table (xl), balancing the plant on the left. */}
-          <Float3D badge="lock" size={96} depth={1.12} phase={0.2} className="md:hidden xl:block top-2 left-full ml-10" />
-          <Float3D badge="shield" size={72} depth={0.9} phase={0.65} className="md:hidden xl:block bottom-10 left-full ml-24" />
+          {/* Clay 3D accents right of the table (xl), balancing the plant on the left. Lock + bell:
+              Pricing (adjacent) shows the shield, so nothing repeats across the two sections. Both
+              stay ≥ 84px from the viewport edge at 1280 (the contact CTA's column). */}
+          <Float3D badge="lock" from="xl" size={88} depth={1.12} phase={0.2} className="top-2 left-full ml-6" />
+          <Float3D badge="bell" from="xl" size={72} depth={0.9} phase={0.65} className="bottom-10 left-full ml-8" />
 
           <div
             data-comparison-table

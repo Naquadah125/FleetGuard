@@ -88,9 +88,46 @@ function afterFirstPaint() {
   })
 }
 
+/** Outstanding holdDefer() handles (e.g. HomePage still mounting its below-the-fold sections). */
+let holds = 0
+
 // Dev-only: verification scripts wait for the queue to drain before counting triggers.
 if (import.meta.env.DEV && hasWindow && window.__fg) {
-  window.__fg.deferPending = () => queue.length + (scheduled || waitingForPaint ? 1 : 0)
+  window.__fg.deferPending = () => queue.length + (scheduled || waitingForPaint ? 1 : 0) + holds
+}
+
+/**
+ * Mark deferred work that is not in the queue yet (e.g. sections whose mount — and therefore
+ * whose deferSetup calls — is still scheduled), so `window.__fg.deferPending()` (dev) does not
+ * report 0 before it lands. Returns `release()` (idempotent).
+ * @returns {() => void}
+ */
+export function holdDefer() {
+  holds++
+  let held = true
+  return () => {
+    if (!held) return
+    held = false
+    holds--
+  }
+}
+
+/**
+ * Run `callback` in a new task after the next paint (rAF, then a 0ms timeout — the task queued
+ * from inside the rAF runs after that frame is painted). Returns `cancel()`.
+ * @param {() => void} callback
+ * @returns {() => void}
+ */
+export function afterNextPaint(callback) {
+  if (!hasWindow) return () => {}
+  let timer = 0
+  const raf = requestAnimationFrame(() => {
+    timer = setTimeout(callback, 0)
+  })
+  return () => {
+    cancelAnimationFrame(raf)
+    clearTimeout(timer)
+  }
 }
 
 /**
