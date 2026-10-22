@@ -1,0 +1,27 @@
+Design a premium, modern SaaS website UI for FleetGuard, an AI-powered fleet safety and vehicle monitoring platform.
+
+VISUAL IDENTITY
+- Primary: teal green #0E9B78; dark teal #08765E.
+- Dark text: #0D2232; body text: #334155.
+- White canvas, subtle cool-gray surfaces, pastel green, blue, purple, orange, and red status colors.
+- Typography: Plus Jakarta Sans, with a strong hierarchy and generous line-height.
+- Rounded 12–16px cards, subtle borders, soft shadows, consistent spacing, polished enterprise-grade finish.
+
+COMPONENT SYSTEM
+Create reusable navigation, hero, CTA buttons, feature cards, AI monitoring scenario cards, pricing cards, comparison tables, technology cards, statistics bars, badges, form controls, and footer groups. Use consistent icon sizing, stroke weight, radii, and interaction states.
+
+PAGE SECTIONS
+1. Navigation with FleetGuard logo, links, login, and signup.
+2. Hero with a large Vietnamese headline, clear CTAs, a fleet-monitoring dashboard, map pins, vehicle statistics, and real-time driver alerts.
+3. Six feature cards.
+4. Four AI driver-monitoring scenarios: normal, drowsy, fatigued, distracted.
+5. Monthly/yearly billing selector and two pricing plans.
+6. Feature comparison table.
+7. Technology capabilities and key metrics.
+8. Dark teal footer with grouped navigation and contact details.
+
+LAYOUT
+Desktop-first, 12-column grid, generous whitespace, strong visual hierarchy, balanced text-to-visual ratio, accessible contrast, responsive tablet/mobile adaptations. Align elements precisely and use consistent vertical rhythm.
+
+OUTPUT
+Produce a high-fidelity visual UI mockup, not code. Keep the same design system across every section. Avoid clutter, excessive gradients, random icon styles, tiny typography, and generic template layouts. All interface copy should be in Vietnamese.

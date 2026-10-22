@@ -56,3 +56,6 @@ Desktop.ini
 # Project-local agent skills (installed via `npx skills`)
 .claude/skills/
 skills-lock.json
+.agents/
+.superpowers/
+.playwright-mcp/
