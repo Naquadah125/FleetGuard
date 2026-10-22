@@ -52,3 +52,7 @@ Desktop.ini
 # Optional local cache
 .cache/
 .npm/
+
+# Project-local agent skills (installed via `npx skills`)
+.claude/skills/
+skills-lock.json
