@@ -1,9 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Mail, Lock, ArrowRight, ArrowLeft, Key, AlertCircle, Info } from 'lucide-react'
-import SamsaraLogo from '../components/SamsaraLogo'
+import { Mail, Lock, ArrowRight, Key, AlertCircle, Info } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import styles from './Auth.module.css'
+import AuthShell, { AuthBanner, AuthField } from '@/components/auth/AuthShell'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+
+const QUICK_BTN_CLASS =
+  'h-auto min-h-11 gap-1 border-line px-3 py-2 leading-snug text-navy hover:border-brand sm:flex-col sm:gap-0'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -42,110 +46,94 @@ export default function LoginPage() {
   }
 
   return (
-    <div className={styles.authWrapper}>
-      <Link to="/" className={styles.backHome}>
-        <ArrowLeft size={16} />
-        <span>Về trang chủ</span>
-      </Link>
-
-      <div className={styles.authCard}>
-        <div className={styles.cardHeader}>
-          <Link to="/" className={styles.cardLogo}>
-            <SamsaraLogo size={34} color="#0F172A" accentColor="#F59E0B" />
-            <span className={styles.logoText}>
-              Fleet<span className={styles.logoAccent}>Guard</span>
-            </span>
+    <AuthShell
+      title="ĐĂNG NHẬP HỆ THỐNG"
+      subtitle="Nền tảng giám sát an toàn tài xế AI thời gian thực"
+      footer={
+        <>
+          <span>Chưa có tài khoản?</span>
+          <Link
+            to="/register"
+            className="rounded-sm font-semibold text-brand-dark underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+          >
+            Đăng ký trải nghiệm
           </Link>
-          <h1 className={styles.cardTitle}>ĐĂNG NHẬP HỆ THỐNG</h1>
-          <p className={styles.cardSubtitle}>Nền tảng giám sát an toàn tài xế AI thời gian thực</p>
-        </div>
-
+        </>
+      }
+    >
+      <div className="flex flex-col gap-5">
         {/* Quick Demo Credentials Fill */}
-        <div className={styles.quickAccounts}>
-          <div className={styles.quickHeader}>
-            <Key size={13} />
-            <span>Tài Khoản Kiểm Thử Nhanh (Mật khẩu: fleet1234)</span>
+        <div className="flex flex-col gap-3 rounded-md border border-dashed border-brand/40 bg-brand-50/60 p-3.5">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-body-sm font-semibold text-brand-dark">
+            <Key className="size-3.5" aria-hidden="true" />
+            <span>Tài Khoản Kiểm Thử Nhanh</span>
+            <Badge variant="neutral" className="bg-white font-medium text-ink ring-1 ring-line">
+              Mật khẩu: fleet1234
+            </Badge>
           </div>
-          <div className={styles.quickButtons}>
-            <button
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Button
               type="button"
-              className={styles.quickBtn}
+              variant="outline"
+              className={QUICK_BTN_CLASS}
               onClick={() => handleQuickFill('user@fleet.vn')}
             >
-              Tài Xế (user@fleet.vn)
-            </button>
-            <button
+              <span className="font-semibold">Tài Xế</span>{' '}
+              <span className="font-medium text-ink">(user@fleet.vn)</span>
+            </Button>
+            <Button
               type="button"
-              className={styles.quickBtn}
+              variant="outline"
+              className={QUICK_BTN_CLASS}
               onClick={() => handleQuickFill('admin@fleet.vn')}
             >
-              Quản Trị (admin@fleet.vn)
-            </button>
+              <span className="font-semibold">Quản Trị</span>{' '}
+              <span className="font-medium text-ink">(admin@fleet.vn)</span>
+            </Button>
           </div>
         </div>
 
         {notice && (
-          <div className={styles.noticeBanner}>
-            <Info size={14} />
-            <span>{notice}</span>
-          </div>
+          <AuthBanner tone="info" icon={Info}>
+            {notice}
+          </AuthBanner>
         )}
 
         {error && (
-          <div className={styles.errorBanner} style={{ marginBottom: 16 }}>
-            <AlertCircle size={15} />
-            <span>{error}</span>
-          </div>
+          <AuthBanner tone="danger" icon={AlertCircle}>
+            {error}
+          </AuthBanner>
         )}
 
-        <form className={styles.form} onSubmit={handleSubmit}>
-          <div className={styles.formGroup}>
-            <label className={styles.label} htmlFor="email">Email đăng nhập</label>
-            <div className={styles.inputWrapper}>
-              <Mail className={styles.inputIcon} size={18} />
-              <input
-                id="email"
-                type="email"
-                className={styles.input}
-                placeholder="name@fleet.vn"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-          </div>
+        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+          <AuthField
+            id="email"
+            label="Email đăng nhập"
+            icon={Mail}
+            type="email"
+            placeholder="name@fleet.vn"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
 
-          <div className={styles.formGroup}>
-            <label className={styles.label} htmlFor="password">Mật khẩu</label>
-            <div className={styles.inputWrapper}>
-              <Lock className={styles.inputIcon} size={18} />
-              <input
-                id="password"
-                type="password"
-                className={styles.input}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-          </div>
+          <AuthField
+            id="password"
+            label="Mật khẩu"
+            icon={Lock}
+            type="password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
-          <button
-            type="submit"
-            className={styles.submitBtn}
-            disabled={loading}
-          >
+          <Button type="submit" size="lg" className="mt-2 w-full" loading={loading}>
             <span>{loading ? 'Đang xác thực...' : 'Đăng Nhập'}</span>
-            <ArrowRight size={16} />
-          </button>
+            <ArrowRight data-icon="inline-end" aria-hidden="true" />
+          </Button>
         </form>
-
-        <div className={styles.cardFooter}>
-          <span>Chưa có tài khoản?</span>
-          <Link to="/register">Đăng ký trải nghiệm</Link>
-        </div>
       </div>
-    </div>
+    </AuthShell>
   )
 }

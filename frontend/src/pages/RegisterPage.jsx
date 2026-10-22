@@ -1,9 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { User, Mail, Lock, Building2, ArrowRight, ArrowLeft, AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react'
-import SamsaraLogo from '../components/SamsaraLogo'
+import { User, Mail, Lock, Building2, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import styles from './Auth.module.css'
+import AuthShell, { AuthBanner, AuthField } from '@/components/auth/AuthShell'
+import { Button } from '@/components/ui/button'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+
+const TYPE_ITEM_CLASS =
+  'h-11 w-full gap-2 rounded-sm px-3 text-body font-semibold text-ink hover:bg-white/70 hover:text-navy data-[state=on]:bg-white data-[state=on]:text-brand-dark data-[state=on]:shadow-[0_1px_3px_rgba(13,34,50,0.12)] [&_svg:not([class*=size-])]:size-[15px]'
 
 export default function RegisterPage() {
   const [accountType, setAccountType] = useState('DRIVER') // 'DRIVER' or 'ADMIN'
@@ -49,141 +53,107 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className={styles.authWrapper}>
-      <Link to="/" className={styles.backHome}>
-        <ArrowLeft size={16} />
-        <span>Về trang chủ</span>
-      </Link>
-
-      <div className={styles.authCard}>
-        <div className={styles.cardHeader}>
-          <Link to="/" className={styles.cardLogo}>
-            <SamsaraLogo size={34} color="#0F172A" accentColor="#F59E0B" />
-            <span className={styles.logoText}>
-              Fleet<span className={styles.logoAccent}>Guard</span>
-            </span>
+    <AuthShell
+      title="TẠO TÀI KHOẢN MỚI"
+      subtitle="Gia nhập nền tảng an toàn vận tải thông minh"
+      footer={
+        <>
+          <span>Đã có tài khoản?</span>
+          <Link
+            to="/login"
+            className="rounded-sm font-semibold text-brand-dark underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+          >
+            Đăng nhập
           </Link>
-          <h1 className={styles.cardTitle}>TẠO TÀI KHOẢN MỚI</h1>
-          <p className={styles.cardSubtitle}>Gia nhập nền tảng an toàn vận tải thông minh</p>
-        </div>
-
-        {/* Account Type Selector */}
-        <div className={styles.typeSelector}>
-          <button
-            type="button"
-            className={`${styles.typeBtn} ${accountType === 'DRIVER' ? styles.typeBtnActive : ''}`}
-            onClick={() => setAccountType('DRIVER')}
-          >
-            <User size={15} />
+        </>
+      }
+    >
+      <div className="flex flex-col gap-5">
+        {/* Account Type Selector — a single choice that can never be cleared */}
+        <ToggleGroup
+          type="single"
+          value={accountType}
+          onValueChange={(value) => value && setAccountType(value)}
+          spacing={1}
+          aria-label="Loại tài khoản"
+          className="grid w-full grid-cols-2 rounded-md bg-surface p-1"
+        >
+          <ToggleGroupItem value="DRIVER" className={TYPE_ITEM_CLASS}>
+            <User aria-hidden="true" />
             <span>Tài xế cá nhân</span>
-          </button>
-          <button
-            type="button"
-            className={`${styles.typeBtn} ${accountType === 'ADMIN' ? styles.typeBtnActive : ''}`}
-            onClick={() => setAccountType('ADMIN')}
-          >
-            <Building2 size={15} />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="ADMIN" className={TYPE_ITEM_CLASS}>
+            <Building2 aria-hidden="true" />
             <span>Công ty / đội xe</span>
-          </button>
-        </div>
+          </ToggleGroupItem>
+        </ToggleGroup>
 
         {error && (
-          <div className={styles.errorBanner} style={{ marginBottom: 16 }}>
-            <AlertCircle size={15} />
-            <span>{error}</span>
-          </div>
+          <AuthBanner tone="danger" icon={AlertCircle}>
+            {error}
+          </AuthBanner>
         )}
 
         {success && (
-          <div className={styles.successBanner} style={{ marginBottom: 16 }}>
-            <CheckCircle2 size={15} />
-            <span>{success}</span>
-          </div>
+          <AuthBanner tone="success" icon={CheckCircle2}>
+            {success}
+          </AuthBanner>
         )}
 
-        <form className={styles.form} onSubmit={handleSubmit}>
+        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           {accountType === 'ADMIN' && (
-            <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="orgName">Tên công ty / tổ chức</label>
-              <div className={styles.inputWrapper}>
-                <Building2 className={styles.inputIcon} size={18} />
-                <input
-                  id="orgName"
-                  type="text"
-                  className={styles.input}
-                  placeholder="Công ty Vận Tải XYZ..."
-                  value={orgName}
-                  onChange={(e) => setOrgName(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
+            <AuthField
+              id="orgName"
+              label="Tên công ty / tổ chức"
+              icon={Building2}
+              type="text"
+              placeholder="Công ty Vận Tải XYZ..."
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              required
+            />
           )}
 
-          <div className={styles.formGroup}>
-            <label className={styles.label} htmlFor="name">Họ và tên</label>
-            <div className={styles.inputWrapper}>
-              <User className={styles.inputIcon} size={18} />
-              <input
-                id="name"
-                type="text"
-                className={styles.input}
-                placeholder="Nguyễn Văn A"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-          </div>
+          <AuthField
+            id="name"
+            label="Họ và tên"
+            icon={User}
+            type="text"
+            placeholder="Nguyễn Văn A"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
 
-          <div className={styles.formGroup}>
-            <label className={styles.label} htmlFor="reg-email">Email</label>
-            <div className={styles.inputWrapper}>
-              <Mail className={styles.inputIcon} size={18} />
-              <input
-                id="reg-email"
-                type="email"
-                className={styles.input}
-                placeholder="name@fleet.vn"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-          </div>
+          <AuthField
+            id="reg-email"
+            label="Email"
+            icon={Mail}
+            type="email"
+            placeholder="name@fleet.vn"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
 
-          <div className={styles.formGroup}>
-            <label className={styles.label} htmlFor="reg-password">Mật khẩu</label>
-            <div className={styles.inputWrapper}>
-              <Lock className={styles.inputIcon} size={18} />
-              <input
-                id="reg-password"
-                type="password"
-                className={styles.input}
-                placeholder="Tối thiểu 6 ký tự"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                minLength={6}
-                required
-              />
-            </div>
-          </div>
+          <AuthField
+            id="reg-password"
+            label="Mật khẩu"
+            icon={Lock}
+            type="password"
+            placeholder="Tối thiểu 6 ký tự"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            minLength={6}
+            required
+          />
 
-          <button
-            type="submit"
-            className={styles.submitBtn}
-            disabled={loading}
-          >
+          <Button type="submit" size="lg" className="mt-2 w-full" loading={loading}>
             <span>{loading ? 'Đang khởi tạo...' : accountType === 'ADMIN' ? 'Đăng Ký Gói Chuyên Nghiệp' : 'Bắt Đầu Miễn Phí'}</span>
-            <ArrowRight size={16} />
-          </button>
+            <ArrowRight data-icon="inline-end" aria-hidden="true" />
+          </Button>
         </form>
-
-        <div className={styles.cardFooter}>
-          <span>Đã có tài khoản?</span>
-          <Link to="/login">Đăng nhập</Link>
-        </div>
       </div>
-    </div>
+    </AuthShell>
   )
 }
