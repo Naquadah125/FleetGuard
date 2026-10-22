@@ -69,7 +69,11 @@ async function fullScroll(page) {
   }
 }
 
+// CHECK_ONLY=name[,name] runs just those assertions (handy while iterating on one).
+const ONLY = process.env.CHECK_ONLY ? process.env.CHECK_ONLY.split(',') : null
+
 async function run(name, fn) {
+  if (ONLY && !ONLY.includes(name)) return
   try {
     const reason = await fn()
     if (reason) fail(name, reason)
@@ -259,6 +263,183 @@ try {
         await context.close()
       }
     }
+    return problems.length ? problems.join('; ') : null
+  })
+
+  // 5c. count-up — animated numbers start from their final vi-VN value in the HTML, count up
+  // smoothly once they are shown, never sit at 0, never change width, and are exposed to
+  // assistive tech exactly once. 1440x900, normal motion (ScrollSmoother on):
+  //  - after load at scroll 0 (stats bar far below, nothing triggered) each stat already reads its
+  //    final value (0 is only written when the count actually starts);
+  //  - jump with window.scrollTo so the stats bar is centred, sample every ~100ms for 2500ms: while
+  //    a stat is visible (in the viewport, effective opacity >= 0.5) it never reads its zero form
+  //    in two consecutive samples, its value never decreases and its painted width stays constant
+  //    (±1px); at 2500ms every stat's *visible* text (text nodes with a real box, so .sr-only
+  //    copies are skipped) is its final value (98,5% / 10.000+ / 500+ / 24/7);
+  //  - the stats bar's accessible text (rendered text minus aria-hidden subtrees) contains each
+  //    final value exactly once;
+  //  - a fresh load at scroll 0, after 3000ms: hero KPIs read 128/96/12/86, distance 1.245.
+  await run('count-up', async () => {
+    const STAT_FINALS = ['98,5%', '10.000+', '500+', '24/7']
+    const STAT_ZEROS = ['0,0%', '0+', '0+', null]
+    const KPI_FINALS = ['128', '96', '12', '86']
+    const DISTANCE_FINAL = '1.245'
+    const problems = []
+
+    // Page-side probe, installed as window.__countUpProbe.
+    const PROBE = () => {
+      // Text of the text nodes under `el` whose parent has a real box (skips .sr-only copies).
+      const visibleText = (el) => {
+        if (!el) return null
+        const out = []
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          const r = n.parentElement.getBoundingClientRect()
+          if (r.width > 1 && r.height > 1 && getComputedStyle(n.parentElement).visibility !== 'hidden') out.push(n.nodeValue)
+        }
+        return out.join('').replace(/\s+/g, ' ').trim()
+      }
+      // Painted horizontal extent of `el`'s content: union of descendant boxes > 1px and text runs,
+      // in layout px (divided by any ancestor scale, e.g. an entrance scale-in).
+      const extent = (el) => {
+        let left = Infinity
+        let right = -Infinity
+        const add = (r) => {
+          if (r.width > 1 && r.height > 1) {
+            left = Math.min(left, r.left)
+            right = Math.max(right, r.right)
+          }
+        }
+        el.querySelectorAll('*').forEach((c) => add(c.getBoundingClientRect()))
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          if (n.parentElement.getBoundingClientRect().width <= 1) continue
+          const range = document.createRange()
+          range.selectNodeContents(n)
+          add(range.getBoundingClientRect())
+        }
+        const scale = el.offsetWidth ? el.getBoundingClientRect().width / el.offsetWidth : 1
+        return right > left ? (right - left) / (scale || 1) : 0
+      }
+      const opacity = (el) => {
+        let o = 1
+        for (let n = el; n && n !== document.documentElement; n = n.parentElement) o *= parseFloat(getComputedStyle(n).opacity)
+        return o
+      }
+      const numbers = () => {
+        const bar = document.querySelector('[data-stats-bar]')
+        if (!bar) return []
+        // [data-stat-number] marks the value line; fall back to each stat's first child.
+        let nodes = bar.querySelectorAll('[data-stat-number]')
+        if (!nodes.length) nodes = bar.querySelectorAll('[data-stat] > :first-child')
+        return Array.from(nodes)
+      }
+      window.__countUpProbe = {
+        visibleText,
+        sample: () =>
+          numbers().map((el) => {
+            const r = el.getBoundingClientRect()
+            return {
+              text: visibleText(el),
+              width: Math.round(extent(el) * 10) / 10,
+              visible: r.bottom > 0 && r.top < window.innerHeight && opacity(el) >= 0.5,
+            }
+          }),
+        a11yText: () => {
+          const bar = document.querySelector('[data-stats-bar]')
+          const parts = []
+          const walker = document.createTreeWalker(bar, NodeFilter.SHOW_TEXT)
+          for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+            const p = n.parentElement
+            if (p.closest('[aria-hidden="true"]')) continue
+            if (getComputedStyle(p).display === 'none') continue
+            parts.push(n.nodeValue)
+          }
+          return parts.join(' ').replace(/\s+/g, ' ')
+        },
+      }
+    }
+    const num = (t) => parseFloat(String(t).replace(/[^\d,]/g, '').replace(',', '.'))
+
+    {
+      const { context, page } = await newPage(browser, { width: 1440, height: 900 })
+      try {
+        await load(page)
+        await page.evaluate(PROBE)
+        const target = await page.evaluate(() => {
+          const bar = document.querySelector('[data-stats-bar]')
+          if (!bar) return null
+          const r = bar.getBoundingClientRect()
+          return Math.round(r.top + window.scrollY + r.height / 2 - window.innerHeight / 2)
+        })
+        if (target === null) return '[data-stats-bar] not found'
+        const before = await page.evaluate(() => window.__countUpProbe.sample())
+        if (before.length !== STAT_FINALS.length) return `stats: ${before.length} value lines found, want ${STAT_FINALS.length}`
+        const pre = STAT_FINALS.map((f, i) => (before[i].text === f ? null : `"${before[i].text}"≠"${f}"`)).filter(Boolean)
+        if (pre.length) problems.push(`stats at scroll 0 before any trigger: ${pre.join(', ')} (final value must stay until the count starts)`)
+
+        await page.evaluate((y) => window.scrollTo(0, y), target)
+        const t0 = Date.now()
+        const samples = []
+        while (Date.now() - t0 < 2400) {
+          samples.push({ t: Date.now() - t0, s: await page.evaluate(() => window.__countUpProbe.sample()) })
+          await page.waitForTimeout(100)
+        }
+        await page.waitForTimeout(Math.max(0, 2500 - (Date.now() - t0)))
+        const last = await page.evaluate(() => window.__countUpProbe.sample())
+
+        STAT_FINALS.forEach((final, i) => {
+          const vis = samples.filter((x) => x.s[i]?.visible).map((x) => ({ t: x.t, ...x.s[i] }))
+          if (last[i]?.visible) vis.push({ t: 2500, ...last[i] })
+          const zero = STAT_ZEROS[i]
+          for (let k = 1; zero && k < vis.length; k++) {
+            if (vis[k].text === zero && vis[k - 1].text === zero) {
+              problems.push(`stat ${final}: visible at "${zero}" at ${vis[k - 1].t}ms and ${vis[k].t}ms`)
+              break
+            }
+          }
+          for (let k = 1; k < vis.length; k++) {
+            if (num(vis[k].text) < num(vis[k - 1].text)) {
+              problems.push(`stat ${final}: went down "${vis[k - 1].text}" → "${vis[k].text}" at ${vis[k].t}ms`)
+              break
+            }
+          }
+          const widths = vis.map((v) => v.width)
+          if (widths.length && Math.max(...widths) - Math.min(...widths) > 1)
+            problems.push(`stat ${final}: painted width ${Math.min(...widths)}–${Math.max(...widths)}px while visible`)
+        })
+        const wrong = STAT_FINALS.map((f, i) => (last[i]?.text === f ? null : `"${last[i]?.text}"≠"${f}"`)).filter(Boolean)
+        if (wrong.length) problems.push(`stats visible after jump+2500ms: ${wrong.join(', ')}`)
+
+        const a11y = await page.evaluate(() => window.__countUpProbe.a11yText())
+        const dup = STAT_FINALS.map((f) => [f, a11y.split(f).length - 1]).filter(([, n]) => n !== 1)
+        if (dup.length)
+          problems.push(`stats accessible text "${a11y.trim().slice(0, 120)}": ${dup.map(([f, n]) => `"${f}"×${n}`).join(', ')} (want each once)`)
+      } finally {
+        await context.close()
+      }
+    }
+
+    {
+      const { context, page } = await newPage(browser, { width: 1440, height: 900 })
+      try {
+        await page.goto(`${BASE}/`, { waitUntil: 'load' })
+        await page.waitForTimeout(3000)
+        await page.evaluate(PROBE)
+        const r = await page.evaluate(() => {
+          const { visibleText } = window.__countUpProbe
+          return {
+            kpis: Array.from(document.querySelectorAll('#top [data-kpi] [data-count]')).map(visibleText),
+            distance: visibleText(document.querySelector('#top [data-distance-count]')),
+          }
+        })
+        if (r.kpis.join('/') !== KPI_FINALS.join('/')) problems.push(`hero KPIs after 3000ms "${r.kpis.join('/')}" (want ${KPI_FINALS.join('/')})`)
+        if (r.distance !== DISTANCE_FINAL) problems.push(`hero distance after 3000ms "${r.distance}" (want ${DISTANCE_FINAL})`)
+      } finally {
+        await context.close()
+      }
+    }
+
     return problems.length ? problems.join('; ') : null
   })
 

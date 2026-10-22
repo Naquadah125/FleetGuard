@@ -7,6 +7,7 @@ import CitySkyline from '@/components/illustrations/CitySkyline'
 import AnimatedIcon from '@/components/landing/AnimatedIcon'
 import Reveal from '@/components/landing/Reveal'
 import SectionHeading from '@/components/landing/SectionHeading'
+import { useCountUp } from '@/lib/motion/countUp'
 import { deferSetup } from '@/lib/motion/defer'
 import { gsap, ScrollTrigger, useGSAP } from '@/lib/motion/gsap'
 import { DUR, EASE, MQ, revealTrigger } from '@/lib/motion/presets'
@@ -23,17 +24,12 @@ const SKYLINE_SPEEDS = { 'layer-back': '0.6', 'layer-mid': '0.8', 'layer-front':
 
 const statText = (s) => (s.text ?? formatStat(s.value, s.decimals ?? 0)) + (s.suffix ?? '')
 
-/** Update a React-rendered number without replacing its text node (React keeps its reference). */
-function setText(el, text) {
-  if (el.firstChild && el.firstChild.nodeType === 3) el.firstChild.nodeValue = text
-  else el.textContent = text
-}
-
 /**
  * "Công nghệ AI tiên tiến" — title + description + CTA on the left, 4 tech items on the right,
  * StatsBar at the bottom, CitySkyline behind. Motion (desktop + mobile, never under reduce;
  * built after first paint via deferSetup): AiChip traces draw in (strokeDashoffset on
- * pathLength=1) + glow pulse (while on screen and not paused), StatsBar scales in and counts up.
+ * pathLength=1) + glow pulse (while on screen and not paused), StatsBar scales in while its
+ * numbers count up (StatsBar's own useCountUp, same 'top 85%' trigger).
  * The skyline renders as three stacked <svg> layers; on desktop each gets `data-speed` for
  * ScrollSmoother parallax (composited HTML-level transforms, no SVG re-raster per frame).
  */
@@ -64,35 +60,14 @@ export default function Technology() {
             offLoop = loopWhileVisible(chip, [glow], ScrollTrigger)
           }
 
-          // StatsBar: scale in from 0.96, then numbers count up from 0 to their final value.
-          // The final text is server-rendered; it is only reset to 0 here (motion allowed).
+          // StatsBar entrance: scale in from 0.96 and fade the figures in. Their count-up (StatsBar's
+          // useCountUp) fires on the same 'top 85%' line, so a number resets to 0 while it is hidden.
           const bar = root.querySelector('[data-stats-bar]')
-          const nums = Array.from(root.querySelectorAll('[data-stat-value]'))
           if (!bar) return offLoop
           const tl = gsap.timeline({ scrollTrigger: revealTrigger(bar, 'top 85%') })
           tl.from(bar, { scale: 0.96, opacity: 0, duration: DUR.base, ease: EASE.out })
           tl.from(bar.querySelectorAll('[data-stat]'), { opacity: 0, y: 12, duration: DUR.base, ease: EASE.out, stagger: 0.08 }, 0.1)
-          nums.forEach((el) => {
-            const value = Number(el.dataset.value)
-            const decimals = Number(el.dataset.decimals)
-            const counter = { v: 0 }
-            setText(el, formatStat(0, decimals))
-            tl.to(
-              counter,
-              {
-                v: value,
-                duration: 1.6,
-                ease: 'power2.out',
-                onUpdate: () => setText(el, formatStat(counter.v, decimals)),
-              },
-              0.15,
-            )
-          })
-          // Restore the final values when this branch reverts (unmount, breakpoint → reduce).
-          return () => {
-            offLoop()
-            nums.forEach((el) => setText(el, formatStat(Number(el.dataset.value), Number(el.dataset.decimals))))
-          }
+          return offLoop
         })
       })
       const cancel = deferSetup(build)
@@ -170,10 +145,17 @@ export default function Technology() {
   )
 }
 
-/** Gradient bar with 4 figures (2×2 on mobile). Values carry data-* for the count-up above. */
+/**
+ * Gradient bar with 4 figures (2×2 on mobile). Numeric figures count up (useCountUp → countUp,
+ * `[data-countup]`); the visible figure is aria-hidden and a single sr-only copy carries the final
+ * value, so assistive tech reads each figure once. `[data-stat-number]` marks the value line.
+ */
 function StatsBar({ className }) {
+  const ref = useRef(null)
+  useCountUp(ref)
   return (
     <div
+      ref={ref}
       data-stats-bar
       className={cn(
         // brand-dark → brand-darker: white labels stay ≥ 5.6:1 everywhere on the gradient (AA).
@@ -188,10 +170,10 @@ function StatsBar({ className }) {
       <ul className="relative grid grid-cols-2 lg:grid-cols-4">
         {STATS.map((s, i) => (
           <li key={s.label} data-stat className="relative flex flex-col items-center gap-1 px-3 py-4 text-center lg:py-3">
-            <p className="text-h2 font-extrabold tabular-nums">
+            <p data-stat-number className="text-h2 font-extrabold tabular-nums">
               <span aria-hidden="true">
                 {s.text ?? (
-                  <span data-stat-value data-value={s.value} data-decimals={s.decimals ?? 0}>
+                  <span data-countup={s.value} data-countup-decimals={s.decimals ?? 0} className="inline-block">
                     {formatStat(s.value, s.decimals ?? 0)}
                   </span>
                 )}

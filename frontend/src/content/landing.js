@@ -78,6 +78,20 @@ export const MOTION_CONTROL = {
   resume: 'Tiếp tục chuyển động',
 }
 
+/**
+ * Floating contact buttons (bottom-right, FloatingContact.jsx). `zaloNumber` is a placeholder
+ * until the real Zalo OA / phone number is supplied; the link is `https://zalo.me/<zaloNumber>`.
+ */
+export const CONTACT_CTA = {
+  zaloNumber: '19001234',
+  zaloLabel: 'Chat Zalo',
+  hotline: '1900 1234',
+  hotlineHref: 'tel:19001234',
+  hotlineLabel: 'Gọi 1900 1234',
+  ariaZalo: 'Chat qua Zalo',
+  ariaHotline: 'Gọi hotline 1900 1234',
+}
+
 export const FEATURES_HEADING = 'FleetGuard có thể giúp gì cho bạn?'
 
 export const FEATURES = [

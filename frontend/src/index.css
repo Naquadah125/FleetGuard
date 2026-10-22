@@ -300,6 +300,20 @@ body {
   --color-success-text: color-mix(in oklab, var(--color-success), black 45%);
   --color-warning-text: color-mix(in oklab, var(--color-warning), black 30%);
   --color-danger-text: color-mix(in oklab, var(--color-danger), black 25%);
+
+  /* Section atmosphere tints (components/landing/decor/SectionBackdrop.jsx). Base-gradient stops
+     and section seams; each one keeps relative luminance >= 0.88, so brand-dark small text stays
+     >= 4.9:1, ink >= 9:1, navy >= 14:1 and brand large text >= 3.2:1 on it (blobs and patterns
+     included: see the Phase 6 V report for the measured worst case per variant). */
+  --color-tint-50: #F6FBF9;        /* whisper mint: hero top, light mid-stops */
+  --color-tint-mint: #ECF8F2;      /* mint: hero -> features -> demo seams */
+  --color-tint-mint-deep: #E2F4EB; /* deepest mint: AI demo centre */
+  --color-tint-sky: #EAF4F7;       /* teal-blue: demo -> pricing seam, technology centre */
+  --color-tint-mist: #EFF4F6;      /* cool mist: pricing -> comparison seam (road band) */
+  --color-tint-teal: #E6F3EF;      /* sea-glass: comparison -> technology seam */
+
+  /* Third-party brand fill for the floating Zalo button (white text on it: 5.1:1). */
+  --color-zalo: #0068FF;
 }
 
 /* Inline (literal values in utilities): these names collide with legacy :root variables

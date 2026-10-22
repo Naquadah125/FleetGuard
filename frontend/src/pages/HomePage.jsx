@@ -7,11 +7,12 @@ import Comparison from '@/components/landing/Comparison'
 import Technology from '@/components/landing/Technology'
 import Footer from '@/components/landing/Footer'
 import SmoothScroll from '@/components/landing/SmoothScroll'
+import FloatingContact from '@/components/landing/FloatingContact'
 
 /**
  * Landing page: composition only. Every section owns its layout, background and motion.
- * The fixed Navbar stays outside the ScrollSmoother wrapper (the smoothed content is
- * transformed, which would break `position: fixed`).
+ * The fixed Navbar and the floating contact CTA stay outside the ScrollSmoother wrapper (the
+ * smoothed content is transformed, which would break `position: fixed`).
  */
 export default function HomePage() {
   return (
@@ -29,6 +30,7 @@ export default function HomePage() {
         </main>
         <Footer />
       </SmoothScroll>
+      <FloatingContact />
     </>
   )
 }

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import LeafBranch from '@/components/illustrations/LeafBranch'
 import { HERO, formatStat } from '@/content/landing'
+import { countUp } from '@/lib/motion/countUp'
 import { gsap, Flip, ScrollTrigger, SplitText, useGSAP } from '@/lib/motion/gsap'
 import { DUR, EASE, MQ } from '@/lib/motion/presets'
 import { scrollToSection } from '@/lib/motion/scroll'
@@ -17,8 +18,9 @@ import { isMotionPaused, onMotionPauseChange } from './motionPause'
  *
  * Motion (all inside gsap.matchMedia; static under prefers-reduced-motion):
  *  - intro: headline words rise (SplitText words), copy rises, dashboard rises + scales
- *    from 0.96, KPI/distance count up, fences pop, route draws, pins drop, alerts slide in,
- *    sparkline draws then its area fades, leaf branch grows.
+ *    from 0.96, KPI/distance count up (lib/motion/countUp in timeline mode, each starting with
+ *    its tile / card fade so the reset to 0 is never seen), fences pop, route draws, pins drop,
+ *    alerts slide in, sparkline draws then its area fades, leaf branch grows.
  *  - live (only after the intro, only while the hero is in view, and not while the shared
  *    motion pause is on — the dashboard header has the pause button): pin pulse rings, vehicle
  *    driving the route, alert ticker (every 6s → Flip list shift, "alerts today" +1),
@@ -168,7 +170,6 @@ export default function Hero() {
 
       mm.add({ desktop: MQ.desktop, mobile: MQ.mobile }, (ctx) => {
         const { desktop } = ctx.conditions
-        const counters = all('[data-count]')
         const kpiCounters = all('[data-kpi] [data-count]')
         const distanceCounter = one('[data-distance-count]')
         const liveCounter = one('[data-kpi-live] [data-count]')
@@ -184,22 +185,6 @@ export default function Hero() {
         gsap.from(split.words, { opacity: 0, y: 28, duration: 0.8, ease: EASE.out, stagger: 0.06, delay: 0.1 })
 
         // ---- intro timeline ----------------------------------------------------------------
-        counters.forEach((el) => setText(el, formatStat(0)))
-        const countUp = (el, at, duration = 1.3) => {
-          const obj = { v: 0 }
-          tl.to(
-            obj,
-            {
-              v: Number(el.dataset.count),
-              duration,
-              ease: 'power2.out',
-              snap: { v: 1 },
-              onUpdate: () => setText(el, formatStat(obj.v)),
-            },
-            at,
-          )
-        }
-
         let introDone = false
         const tl = gsap.timeline({ defaults: { ease: EASE.out, duration: DUR.base } })
         // The description is the LCP element: rise only, never hidden. CTAs + trust row fade too.
@@ -218,8 +203,14 @@ export default function Hero() {
           .fromTo(one('[data-spark-line]'), UNDRAWN, { ...DRAWN, duration: 1.2, ease: EASE.inOut }, 1.2)
           .from(one('[data-spark-area]'), { opacity: 0, duration: 0.7 }, 2.0)
           .from(one('[data-spark-dot]'), { scale: 0, duration: 0.45, ease: EASE.spring }, 2.25)
-        kpiCounters.forEach((el, i) => countUp(el, 0.65 + i * 0.08))
-        countUp(distanceCounter, 1.05, 1.5)
+        // Count-ups start with their tile / card fade (0.6 + i·0.08 and 0.95 above). countUp restores
+        // the final text when this branch reverts and never replays an element that already counted.
+        kpiCounters.forEach((el, i) =>
+          tl.add(countUp(el, { to: Number(el.dataset.count), duration: 1.3, scrollTrigger: false }), 0.6 + i * 0.08),
+        )
+        if (distanceCounter) {
+          tl.add(countUp(distanceCounter, { to: Number(distanceCounter.dataset.count), duration: 1.5, scrollTrigger: false }), 0.95)
+        }
         if (leafSvg) {
           tl.fromTo(one('[data-hero-leaf] [data-part="stem"]'), UNDRAWN, { ...DRAWN, duration: 1, ease: EASE.inOut }, 0.5).from(
             leaves,
@@ -397,7 +388,6 @@ export default function Hero() {
             gsap.killTweensOf(liveCounter)
             gsap.set(liveCounter, { clearProps: 'transform' })
           }
-          counters.forEach((el) => setText(el, formatStat(Number(el.dataset.count))))
         }
       })
 

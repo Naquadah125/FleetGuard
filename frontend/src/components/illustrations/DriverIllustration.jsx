@@ -21,8 +21,10 @@ import { useId } from 'react'
  *  torso                shirt, collar, neck, sleeves (static body)
  *  head-pose            CSS-posed wrapper (tilt per state). Don't tween it.
  *    head               GSAP target for idle nod/breath. Rotate around the neck:
- *                       transformOrigin / svgOrigin "160 150" (viewBox units).
+ *                       svgOrigin "160 145" (viewBox units; what driverMotion.js uses).
+ *      hair-back        crown volume behind the main hair (static)
  *      hair, face, ears, brows (brow-left, brow-right), nose
+ *        hair-strands   inside hair: crown tufts, fringe clumps, gloss + strand lines
  *      eyes-open        normal + distracted
  *        pupils-pose    CSS-posed (look-down in distracted). Don't tween it.
  *          pupils       GSAP target for glances (x/y a few units)
@@ -39,7 +41,10 @@ import { useId } from 'react'
  *  wheel                steering wheel (rim + hub)
  *  hand-left            viewer-left forearm + fist on the wheel (all states)
  *  hand-right-wheel     viewer-right forearm + fist on the wheel (normal, drowsy)
- *  hand-right-cheek     raised forearm + open hand at the cheek (fatigued)
+ *  sleeve-right-raised  re-posed right sleeve (upper arm angled in, hem tilted toward the bent
+ *                       elbow); covers the static torso sleeve (fatigued + distracted). Static.
+ *  hand-right-cheek     raised forearm + open hand at the cheek (fatigued). Elbow at ≈(242 210):
+ *                       rub with rotation, svgOrigin "242 206".
  *  hand-right-phone     forearm + hand holding the phone (distracted)
  *    phone, phone-glow
  *  zzz                  drowsy; zzz-1 (big navy), zzz-2 (small navy), zzz-3 (teal)
@@ -375,6 +380,7 @@ export default function DriverIllustration({ state = 'normal', className, title,
         {/* ───────── torso ───────── */}
         <g data-part="torso">
           <path d="M147 120 L147 152 Q160 162 173 152 L173 120 Z" fill={u('neck')} />
+          <ellipse cx="160" cy="140" rx="13" ry="5" fill={C.skinLine} opacity=".3" filter={u('soft')} />
           <path d="M102 162 C118 153 136 149 148 147 L172 147 C184 149 202 153 218 162 C226 182 228 214 230 262 L90 262 C92 214 94 182 102 162 Z" fill={u('shirt')} />
           <g clipPath={u('torsoClip')}>
             <rect x="60" y="140" width="200" height="130" fill={u('shirtSide')} />
@@ -415,6 +421,7 @@ export default function DriverIllustration({ state = 'normal', className, title,
         <g data-part="head-pose">
           <g transform="matrix(1.05 0 0 1.05 -8 -0.5)">
           <g data-part="head">
+            <path data-part="hair-back" d="M124 58 C120 44 126 30 140 22 C156 13 178 12 192 20 C204 27 210 40 208 58 Z" fill={u('hair')} />
             <g data-part="ears">
               <ellipse cx="122" cy="92" rx="7.5" ry="11" fill={C.skinMid} />
               <ellipse cx="123" cy="92" rx="4" ry="7" fill={C.skinShade} opacity=".55" />
@@ -429,6 +436,13 @@ export default function DriverIllustration({ state = 'normal', className, title,
                 <ellipse cx="138" cy="106" rx="8" ry="5" fill={u('blush')} />
                 <ellipse cx="182" cy="106" rx="8" ry="5" fill={u('blush')} />
                 <ellipse cx="141" cy="78" rx="8" ry="5" fill="#fff" opacity=".22" filter={u('soft')} />
+                {/* jaw + chin shading, cheekbone light */}
+                <path d="M121 94 C123 113 133 128 149 138 L128 142 L114 108 Z" fill={C.skinShade} opacity=".3" filter={u('soft')} />
+                <path d="M199 92 C197 113 188 128 172 138 L194 142 L206 108 Z" fill={C.skinShade} opacity=".38" filter={u('soft')} />
+                <ellipse cx="160" cy="140" rx="19" ry="6" fill={C.skinShade} opacity=".45" filter={u('soft')} />
+                <path d="M150 131 Q160 135 170 131" stroke="#fff" strokeOpacity=".28" strokeWidth="2" fill="none" strokeLinecap="round" filter={u('soft')} />
+                <ellipse cx="139" cy="97" rx="7" ry="3.6" fill="#fff" opacity=".2" filter={u('soft')} />
+                <ellipse cx="181" cy="97" rx="5" ry="3" fill="#fff" opacity=".1" filter={u('soft')} />
               </g>
               <g data-part="phone-light" data-v="distracted">
                 <path d="M174 112 C186 112 196 118 198 128 C190 138 176 140 168 136 C172 128 172 118 174 112 Z" fill="#C9FBEF" opacity=".14" filter={u('soft')} clipPath={u('faceClip')} />
@@ -518,27 +532,59 @@ export default function DriverIllustration({ state = 'normal', className, title,
 
             <g data-part="hair">
               <path
-                d="M120 93 C113 74 113 54 125 40 C137 26 161 20 182 25 C200 31 209 47 206 66 C205 76 203 85 200 93 L196 93 C195 81 192 72 186 66 C176 64 162 66 154 72 C152 76 150 79 146 82 C147 78 147 75 146 72 C141 75 137 79 133 85 C134 81 134 78 133 76 C129 79 127 83 126 87 L125 93 Z"
+                d="M120 93 C112 74 112 52 124 37 C136 22 160 15 183 20 C202 26 211 45 207 66 C206 76 203 85 200 93 L196 93 C195 81 192 72 186 66 C176 64 162 66 154 72 C152 76 150 79 146 82 C147 78 147 75 146 72 C141 75 137 79 133 85 C134 81 134 78 133 76 C129 79 127 83 126 87 L125 93 Z"
                 fill={u('hair')}
               />
-                            <path d="M134 37 C148 26 172 24 188 31 C172 30 154 33 142 42 Z" fill={C.hairHi} opacity=".5" />
-              <path d="M156 46 C168 40 184 42 194 54" stroke={C.hairHi} strokeOpacity=".45" strokeWidth="2" fill="none" strokeLinecap="round" />
-              <path d="M178 66 C168 62 156 64 148 72" stroke={C.hairHi} strokeOpacity=".35" strokeWidth="1.4" fill="none" strokeLinecap="round" />
-              <g fill="none" stroke="#08090B" strokeWidth="1" strokeLinecap="round" opacity=".45">
-                <path d="M178 34 C172 44 164 54 156 64" />
-                <path d="M160 36 C152 46 144 58 140 70" />
-                <path d="M194 48 C192 54 189 59 187 63" />
+              <g data-part="hair-strands">
+                {/* crown tufts lifting the silhouette */}
+                <g fill={u('hair')}>
+                  <path d="M128 42 C131 27 146 16 166 14 C156 19 148 25 144 33 Z" />
+                  <path d="M150 28 C160 15 180 11 196 19 C183 19 172 23 165 30 Z" />
+                  <path d="M180 24 C194 24 204 32 207 44 C201 38 194 34 186 32 Z" />
+                  {/* fringe clumps swept to viewer-left */}
+                  <path d="M168 63 C160 64 153 68 148 75 C146 80 141 85 135 88 C140 81 142 75 142 69 C150 63 159 61 168 63 Z" />
+                  <path d="M190 67 C184 64 176 64 170 66 C166 71 162 75 156 78 C161 73 163 68 163 63 C172 60 183 61 190 67 Z" />
+                </g>
+                <path d="M131 40 C144 26 170 21 190 29 C172 28 152 32 139 44 Z" fill={C.hairHi} opacity=".42" />
+                <g fill="none" stroke={C.hairHi} strokeLinecap="round">
+                  <path d="M138 47 C148 37 164 33 180 35" strokeOpacity=".4" strokeWidth="3.4" />
+                  <path d="M156 46 C168 40 184 42 194 54" strokeOpacity=".45" strokeWidth="2" />
+                  <path d="M178 66 C168 62 156 64 148 72" strokeOpacity=".35" strokeWidth="1.4" />
+                  <path d="M150 30 C164 24 182 26 194 36 C200 42 202 50 202 56" strokeOpacity=".35" strokeWidth="3" />
+                  <path d="M126 58 C132 47 143 40 154 37" strokeOpacity=".4" strokeWidth="1.6" />
+                  <path d="M140 22 C150 18 160 17 168 17" strokeOpacity=".4" strokeWidth="1.4" />
+                </g>
+                <g fill="none" stroke="#08090B" strokeWidth="1" strokeLinecap="round" opacity=".4">
+                  <path d="M178 34 C172 44 164 54 156 64" />
+                  <path d="M160 36 C152 46 144 58 140 70" />
+                  <path d="M194 48 C192 54 189 59 187 63" />
+                  <path d="M170 64 C166 70 161 74 157 77" />
+                </g>
               </g>
-              <path d="M150 30 C164 24 182 26 194 36 C200 42 202 50 202 56" stroke={C.hairHi} strokeOpacity=".35" strokeWidth="3" fill="none" strokeLinecap="round" />
-              <path d="M128 56 C134 46 144 40 154 38" stroke={C.hairHi} strokeOpacity=".4" strokeWidth="1.6" fill="none" strokeLinecap="round" />
             </g>
           </g>
           </g>
         </g>
 
+        {/* re-posed right sleeve for the raised-forearm states: covers the static torso sleeve */}
+        <g data-part="sleeve-right-raised" data-v="fatigued distracted">
+          <path d="M210 157 C231 155 248 165 256 184 L263 201 L229 213 C226 200 222 188 217 179 C213 172 211 166 210 160 Z" fill={u('sleeve')} />
+          <path d="M210 157 C231 155 248 165 256 184 L263 201 M229 213 C226 200 222 188 217 179" stroke={C.shirtDeep} strokeOpacity=".5" strokeWidth="1" fill="none" />
+          <path d="M263 201 L229 213 L230 218 L264 206 Z" fill={C.shirtDark} />
+          <path d="M219 162 C233 164 243 171 249 181" stroke="#fff" strokeOpacity=".28" strokeWidth="2.6" fill="none" strokeLinecap="round" />
+          <g stroke={C.shirtDeep} strokeOpacity=".45" strokeWidth="1.3" fill="none" strokeLinecap="round">
+            <path d="M232 190 C238 196 244 200 252 201" />
+            <path d="M238 182 C244 188 250 192 257 193" />
+          </g>
+        </g>
+
         <g data-part="hand-right-cheek" data-v="fatigued">
-          <path d="M207 140 C216 160 230 182 254 204 L231 209 C215 191 202 172 192 152 Z" fill={u('skinBody')} />
-          <path d="M231 207 C215 190 203 172 194 154" stroke={C.skinShade} strokeWidth="1.4" fill="none" opacity=".55" />
+          {/* forearm: tapered wrist → rounded elbow below the sleeve hem, soft cast shadow */}
+          <path d="M206 141 C218 156 243 178 256 208 L240 224 C226 200 208 172 194 150 Z" fill={C.shirtDeep} opacity=".22" filter={u('soft')} />
+          <path d="M202 139 C213 152 240 175 252 205 C255 213 253 221 247 223 C241 225 235 223 232 219 C222 202 202 170 190 147 Z" fill={u('skinBody')} />
+          <path d="M232 218 C222 201 203 171 192 150" stroke={C.skinShade} strokeWidth="1.6" fill="none" opacity=".6" strokeLinecap="round" />
+          <path d="M206 144 C216 155 236 172 246 194" stroke="#fff" strokeOpacity=".3" strokeWidth="2" fill="none" strokeLinecap="round" />
+          <path d="M240 216 C244 218 248 217 250 213" stroke={C.skinShade} strokeWidth="1.2" fill="none" opacity=".6" strokeLinecap="round" />
           <g transform="translate(193 127) rotate(-12)">
             {/* back of hand + fingers pointing up */}
             <path d="M-11 4 C-12 -6 -10 -12 -4 -14 L8 -14 C13 -12 14 -6 13 4 C12 12 6 16 0 16 C-6 16 -10 11 -11 4 Z" fill={u('skinBody')} />
@@ -554,7 +600,10 @@ export default function DriverIllustration({ state = 'normal', className, title,
         </g>
 
         <g data-part="hand-right-phone" data-v="distracted">
-          <path d="M258 203 C250 190 236 180 222 175 L213 189 C224 193 230 200 232 207 Z" fill={u('skinBody')} />
+          <path d="M222 178 C234 186 248 196 255 210 L244 228 C232 212 220 198 210 190 Z" fill={C.shirtDeep} opacity=".22" filter={u('soft')} />
+          <path d="M219 175 C231 182 243 191 249 205 C251 212 248 219 243 220 C240 221 238 219 237 217 C229 205 218 194 209 185 Z" fill={u('skinBody')} />
+          <path d="M237 216 C229 205 219 195 210 187" stroke={C.skinShade} strokeWidth="1.6" fill="none" opacity=".6" strokeLinecap="round" />
+          <path d="M222 178 C233 185 242 192 246 201" stroke="#fff" strokeOpacity=".3" strokeWidth="2" fill="none" strokeLinecap="round" />
           <ellipse data-part="phone-glow" cx="203" cy="144" rx="19" ry="15" fill={u('glow')} />
           <g data-part="phone" transform="translate(202 160) rotate(-10)">
             <rect x="-11" y="-21" width="22" height="42" rx="4.5" fill="#1B1F26" />
