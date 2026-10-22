@@ -1,20 +1,27 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+/* Variable font, all subsets incl. vietnamese (unicode-range split, only used subsets load). */
+@import "@fontsource-variable/plus-jakarta-sans";
 
 @custom-variant dark (&:is(.dark *));
 
 /* =============================================
-   FleetGuard — Samsara.com Enterprise White Mode Design System
-   Backgrounds: Clean Slate #F8FAFC | Pure Surface #FFFFFF | Soft Gray #F1F5F9
-   Text: Deep Navy #0F172A | Secondary #475569 | Muted #94A3B8
-   Accents: Industrial Amber #F59E0B / #D97706 | Tech Blue #2563EB / #1D4ED8
-   Alert Status: Emerald #059669 | Amber #D97706 | Coral Red #DC2626
+   FleetGuard — design tokens
+   Source: fleetguard-design-handoff/tokens.json (see docs/superpowers/specs/…-design.md §6)
+   Brand: #0E9B78 (icons, borders, large fills, text ≥ 24px) | Brand dark #08765E (white text OK)
+   Text: Navy #0D2232 | Ink #334155 | Ink subtle #94A3B8 (placeholder / decoration only)
+   Status: Success #22C55E | Info #3882F6 | Warning #F59E0B | Danger #EF4444 | Violet #A855F7
+   Font: Plus Jakarta Sans Variable
+   Tailwind tokens live in the @theme blocks at the bottom of this file.
+
+   Legacy variables (--bg-*, --amber-*, --blue-*, --level-*, --text-* colors, --shadow-*, …)
+   below are still used by the Driver/Admin dashboards (CSS Modules) and the old landing —
+   keep them until those are reskinned.
    ============================================= */
 
 :root {
-  /* Samsara White Mode Core Colors */
+  /* Legacy dashboard colors */
   --bg-primary: #F8FAFC;
   --bg-surface: #FFFFFF;
   --bg-subtle: #F1F5F9;
@@ -76,56 +83,75 @@
   --red-bg: #FEF2F2;
   --red-border: #FECACA;
 
-  /* Fonts */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  /* Fonts — Plus Jakarta Sans everywhere (dashboards included). */
+  --font-sans: 'Plus Jakarta Sans Variable', Arial, sans-serif;
+  --font-display: 'Plus Jakarta Sans Variable', Arial, sans-serif;
+  --font-body: 'Plus Jakarta Sans Variable', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 
-  /* Enterprise Shadows */
+  /* Legacy dashboard shadows (the Tailwind `shadow-card` utility uses the new token, see @theme) */
   --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05);
   --shadow-card: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
   --shadow-hover: 0 12px 30px -4px rgba(15, 23, 42, 0.1), 0 4px 12px -2px rgba(15, 23, 42, 0.05);
   --shadow-amber: 0 6px 20px rgba(245, 158, 11, 0.25);
   --shadow-danger: 0 6px 25px rgba(239, 68, 68, 0.25);
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+
+  /* shadcn semantic variables — FleetGuard palette */
+  --background: #FFFFFF;
+  --foreground: #0D2232;
+  --card: #FFFFFF;
+  --card-foreground: #0D2232;
+  --popover: #FFFFFF;
+  --popover-foreground: #0D2232;
+  --primary: #08765E;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0D2232;
+  --muted: #F1F5F9;
+  --muted-foreground: #334155;
+  --accent: #ECFDF5;
+  --accent-foreground: #08765E;
+  --destructive: #EF4444;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #0E9B78;
+  --chart-1: #0E9B78;
+  --chart-2: #3882F6;
+  --chart-3: #F59E0B;
+  --chart-4: #A855F7;
+  --chart-5: #EF4444;
+  --radius: 0.75rem;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0D2232;
+  --sidebar-primary: #08765E;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #ECFDF5;
+  --sidebar-accent-foreground: #08765E;
+  --sidebar-border: #E2E8F0;
+  --sidebar-ring: #0E9B78;
 }
 
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* Global resets for the legacy CSS Modules. In @layer base so Tailwind utilities
+   (padding, margin, borders, underline…) can override them; CSS Modules are unlayered
+   and still win over these. */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button {
+    font-family: var(--font-sans);
+    cursor: pointer;
+    border: none;
+    outline: none;
+  }
 }
 
 html {
@@ -140,18 +166,6 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-button {
-  font-family: var(--font-sans);
-  cursor: pointer;
-  border: none;
-  outline: none;
 }
 
 /* =============================================
@@ -224,9 +238,77 @@ button {
   to   { opacity: 1; }
 }
 
+/* =============================================
+   TAILWIND THEME
+   ============================================= */
+
+/* FleetGuard palette — emitted as real CSS variables (`var(--color-brand)`) for SVG / GSAP use.
+   Pastels: opacity modifiers, e.g. `bg-info/10`. */
+@theme static {
+  --color-brand: #0E9B78;
+  --color-brand-dark: #08765E;
+  --color-brand-darker: #065F4C;
+  --color-brand-50: #ECFDF5;
+  --color-brand-100: #D1FAE5;
+  --color-navy: #0D2232;
+  --color-ink: #334155;
+  --color-ink-subtle: #94A3B8;
+  --color-surface: #F1F5F9;
+  --color-line: #E2E8F0;
+  --color-success: #22C55E;
+  --color-info: #3882F6;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-violet: #A855F7;
+  --color-footer: #0B3B33;
+}
+
+/* Inline (literal values in utilities): these names collide with legacy :root variables
+   (--font-sans, --shadow-card, --text-*), which must keep their old values for the dashboards. */
 @theme inline {
-  --font-heading: var(--font-sans);
-  --font-sans: 'Geist Variable', sans-serif;
+  --font-sans: 'Plus Jakarta Sans Variable', Arial, sans-serif;
+  --font-heading: 'Plus Jakarta Sans Variable', Arial, sans-serif;
+
+  /* Radius — explicit, not computed from --radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 28px;
+  --radius-3xl: 32px;
+  --radius-4xl: 40px;
+
+  /* Shadows */
+  --shadow-card: 0 4px 16px rgba(13, 34, 50, 0.06);
+  --shadow-card-hover: 0 10px 28px rgba(13, 34, 50, 0.10);
+  --shadow-dashboard: 0 12px 32px rgba(13, 34, 50, 0.10);
+
+  /* Type scale (size / line-height / weight) */
+  --text-display: 48px;
+  --text-display--line-height: 56px;
+  --text-display--font-weight: 800;
+  --text-h1: 40px;
+  --text-h1--line-height: 48px;
+  --text-h1--font-weight: 700;
+  --text-h2: 32px;
+  --text-h2--line-height: 40px;
+  --text-h2--font-weight: 700;
+  --text-h3: 24px;
+  --text-h3--line-height: 32px;
+  --text-h3--font-weight: 700;
+  --text-h4: 20px;
+  --text-h4--line-height: 28px;
+  --text-h4--font-weight: 600;
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 26px;
+  --text-body: 14px;
+  --text-body--line-height: 22px;
+  --text-body-sm: 12px;
+  --text-body-sm--line-height: 18px;
+  --text-caption: 11px;
+  --text-caption--line-height: 16px;
+
+  /* shadcn semantic colors */
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -258,13 +340,36 @@ button {
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* Responsive headings: Hero 32 → 40 (md) → 48 (lg); Section 24 → 28 (md) → 32 (lg). */
+@utility heading-hero {
+  font-size: 32px;
+  line-height: 1.17;
+  font-weight: 800;
+  @variant md {
+    font-size: 40px;
+  }
+  @variant lg {
+    font-size: 48px;
+  }
+}
+
+@utility heading-section {
+  font-size: 24px;
+  line-height: 1.25;
+  font-weight: 700;
+  @variant md {
+    font-size: 28px;
+  }
+  @variant lg {
+    font-size: 32px;
+  }
+}
+
+/* Page container: 1200px max, 16 / 24 / 32px gutters. */
+@utility container-page {
+  @apply mx-auto w-full max-w-[1200px] px-4 md:px-6 lg:px-8;
 }
 
 .dark {

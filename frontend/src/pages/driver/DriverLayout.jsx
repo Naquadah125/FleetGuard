@@ -10,7 +10,7 @@ import {
   ChevronRight,
   ChevronDown,
 } from 'lucide-react'
-import SamsaraLogo from '../../components/SamsaraLogo'
+import FleetGuardLogo from '@/components/brand/FleetGuardLogo'
 import { useAuth } from '../../context/AuthContext'
 import { ToastContainer } from '../../components/common/Toast'
 import styles from './DriverLayout.module.css'
@@ -67,12 +67,7 @@ export default function DriverLayout() {
       <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''}`}>
         <div className={`${styles.sidebarBrand} ${collapsed ? styles.sidebarBrandCollapsed : ''}`}>
           <div className={styles.brandMain}>
-            <SamsaraLogo size={28} color="#0F172A" accentColor="#F59E0B" />
-            {!collapsed && (
-              <span className={styles.brandText}>
-                Fleet<span className={styles.brandAccent}>Guard</span>
-              </span>
-            )}
+            <FleetGuardLogo variant="default" showWordmark={!collapsed} style={{ fontSize: 20 }} />
           </div>
           <button
             type="button"
