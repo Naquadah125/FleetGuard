@@ -11,7 +11,7 @@ import { useAuth } from '../../context/AuthContext'
 import { getDB, generateTelemetryForTrip } from '../../store/db'
 import { fetchSessions, getUserId } from '../../api/sessions'
 import Modal from '../../components/common/Modal'
-import { LineChart } from '../../components/common/SVGCharts'
+import { LineChart, StepLineChart } from '../../components/common/SVGCharts'
 import styles from './DriverPages.module.css'
 
 export default function DriverHistory() {
@@ -81,11 +81,37 @@ export default function DriverHistory() {
     return db.incidents.filter((i) => i.tripId === selectedTrip._id)
   }, [db.incidents, selectedTrip])
 
-  const chartMarkers = tripIncidents.map((inc, i) => ({
-    index: Math.min(38, (i + 1) * 8),
-    label: inc.type === 'DROWSY' ? 'Ngủ gật' : inc.type === 'YAWN' ? 'Ngáp' : 'Lơ đãng',
-    color: inc.level === 2 ? '#EF4444' : '#F59E0B',
-  }))
+  const chartMarkers = tripIncidents.map((inc, i) => {
+    const level = inc.level === 2 ? 2 : 1
+    return {
+      index: Math.min(38, (i + 1) * 8),
+      label: inc.type === 'DROWSY' ? 'Ngủ gật' : inc.type === 'YAWN' ? 'Ngáp' : 'Lơ đãng',
+      color: level === 2 ? '#EF4444' : '#F59E0B',
+      level,
+    }
+  })
+
+  // Single step-line series: stays flat at 0 (Bình thường), spikes up when an incident occurs
+  const stepViolationSeries = useMemo(() => {
+    if (!selectedTrip) return []
+    const totalPoints = 40
+    const series = new Array(totalPoints).fill(0)
+
+    if (chartMarkers && chartMarkers.length > 0) {
+      chartMarkers.forEach((m) => {
+        const spikeLevel = m.level || 1
+        const startIdx = m.index
+        if (startIdx >= 0 && startIdx < totalPoints) series[startIdx] = spikeLevel
+        if (startIdx + 1 < totalPoints) series[startIdx + 1] = spikeLevel
+      })
+    } else if (telemetryData && telemetryData.length > 0) {
+      telemetryData.forEach((d, idx) => {
+        if (idx < totalPoints) series[idx] = d.level || 0
+      })
+    }
+
+    return series
+  }, [selectedTrip, chartMarkers, telemetryData])
 
   const formatDate = (iso) => {
     if (!iso) return 'N/A'
@@ -333,30 +359,25 @@ export default function DriverHistory() {
               </div>
             </div>
 
-            {/* Telemetry Chart */}
+            {/* Step Line Violation Chart */}
             <div style={{ marginBottom: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', textTransform: 'uppercase' }}>
-                  Biểu Đồ Sinh Trắc Học Thời Gian Thực (EAR & MAR)
+                  Biểu Đồ Trạng Thái Vi Phạm Thời Gian Thực (Step Line)
                 </div>
                 <div style={{ display: 'flex', gap: 16, fontSize: '11.5px' }}>
-                  <span style={{ color: '#2563EB' }}>● Độ mở mắt (EAR)</span>
-                  <span style={{ color: '#F59E0B' }}>● Độ mở miệng (MAR)</span>
-                  <span style={{ color: '#EF4444' }}>- - Ngưỡng ngủ gật 0.21</span>
+                  <span style={{ color: '#2563EB' }}>● Bình thường (Cấp 0)</span>
+                  <span style={{ color: '#F59E0B' }}>▲ Cảnh báo (Cấp 1 - Ngáp / Xao nhãng)</span>
+                  <span style={{ color: '#EF4444' }}>▲ Nguy hiểm (Cấp 2 - Ngủ gật)</span>
                 </div>
               </div>
 
               <div style={{ background: 'var(--bg-subtle)', padding: 16, borderRadius: 12, border: '1px solid var(--card-border)' }}>
-                <LineChart
-                  series={[
-                    { name: 'EAR', color: '#2563EB', data: earSeries },
-                    { name: 'MAR', color: '#F59E0B', data: marSeries },
-                  ]}
-                  thresholds={[
-                    { value: 0.21, color: '#EF4444', label: 'Ngưỡng nhắm mắt (0.21)' },
-                  ]}
+                <StepLineChart
+                  data={stepViolationSeries}
                   markers={chartMarkers}
                   height={190}
+                  lineColor="#2563EB"
                 />
               </div>
             </div>

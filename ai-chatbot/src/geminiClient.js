@@ -19,12 +19,12 @@ export function getGeminiClient(options = {}) {
   return new GoogleGenAI({ apiKey });
 }
 
-export const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+export const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 
 export function getGeminiModels(options = {}) {
   const configured = options.models
-    ?? process.env.GEMINI_MODELS
     ?? options.model
+    ?? process.env.GEMINI_MODELS
     ?? DEFAULT_MODEL;
   const models = Array.isArray(configured)
     ? configured

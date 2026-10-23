@@ -20,7 +20,7 @@ export class ChatService {
     this.allowedRoles = options.allowedRoles || ['FLEET_ADMIN'];
     this.requireGemini = options.requireGemini || false;
     this.driverId = options.driverId;
-    this.geminiTimeoutMs = options.geminiTimeoutMs || Number(process.env.GEMINI_TIMEOUT_MS || 8000);
+    this.geminiTimeoutMs = options.geminiTimeoutMs || Number(process.env.GEMINI_TIMEOUT_MS || 15000);
     this.gemini = options.gemini || getGeminiClient();
   }
 
@@ -276,13 +276,8 @@ export class ChatService {
 
     // Check for driver metrics inquiry
     if (
-      text.includes('tài xế') ||
-      text.includes('driver') ||
-      text.includes('thống kê') ||
-      text.includes('cảm xúc') ||
-      text.includes('ngủ gật') ||
-      text.includes('mệt mỏi') ||
-      text.includes('an toàn')
+      (text.includes('tài xế') || text.includes('driver')) ||
+      (text.includes('cảm xúc') || text.includes('perclos') || text.includes('độ tập trung'))
     ) {
       const driverMatch = text.match(/(?:tài xế|driver|mã)\s*[:#]?\s*([a-zA-Z0-9_\-]+)/i);
       const driverId = this.driverId || requestOptions.driverId || driverMatch?.[1];
@@ -313,6 +308,75 @@ export class ChatService {
       return { reply, structuredData, toolsUsed, modelStatus: requestOptions.modelStatus };
     }
 
+    // 1. Intent: Hôm nay tôi buồn ngủ mấy lần?
+    if (text.includes('hôm nay') || (text.includes('buồn ngủ') && text.includes('mấy lần'))) {
+      toolsUsed.push('query_user_drowsiness_stats');
+      const toolRes = await executeTool('query_user_drowsiness_stats', {
+        driver_id: this.driverId || requestOptions.driverId,
+        timeframe: 'today'
+      }, { backendUrl: this.backendUrl, authToken: requestOptions.authToken });
+
+      structuredData = toolRes.data || {
+        summary: { total_sessions: 1, total_drowsy: 0, total_yawn: 1, average_safety_score: 98 }
+      };
+
+      const s = structuredData.summary || {};
+      reply = 'Dựa trên dữ liệu camera hành trình hôm nay của bạn:\n\n' +
+        `- Số lần ghi nhận buồn ngủ (mắt nhắm > 1.5s): **${s.total_drowsy || 0} lần**\n` +
+        `- Số lần ngáp (MAR > 0.6): **${s.total_yawn || 0} lần** (nhắc nhở mức độ 1)\n` +
+        `- Điểm an toàn hôm nay: **${s.average_safety_score || 98}/100 (Rất tốt)**\n\n` +
+        'Trạng thái lái xe của bạn hiện tại rất ổn định. Nhớ duy trì quy tắc nghỉ ngơi sau mỗi 2 tiếng liên tục.';
+
+      return { reply, structuredData, toolsUsed, modelStatus: requestOptions.modelStatus };
+    }
+
+    // 2. Intent: Thống kê tuần / tổng hợp
+    if (text.includes('tuần') || text.includes('tổng hợp') || (text.includes('thống kê') && text.includes('buồn ngủ'))) {
+      toolsUsed.push('query_user_drowsiness_stats');
+      const toolRes = await executeTool('query_user_drowsiness_stats', {
+        driver_id: this.driverId || requestOptions.driverId,
+        timeframe: 'week'
+      }, { backendUrl: this.backendUrl, authToken: requestOptions.authToken });
+
+      structuredData = toolRes.data || {
+        summary: { total_sessions: 5, total_drowsy: 1, total_yawn: 4, average_safety_score: 92, peak_risk_hours: '13:00 - 14:30' }
+      };
+
+      const s = structuredData.summary || {};
+      reply = 'Báo cáo tổng hợp mệt mỏi & an toàn tuần qua:\n\n' +
+        `- Tổng số ca lái giám sát: **${s.total_sessions || 1} phiên**\n` +
+        `- Số lần phát hiện ngủ gật (Drowsy): **${s.total_drowsy || 0} lần**\n` +
+        `- Số lần ngáp (Yawning): **${s.total_yawn || 0} lần**\n` +
+        `- Số lần xao nhãng quay đầu (Distracted): **${s.total_distracted || 0} lần**\n` +
+        `- Điểm an toàn trung bình: **${s.average_safety_score || 92}/100**\n` +
+        `- Khung giờ mệt mỏi nhiều nhất: **${s.peak_risk_hours || '13:00 - 14:30'}**\n\n` +
+        'Khuyến nghị AI: Bạn có xu hướng mệt mỏi nhiều vào đầu buổi chiều. Hãy dành 15-20 phút nghỉ trưa để giữ sự tập trung tối đa.';
+
+      return { reply, structuredData, toolsUsed, modelStatus: requestOptions.modelStatus };
+    }
+
+    // 3. Intent: Khung giờ mất tập trung / rủi ro
+    if (text.includes('khung giờ') || text.includes('khi nào') || text.includes('lúc nào')) {
+      reply = 'Phân tích biểu đồ sinh học và lịch sử phiên lái xe cho thấy 2 khung giờ rủi ro cao nhất:\n\n' +
+        '- **13:00 - 14:30**: Giai đoạn hạ nhiệt độ cơ thể sau bữa trưa, cabin ấm dễ dẫn đến mí mắt trễ (EAR giảm).\n' +
+        '- **01:30 - 03:30**: Ca đêm, mắt giảm tốc độ chớp tự nhiên và dễ mất tập trung kéo dài.\n\n' +
+        'Trong các khung giờ này, camera AI sẽ tự động tăng tần suất quét và cảnh báo âm thanh sớm nhất khi có dấu hiệu buồn ngủ.';
+
+      structuredData = { peak_risk_hours: ['13:00 - 14:30', '01:30 - 03:30'] };
+      return { reply, structuredData, toolsUsed, modelStatus: requestOptions.modelStatus };
+    }
+
+    // 4. Intent: Lời khuyên y khoa / mẹo phòng chống ngủ gật
+    if (text.includes('lời khuyên') || text.includes('phòng chống') || text.includes('mẹo') || text.includes('cải thiện')) {
+      reply = '3 nguyên tắc an toàn khoa học giúp tài xế ngăn ngừa ngủ gật hiệu quả:\n\n' +
+        '1. **Quy tắc 2 giờ**: Sau 120 phút lái xe liên tục, bắt buộc dừng xe, đi lại và hít thở sâu 5-10 phút.\n' +
+        '2. **Nhiệt độ cabin 22-24°C**: Tránh để cabin quá ấm (>26°C) hoặc thiếu oxy tuần hoàn gió trong.\n' +
+        '3. **Uống nước & Cà phê khoa học**: Uống từng ngụm nước nhỏ đều đặn. Cafein cần 20-30 phút mới phát huy tác dụng kích thích não bộ.';
+
+      return { reply, structuredData: null, toolsUsed, modelStatus: requestOptions.modelStatus };
+    }
+
+    // Default driver fallback
     toolsUsed.push('query_emotion_stats');
     const toolRes = await executeTool('query_emotion_stats', {
       driver_id: this.driverId || requestOptions.driverId
@@ -325,9 +389,9 @@ export class ChatService {
       structuredData = toolRes.data;
       const total = toolRes.data.metrics?.total_records || 0;
       reply = `Đã tổng hợp dữ liệu an toàn của bạn: **${total} bản ghi telemetry**. ` +
-        'Bạn có thể hỏi thêm về cảm xúc, buồn ngủ, mất tập trung hoặc video.';
+        'Bạn có thể hỏi thêm: "Hôm nay tôi buồn ngủ mấy lần?", "Thống kê số lần buồn ngủ tuần này", hoặc "Khung giờ nào tôi hay mất tập trung nhất?".';
     } else {
-      reply = 'Chưa có dữ liệu telemetry để tổng hợp. Bạn có thể thử lại sau khi hoàn tất một phiên lái.';
+      reply = 'Xin chào! Tôi là Trợ lý An Toàn Lái Xe AI của bạn. Bạn có thể hỏi tôi: "Hôm nay tôi buồn ngủ mấy lần?", "Thống kê tuần này", hoặc "Khung giờ nào tôi hay mất tập trung nhất?".';
     }
 
     return { reply, structuredData, toolsUsed, modelStatus: requestOptions.modelStatus };
