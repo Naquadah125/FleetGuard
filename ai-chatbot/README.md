@@ -1,39 +1,51 @@
-# Phân Hệ AI Chatbot (AI Safety Copilot)
+# FleetGuard AI Chatbots
 
-Trợ lý thông minh hỗ trợ lái xe an toàn, ứng dụng mô hình ngôn ngữ lớn kết hợp cơ chế **Function Calling** để truy vấn dữ liệu telemetry và lịch sử các ca lái.
+This package contains the shared Gemini gateway used by the User/Driver and
+Admin chat experiences. The gateway uses role-specific function tools; backend
+analytics remain the source of numeric data.
 
----
+## Roles and tools
 
-## 📋 Danh Sách Nhiệm Vụ Cốt Lõi
+- **User / Driver:** `get_user_safety_summary` reads the authenticated user's
+  `DrivingSession` records. `query_emotion_stats` and
+  `get_video_emotion_breakdown` provide scoped emotion and video detail.
+- **Admin:** `resolve_admin_analytics` accepts only an analytics intent and
+  optional period. The backend derives the authenticated Admin's organization
+  and queries only its users' session, emotion, and video records.
 
-### 1. Khai Báo Công Cụ (Function Calling / Tool Declarations)
-* **`query_user_drowsiness_stats`**:
-  * Tự động trích xuất số lần ngủ gật, số lần ngáp, điểm an toàn và khung giờ mệt mỏi từ cơ sở dữ liệu dựa trên câu hỏi của User.
-* **`get_fleet_safety_summary`**:
-  * Tổng hợp báo cáo toàn hệ thống dành cho Admin (tổng số vi phạm cấp 2, tài xế có nguy cơ cao nhất).
+User summaries and emotion statistics default to the latest 7 days. Admin
+analytics default to 7 days, expanding to 30 days and then all organization
+history when the current range has no usable records.
 
-### 2. Tư Vấn Sức Khỏe Lái Xe Cho USER
-* Trả lời trực tiếp các câu hỏi truy vấn:
-  * *"Hôm nay tôi buồn ngủ mấy lần?"* $\rightarrow$ Đọc dữ liệu hôm nay, báo cáo số lần mí mắt trễ và điểm an toàn.
-  * *"Thống kê số lần buồn ngủ tuần này"* $\rightarrow$ Báo cáo tổng hợp số lần ngủ gật, ngáp và so sánh với chu kỳ trước.
-  * *"Khung giờ nào tôi hay mất tập trung nhất?"* $\rightarrow$ Phân tích biểu đồ sinh học và cảnh báo khung giờ rủi ro (13:00 - 14:30).
-* Đưa ra lời khuyên y khoa khoa học: Quy tắc dừng nghỉ 2 giờ, nhiệt độ điều hòa cabin và mẹo chống ngủ gật.
+## Gemini configuration
 
-### 3. Hỗ Trợ Báo Cáo Điều Hành Cho ADMIN
-* Trả lời các câu hỏi quản trị:
-  * *"Có bao nhiêu tài xế có điểm an toàn dưới 90 trong tuần?"*
-  * *"Tổng hợp các sự cố ngủ gật xảy ra vào ca đêm."*
+Create `backend/.env`:
 
-### 4. Cơ Chế Fallback Đảm Bảo Hoạt Động (Reliability)
-* Khi có `GEMINI_API_KEY`: Gọi Gemini Model thông qua SDK `@google/genai`.
-* Khi chưa cấu hình key: Tự động chuyển tiếp sang **Local Analytics Engine** trích xuất trực tiếp dữ liệu từ Database, đảm bảo phản hồi thông suốt không gián đoạn.
-
----
-
-## 🛠️ Cài Đặt & Chạy Thử Nghiệm
-
-```bash
-cd ai-chatbot
-npm install
-npm test
+```env
+GEMINI_API_KEY=your_real_key
+GEMINI_MODEL=gemini-3.6-flash
+# Optional:
+GEMINI_MODELS=gemini-3.6-flash,another-supported-model
+GEMINI_TIMEOUT_MS=8000
 ```
+
+Never expose the API key in frontend code or commit `.env`. If the key is
+missing, the chatbot returns an explicit HTTP 503 error. If all configured
+models or a required data tool fail, it returns a safe error response instead
+of a successful local fallback answer.
+
+The gateway uses the `@google/genai` Interactions API on `v1beta`. The
+currently tested default is `gemini-3.6-flash`; configured models are tried
+first, with the current default appended as a fallback for retired model IDs.
+
+## Run tests
+
+```powershell
+cd ai-chatbot
+node test\test-chatbot.js
+node test\test-model-failover.js
+```
+
+For the complete flow, test and run the backend from `backend/`. See
+[`../docs/superpowers/guide/ai-chatbot-flows.md`](../docs/superpowers/guide/ai-chatbot-flows.md)
+for the User/Admin sequence, data boundaries, and response contract.

@@ -5,6 +5,31 @@ import axios from 'axios';
  */
 export const geminiToolDeclarations = [
   {
+    name: 'get_user_safety_summary',
+    description: 'Summarize the authenticated user’s driving sessions, safety scores, drowsiness, yawning, distraction, alerts, and driving duration.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        requested_days: {
+          type: 'INTEGER',
+          description: 'Period in days; defaults to the most recent 7 days.'
+        },
+        start_date: {
+          type: 'STRING',
+          description: 'Optional inclusive period start in ISO format.'
+        },
+        end_date: {
+          type: 'STRING',
+          description: 'Optional inclusive period end in ISO format.'
+        },
+        session_id: {
+          type: 'STRING',
+          description: 'Optional driving session ID to summarize.'
+        }
+      }
+    }
+  },
+  {
     name: 'query_emotion_stats',
     description: 'Truy vấn thống kê cảm xúc, tỷ lệ tập trung vs mất tập trung, và số lượng cảnh báo nguy hiểm của tài xế hoặc toàn bộ đội xe.',
     parameters: {
@@ -53,6 +78,28 @@ export const geminiToolDeclarations = [
   }
 ];
 
+export const adminGeminiToolDeclarations = [
+  {
+    name: 'resolve_admin_analytics',
+    description: 'Query approved fleet analytics for the authenticated Admin’s organization.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        intent: {
+          type: 'STRING',
+          enum: ['overview', 'alerts', 'emotions', 'ranking'],
+          description: 'Analytics category to return.'
+        },
+        requested_days: {
+          type: 'INTEGER',
+          description: 'Requested lookback period in days; defaults to 7 and may expand when no records exist.'
+        }
+      },
+      required: ['intent']
+    }
+  }
+];
+
 /**
  * Execute tool against Backend REST API
  * @param {string} name Tool function name
@@ -68,6 +115,40 @@ export async function executeTool(name, args = {}, context = {}) {
   }
 
   try {
+    if (name === 'get_user_safety_summary') {
+      if (typeof context.userAnalyticsResolver !== 'function') {
+        throw new Error('User analytics resolver is unavailable');
+      }
+      return {
+        tool: name,
+        status: 'SUCCESS',
+        data: await context.userAnalyticsResolver({
+          requestedDays: args.requested_days,
+          startDate: args.start_date,
+          endDate: args.end_date,
+          sessionId: args.session_id,
+        })
+      };
+    }
+
+    if (name === 'resolve_admin_analytics') {
+      if (typeof context.adminAnalyticsResolver !== 'function') {
+        throw new Error('Admin analytics resolver is unavailable');
+      }
+      const allowedIntents = ['overview', 'alerts', 'emotions', 'ranking'];
+      if (!allowedIntents.includes(args.intent)) {
+        throw new Error('Unsupported Admin analytics intent');
+      }
+      return {
+        tool: name,
+        status: 'SUCCESS',
+        data: await context.adminAnalyticsResolver({
+          intent: args.intent,
+          requestedDays: args.requested_days,
+        })
+      };
+    }
+
     if (name === 'query_emotion_stats') {
       const params = {};
       if (args.driver_id) params.driver_id = args.driver_id;
@@ -125,5 +206,6 @@ export async function executeTool(name, args = {}, context = {}) {
 
 export default {
   geminiToolDeclarations,
+  adminGeminiToolDeclarations,
   executeTool
 };

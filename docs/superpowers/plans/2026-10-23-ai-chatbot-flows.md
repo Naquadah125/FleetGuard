@@ -23,6 +23,7 @@
 
 - A missing key returns a non-success response even when internal analytics are available — Task 2 API test.
 - Quota, unavailable model, and timeout after configured model failover return an explicit error without a local success reply — Task 2 ChatService tests.
+- User emotion statistics default to 7 days when the question has no explicit date range — Task 2 tool request test.
 - A User cannot use Gemini arguments to read another user's sessions, telemetry, or video — Tasks 1 and 2 tool-scope tests.
 - An Admin cannot use model-provided organization/driver IDs to escape their organization — Tasks 1 and 2 organization-scope tests.
 - Empty data still produces a Gemini explanation of a structured no-data result, not an invented answer — Task 2 Admin tool-flow test.
@@ -39,7 +40,7 @@
 
 **Interfaces:**
 - Consumes: `DrivingSession` records for User session summaries; `DrivingSession`, `EmotionLog`, and `VideoAnalysis` records for Admin analytics.
-- Produces: `resolveUserAnalytics({ userId, requestedDays, startDate, endDate, sessionId, now, sessions })` returning a `user_safety_summary` with `period`, `recordsUsed.sessions`, and metrics for session count, average safety score, drowsy/yawn/distracted counts, critical/warning alerts, and duration; `resolveAdminAnalytics({ organizationId, intent, requestedDays, ... })` includes organization-scoped video records.
+- Produces: `resolveUserAnalytics({ userId, requestedDays, startDate, endDate, sessionId, now, sessions })` returning a `user_safety_summary` with `period`, `recordsUsed.sessions`, and metrics `session_count`, `average_safety_score`, `drowsy_count`, `yawn_count`, `distracted_count`, `critical_alerts`, `warning_alerts`, and `duration_seconds`; `resolveAdminAnalytics({ organizationId, intent, requestedDays, ..., mongoConnected, models })` includes organization-scoped video records. Optional model/connectivity injection supports exercising the Mongo query path without a live database.
 
 - [ ] **Step 1: Write failing User ownership and summary tests**
 
@@ -85,8 +86,9 @@ Expected: FAIL because the current MongoDB service path does not load
 - [ ] **Step 7: Load and filter Admin video records**
 
 Update `resolveAdminAnalytics` to fetch videos for the organization's driver
-IDs in the MongoDB path, retain the existing fixture/memory-store path, and
-apply the selected period and driver scope before returning analytics.
+IDs in the MongoDB path through the optional model dependencies, retain the
+existing fixture/memory-store path, and apply the selected period and driver
+scope before returning analytics.
 
 - [ ] **Step 8: Run Admin analytics tests and verify they pass**
 
@@ -159,7 +161,9 @@ analytics tool to Admin roles. Keep multi-model failover for retryable
 provider errors. When configuration is absent or all model attempts fail,
 throw a typed error; do not call `_fallbackLocalCopilot` or produce a
 success-shaped internal answer. Require data questions to use their approved
-tool, then pass structured results (including no-data results) to Gemini.
+tool, default User emotion-stat queries to the latest 7 days when no date
+range is provided, then pass structured results (including no-data results)
+to Gemini.
 
 - [ ] **Step 5: Write failing route tests for missing configuration**
 
@@ -253,23 +257,30 @@ Run from `FleetGuard/backend`: `npm test`
 
 Expected: PASS; investigate and report any unrelated baseline failure by name.
 
-- [ ] **Step 2: Run all focused AI tests**
+Status: blocked during `[Test 2]` while waiting for the Socket.io admin
+connection/join event. The command did not reach the suite summary; no listener
+remained on port 5055 afterward.
+
+- [x] **Step 2: Run all focused AI tests**
 
 Run the Task 1–2 commands again after regression testing.
 
 Expected: all focused tests PASS.
 
-- [ ] **Step 3: Verify frontend error handling and build**
+- [x] **Step 3: Verify frontend error handling and build**
 
 Run from `FleetGuard/frontend`: `npm run lint` and `npm run build`.
 
 Expected: PASS; both existing chat screens continue to render backend error
 messages without requiring a UI contract change.
 
-- [ ] **Step 4: Run a live Gemini smoke test only when locally configured**
+- [x] **Step 4: Run a live Gemini smoke test only when locally configured**
 
 If `GEMINI_API_KEY` is already configured locally, make one User and one Admin
 request and verify each returns a Gemini model status and the expected
 structured data. Never print, request, or commit the key. If no key is
 configured, report that mock-SDK and missing-key tests passed and skip the
-live-provider smoke test.
+live-provider smoke test. Completed with the existing backend key using
+synthetic User and Admin analytics callbacks: both returned Gemini-generated
+responses and the expected structured data. The Admin request also confirmed
+automatic failover from the configured retired models to `gemini-3.6-flash`.

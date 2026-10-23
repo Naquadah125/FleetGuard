@@ -1,6 +1,6 @@
 import { getGeminiClient, DEFAULT_MODEL, getGeminiModels } from './geminiClient.js';
 import { FLEET_COPILOT_SYSTEM_PROMPT } from './systemPrompt.js';
-import { geminiToolDeclarations, executeTool } from './tools.js';
+import { adminGeminiToolDeclarations, geminiToolDeclarations, executeTool } from './tools.js';
 
 export class ChatService {
   /**
@@ -8,7 +8,7 @@ export class ChatService {
    * @param {string} [options.backendUrl] URL of backend REST server
    * @param {string} [options.model] Gemini model name
    * @param {string[]} [options.allowedRoles] Roles allowed to use the service
-   * @param {boolean} [options.requireGemini] Disable local fallback when true
+   * @param {boolean} [options.requireGemini] Require Gemini for successful responses
    * @param {string} [options.driverId] Force analytics tools to this driver
    * @param {number} [options.geminiTimeoutMs] Maximum wait for a Gemini response
    */
@@ -18,10 +18,10 @@ export class ChatService {
     this.models = getGeminiModels({ models: options.models, model: this.model });
     this.model = this.models[0];
     this.allowedRoles = options.allowedRoles || ['FLEET_ADMIN'];
-    this.requireGemini = options.requireGemini || false;
+    this.requireGemini = options.requireGemini ?? true;
     this.driverId = options.driverId;
     this.geminiTimeoutMs = options.geminiTimeoutMs || Number(process.env.GEMINI_TIMEOUT_MS || 8000);
-    this.gemini = options.gemini || getGeminiClient();
+    this.gemini = Object.hasOwn(options, 'gemini') ? options.gemini : getGeminiClient();
   }
 
   /**
@@ -49,117 +49,229 @@ export class ChatService {
       };
     }
 
-    if (!this.gemini && this.requireGemini) {
+    if (!this.gemini) {
       const error = new Error('GEMINI_API_KEY chưa được cấu hình ở backend.');
       error.code = 'GEMINI_NOT_CONFIGURED';
       throw error;
     }
 
-    if (this.gemini) {
-      const attemptedModels = [];
-      let lastError;
-      for (const model of this.models) {
-        attemptedModels.push(model);
-        try {
-          const geminiRequest = this._callGeminiWithTools(message, user, conversationHistory, requestOptions, model);
-          const timeout = new Promise((_, reject) => {
-            setTimeout(() => reject(Object.assign(new Error('Gemini response timed out'), { code: 'GEMINI_TIMEOUT' })), this.geminiTimeoutMs);
-          });
-          const geminiResult = await Promise.race([geminiRequest, timeout]);
-          const asksForAnalytics = /thống kê|cảm xúc|video|buồn ngủ|mệt mỏi|an toàn/i.test(message);
-          const modelStatus = {
-            source: 'gemini',
-            attemptedModels,
-            selectedModel: model,
-          };
-          if (asksForAnalytics && !geminiResult.structuredData) {
-            return await this._fallbackLocalCopilot(message, user, { ...requestOptions, modelStatus });
-          }
-          return { ...geminiResult, modelStatus };
-        } catch (err) {
-          lastError = err;
-          if (!this._isRetryableGeminiError(err)) break;
-        }
-      }
-      if (this.requireGemini) throw lastError;
-      const failureCode = lastError?.status === 429 ? 'GEMINI_QUOTA_EXHAUSTED' : 'GEMINI_UNAVAILABLE';
-      const modelStatus = { source: 'internal', attemptedModels, failureCode };
-      console.warn(`[Gemini SDK Notice]: ${lastError?.message}. Falling back to Smart Copilot Engine.`);
-      const fallback = await this._fallbackLocalCopilot(message, user, { ...requestOptions, modelStatus });
-      return {
-        ...fallback,
-        modelStatus,
-        reply: `${fallback.reply}\n\nGemini API đang tạm thời không khả dụng; dữ liệu trên là phân tích nội bộ.`
-      };
-    }
-
-    return await this._fallbackLocalCopilot(message, user, {
-      ...requestOptions,
-      modelStatus: { source: 'internal', attemptedModels: [], failureCode: 'GEMINI_NOT_CONFIGURED' }
-    });
-  }
-
-  _isRetryableGeminiError(error) {
-    return [429, 500, 502, 503, 504].includes(Number(error?.status)) ||
-      ['GEMINI_TIMEOUT', 'UND_ERR_CONNECT_TIMEOUT'].includes(error?.code) ||
-      /unavailable|overloaded|quota|rate.?limit|timeout/i.test(error?.message || '');
-  }
-
-  async interpretAdminResult(message, user, structuredData) {
     const attemptedModels = [];
-    if (!this.gemini) {
-      return {
-        reply: `${structuredData.title || 'Đã tổng hợp dữ liệu.'}. Dữ liệu được lấy từ analytics nội bộ.`,
-        modelStatus: { source: 'internal', attemptedModels, failureCode: 'GEMINI_NOT_CONFIGURED' }
-      };
-    }
-
     let lastError;
     for (const model of this.models) {
       attemptedModels.push(model);
       try {
-        const response = await Promise.race([
-          this.gemini.models.generateContent({
-            model,
-            contents: [{
-              role: 'user',
-              parts: [{ text: `${message}\nDữ liệu cấu trúc:\n${JSON.stringify(structuredData)}` }]
-            }],
-            config: { systemInstruction: FLEET_COPILOT_SYSTEM_PROMPT }
-          }),
-          new Promise((_, reject) => setTimeout(
-            () => reject(Object.assign(new Error('Gemini response timed out'), { code: 'GEMINI_TIMEOUT' })),
-            this.geminiTimeoutMs
-          ))
-        ]);
+        const geminiResult = await this._callGeminiWithTools(
+          message,
+          user,
+          conversationHistory,
+          requestOptions,
+          model,
+        );
+        const isAdmin = ['ADMIN', 'FLEET_ADMIN'].includes(user.role);
+        const asksForAnalytics = /thống kê|cảm xúc|video|buồn ngủ|mệt mỏi|an toàn|chuyến|phiên lái|cảnh báo|điểm/i.test(message) ||
+          (isAdmin && /đội xe|tổng quan|xếp hạng|rủi ro|vi phạm/i.test(message));
+        if (asksForAnalytics && !geminiResult.structuredData) {
+          const error = new Error('Gemini did not request the required analytics tool.');
+          error.code = 'GEMINI_TOOL_REQUIRED';
+          throw error;
+        }
         return {
-          reply: response.text || `${structuredData.title}. Đã tổng hợp dữ liệu nội bộ.`,
-          modelStatus: { source: 'gemini', attemptedModels, selectedModel: model }
+          ...geminiResult,
+          modelStatus: { source: 'gemini', attemptedModels, selectedModel: model },
         };
       } catch (error) {
+        if (['CHATBOT_TOOL_FAILED', 'GEMINI_TOOL_REQUIRED', 'GEMINI_EMPTY_RESPONSE'].includes(error.code)) {
+          throw error;
+        }
         lastError = error;
         if (!this._isRetryableGeminiError(error)) break;
       }
     }
 
-    return {
-      reply: `${structuredData.title || 'Đã tổng hợp dữ liệu.'}. Gemini đang tạm thời không khả dụng; số liệu bên dưới là phân tích nội bộ.`,
-      modelStatus: {
-        source: 'internal',
-        attemptedModels,
-        failureCode: lastError?.status === 429 ? 'GEMINI_QUOTA_EXHAUSTED' : 'GEMINI_UNAVAILABLE'
-      }
+    const error = new Error('Gemini is temporarily unavailable. Please try again.');
+    error.code = 'GEMINI_UNAVAILABLE';
+    error.status = 502;
+    error.attemptedModels = attemptedModels;
+    error.cause = lastError;
+    throw error;
+  }
+
+  _isRetryableGeminiError(error) {
+    return [429, 500, 502, 503, 504].includes(Number(error?.status)) ||
+      ['GEMINI_TIMEOUT', 'UND_ERR_CONNECT_TIMEOUT'].includes(error?.code) ||
+      /unavailable|overloaded|quota|rate.?limit|timeout|model .*no longer available|model .*not found/i.test(error?.message || '');
+  }
+
+  async _withGeminiTimeout(operation) {
+    let timer;
+    const controller = new AbortController();
+    try {
+      return await Promise.race([
+        Promise.resolve().then(() => operation(controller.signal)),
+        new Promise((_, reject) => {
+          timer = setTimeout(
+            () => {
+              controller.abort();
+              reject(Object.assign(new Error('Gemini response timed out'), { code: 'GEMINI_TIMEOUT' }));
+            },
+            this.geminiTimeoutMs,
+          );
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async _generateContent(request) {
+    return this._withGeminiTimeout(() => this.gemini.models.generateContent(request));
+  }
+
+  async _createInteraction(request) {
+    return this._withGeminiTimeout((signal) => this.gemini.interactions.create({
+      ...request,
+      api_version: 'v1beta',
+    }, {
+      timeout_ms: this.geminiTimeoutMs,
+      retries: 0,
+      signal,
+    }));
+  }
+
+  _toInteractionTool(declaration) {
+    const normalizeSchema = (schema) => {
+      if (Array.isArray(schema)) return schema.map(normalizeSchema);
+      if (!schema || typeof schema !== 'object') return schema;
+      return Object.fromEntries(Object.entries(schema).map(([key, value]) => [
+        key,
+        key === 'type' && typeof value === 'string'
+          ? value.toLowerCase()
+          : normalizeSchema(value),
+      ]));
     };
+
+    return {
+      type: 'function',
+      name: declaration.name,
+      description: declaration.description,
+      parameters: normalizeSchema(declaration.parameters),
+    };
+  }
+
+  _interactionText(interaction) {
+    if (interaction.output_text) return interaction.output_text.trim();
+    const texts = (interaction.steps || [])
+      .filter((step) => step.type === 'model_output')
+      .flatMap((step) => step.content || [])
+      .filter((content) => content.type === 'text' && content.text)
+      .map((content) => content.text);
+    if (texts.length) return texts.join('\n').trim();
+    return (interaction.outputs || [])
+      .filter((output) => output.type === 'text' && output.text)
+      .map((output) => output.text)
+      .join('\n')
+      .trim();
+  }
+
+  async _callGeminiWithInteractions(message, user, conversationHistory, requestOptions, model) {
+    const isAdmin = ['ADMIN', 'FLEET_ADMIN'].includes(user.role);
+    const declarations = isAdmin ? adminGeminiToolDeclarations : geminiToolDeclarations;
+    const history = conversationHistory
+      .map((turn) => `${turn.role === 'model' ? 'Assistant' : 'User'}: ${turn.message}`)
+      .join('\n');
+    const input = history ? `${history}\nUser: ${message}` : message;
+    const initialInteraction = await this._createInteraction({
+      model,
+      input,
+      system_instruction: FLEET_COPILOT_SYSTEM_PROMPT,
+      tools: declarations.map((declaration) => this._toInteractionTool(declaration)),
+    });
+    const functionCalls = (initialInteraction.steps || [])
+      .filter((step) => step.type === 'function_call');
+    if (!functionCalls.length) {
+      functionCalls.push(...(initialInteraction.outputs || [])
+        .filter((output) => output.type === 'function_call'));
+    }
+
+    if (functionCalls.length > 1) {
+      const error = new Error('Gemini requested multiple analytics tools.');
+      error.code = 'CHATBOT_TOOL_FAILED';
+      throw error;
+    }
+
+    if (functionCalls.length === 1) {
+      const call = functionCalls[0];
+      const toolsUsed = [call.name];
+      let toolArgs = call.arguments || {};
+      if (typeof toolArgs === 'string') {
+        try {
+          toolArgs = JSON.parse(toolArgs);
+        } catch {
+          const error = new Error('Gemini returned invalid analytics tool arguments.');
+          error.code = 'CHATBOT_TOOL_FAILED';
+          throw error;
+        }
+      }
+
+      if (!isAdmin && call.name === 'query_emotion_stats') {
+        toolArgs = { ...toolArgs };
+        toolArgs.driver_id = this.driverId || requestOptions.driverId || user.id || user._id?.toString();
+        const endDate = toolArgs.end_date ? new Date(toolArgs.end_date) : new Date();
+        if (!toolArgs.end_date) toolArgs.end_date = endDate.toISOString();
+        if (!toolArgs.start_date) {
+          toolArgs.start_date = new Date(endDate.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        }
+      }
+
+      const toolResult = await executeTool(call.name, toolArgs, {
+        backendUrl: this.backendUrl,
+        authToken: requestOptions.authToken,
+        userAnalyticsResolver: requestOptions.userAnalyticsResolver,
+        adminAnalyticsResolver: requestOptions.adminAnalyticsResolver,
+      });
+      if (toolResult.status !== 'SUCCESS') {
+        const error = new Error('The requested analytics tool could not complete.');
+        error.code = 'CHATBOT_TOOL_FAILED';
+        throw error;
+      }
+
+      const secondInteraction = await this._createInteraction({
+        model,
+        previous_interaction_id: initialInteraction.id,
+        input: [{
+          type: 'function_result',
+          name: call.name,
+          call_id: call.id,
+          result: JSON.stringify(toolResult.data),
+        }],
+      });
+      const reply = this._interactionText(secondInteraction);
+      if (!reply) {
+        const error = new Error('Gemini returned an empty response after the analytics query.');
+        error.code = 'GEMINI_EMPTY_RESPONSE';
+        throw error;
+      }
+      return { reply, structuredData: toolResult.data, toolsUsed };
+    }
+
+    const reply = this._interactionText(initialInteraction);
+    if (!reply) {
+      const error = new Error('Gemini returned an empty response.');
+      error.code = 'GEMINI_EMPTY_RESPONSE';
+      throw error;
+    }
+    return { reply, structuredData: null, toolsUsed: [] };
   }
 
   /**
    * Multi-turn Function Calling loop using @google/genai SDK
    */
   async _callGeminiWithTools(message, user, conversationHistory = [], requestOptions = {}, model = this.model) {
-    const toolsUsed = [];
-    let structuredData = null;
+    if (typeof this.gemini.interactions?.create === 'function') {
+      return this._callGeminiWithInteractions(message, user, conversationHistory, requestOptions, model);
+    }
 
-    // Build chat contents
+    const toolsUsed = [];
     const contents = [];
     for (const turn of conversationHistory) {
       contents.push({
@@ -172,39 +284,51 @@ export class ChatService {
       parts: [{ text: message }]
     });
 
-    const response = await this.gemini.models.generateContent({
+    const isAdmin = ['ADMIN', 'FLEET_ADMIN'].includes(user.role);
+    const declarations = isAdmin ? adminGeminiToolDeclarations : geminiToolDeclarations;
+    const response = await this._generateContent({
       model,
       contents,
       config: {
         systemInstruction: FLEET_COPILOT_SYSTEM_PROMPT,
-        tools: [{ functionDeclarations: geminiToolDeclarations }]
+        tools: [{ functionDeclarations: declarations }]
       }
     });
 
-    // Check for Function Calls
     const functionCalls = typeof response.functionCalls === 'function'
       ? response.functionCalls()
       : response.functionCalls;
 
     if (functionCalls && functionCalls.length > 0) {
+      if (functionCalls.length > 1) {
+        const error = new Error('Gemini requested multiple analytics tools.');
+        error.code = 'CHATBOT_TOOL_FAILED';
+        throw error;
+      }
       const call = functionCalls[0];
       toolsUsed.push(call.name);
 
-      const toolArgs = {
-        ...call.args,
-        ...(this.driverId || requestOptions.driverId
-          ? { driver_id: this.driverId || requestOptions.driverId }
-          : {})
-      };
+      const toolArgs = { ...(call.args || {}) };
+      if (!isAdmin && call.name === 'query_emotion_stats') {
+        toolArgs.driver_id = this.driverId || requestOptions.driverId || user.id || user._id?.toString();
+        const endDate = toolArgs.end_date ? new Date(toolArgs.end_date) : new Date();
+        if (!toolArgs.end_date) toolArgs.end_date = endDate.toISOString();
+        if (!toolArgs.start_date) {
+          toolArgs.start_date = new Date(endDate.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        }
+      }
       const toolResult = await executeTool(call.name, toolArgs, {
         backendUrl: this.backendUrl,
-        authToken: requestOptions.authToken
+        authToken: requestOptions.authToken,
+        userAnalyticsResolver: requestOptions.userAnalyticsResolver,
+        adminAnalyticsResolver: requestOptions.adminAnalyticsResolver,
       });
-
-      structuredData = toolResult.data;
-
-      // Provide tool result back to Gemini for the final natural explanation
-      const secondTurnResponse = await this.gemini.models.generateContent({
+      if (toolResult.status !== 'SUCCESS') {
+        const error = new Error('The requested analytics tool could not complete.');
+        error.code = 'CHATBOT_TOOL_FAILED';
+        throw error;
+      }
+      const secondTurnResponse = await this._generateContent({
         model,
         contents: [
           ...contents,
@@ -217,7 +341,7 @@ export class ChatService {
             parts: [{
               functionResponse: {
                 name: call.name,
-                response: { result: toolResult }
+                response: { result: toolResult.data }
               }
             }]
           }
@@ -227,110 +351,30 @@ export class ChatService {
         }
       });
 
+      if (!secondTurnResponse.text) {
+        const error = new Error('Gemini returned an empty response after the analytics query.');
+        error.code = 'GEMINI_EMPTY_RESPONSE';
+        throw error;
+      }
+
       return {
-        reply: secondTurnResponse.text || 'Đã trích xuất số liệu an toàn từ hệ thống.',
-        structuredData,
+        reply: secondTurnResponse.text,
+        structuredData: toolResult.data,
         toolsUsed
       };
     }
 
-    // Standard conversational reply
+    if (!response.text) {
+      const error = new Error('Gemini returned an empty response.');
+      error.code = 'GEMINI_EMPTY_RESPONSE';
+      throw error;
+    }
+
     return {
-      reply: response.text || 'Tôi có thể hỗ trợ gì thêm về an toàn đội xe cho bạn?',
+      reply: response.text,
       structuredData: null,
       toolsUsed
     };
-  }
-
-  /**
-   * Smart Copilot Rule-based Fallback
-   * Matches intents, calls tools, and formats structured response
-   */
-  async _fallbackLocalCopilot(message, user, requestOptions = {}) {
-    const text = message.toLowerCase();
-    const toolsUsed = [];
-    let structuredData = null;
-    let reply = '';
-
-    // Check for video inquiry
-    if (text.includes('video') || text.includes('clip') || text.includes('hành trình')) {
-      const match = text.match(/(?:video|id|mã)\s*[:#]?\s*([a-zA-Z0-9_\-]+)/);
-      const videoId = match ? match[1] : 'latest';
-
-      toolsUsed.push('get_video_emotion_breakdown');
-      const toolRes = await executeTool('get_video_emotion_breakdown', { video_id: videoId }, {
-        backendUrl: this.backendUrl,
-        authToken: requestOptions.authToken
-      });
-
-      if (toolRes.status === 'SUCCESS' && toolRes.data) {
-        structuredData = toolRes.data;
-        const violations = toolRes.data.violations || [];
-        reply = `Báo cáo video **${toolRes.data.video_name || videoId}** ghi nhận **${violations.length} vi phạm** an toàn. Điểm an toàn hành trình đạt **${toolRes.data.summary?.safety_score ?? 80}/100**. Các mốc thời gian vi phạm đã được đồng bộ vào trình xem video.`;
-      } else {
-        reply = `Không tìm thấy báo cáo phân tích cho video mã "${videoId}". Bạn vui lòng kiểm tra lại mã video.`;
-      }
-
-      return { reply, structuredData, toolsUsed, modelStatus: requestOptions.modelStatus };
-    }
-
-    // Check for driver metrics inquiry
-    if (
-      text.includes('tài xế') ||
-      text.includes('driver') ||
-      text.includes('thống kê') ||
-      text.includes('cảm xúc') ||
-      text.includes('ngủ gật') ||
-      text.includes('mệt mỏi') ||
-      text.includes('an toàn')
-    ) {
-      const driverMatch = text.match(/(?:tài xế|driver|mã)\s*[:#]?\s*([a-zA-Z0-9_\-]+)/i);
-      const driverId = this.driverId || requestOptions.driverId || driverMatch?.[1];
-
-      toolsUsed.push('query_emotion_stats');
-      const toolRes = await executeTool('query_emotion_stats', { driver_id: driverId }, {
-        backendUrl: this.backendUrl,
-        authToken: requestOptions.authToken
-      });
-
-      if (toolRes.status === 'SUCCESS' && toolRes.data) {
-        structuredData = toolRes.data;
-        const m = toolRes.data.metrics || {};
-        const subject = driverId ? `Tài xế **${driverId}**` : 'Toàn bộ đội xe';
-
-        reply = `${subject} ghi nhận tổng cộng **${m.total_records || 0} bản ghi telemetry**.\n\n` +
-          `- Tỷ lệ tập trung: **${m.focus_ratio || 0}%**\n` +
-          `- Tỷ lệ lơ là / mất tập trung: **${m.distracted_ratio || 0}%**\n` +
-          `- Số cảnh báo khẩn cấp (Alert Level 2): **${m.critical_alerts || 0} lần**\n` +
-          `- Chỉ số PERCLOS trung bình: **${m.avg_perclos || 0}**\n\n` +
-          (m.critical_alerts > 0
-            ? '⚠️ **Cảnh báo an toàn**: Đã xuất hiện dấu hiệu buồn ngủ hoặc mất tập trung nguy hiểm. Khuyến nghị liên hệ tài xế để dừng nghỉ an toàn.'
-            : '✅ Trạng thái tài xế đạt tiêu chuẩn an toàn, không có cảnh báo nghiêm trọng.');
-      } else {
-        reply = 'Hiện chưa có dữ liệu telemetry trong khoảng thời gian này để tổng hợp.';
-      }
-
-      return { reply, structuredData, toolsUsed, modelStatus: requestOptions.modelStatus };
-    }
-
-    toolsUsed.push('query_emotion_stats');
-    const toolRes = await executeTool('query_emotion_stats', {
-      driver_id: this.driverId || requestOptions.driverId
-    }, {
-      backendUrl: this.backendUrl,
-      authToken: requestOptions.authToken
-    });
-
-    if (toolRes.status === 'SUCCESS' && toolRes.data) {
-      structuredData = toolRes.data;
-      const total = toolRes.data.metrics?.total_records || 0;
-      reply = `Đã tổng hợp dữ liệu an toàn của bạn: **${total} bản ghi telemetry**. ` +
-        'Bạn có thể hỏi thêm về cảm xúc, buồn ngủ, mất tập trung hoặc video.';
-    } else {
-      reply = 'Chưa có dữ liệu telemetry để tổng hợp. Bạn có thể thử lại sau khi hoàn tất một phiên lái.';
-    }
-
-    return { reply, structuredData, toolsUsed, modelStatus: requestOptions.modelStatus };
   }
 }
 

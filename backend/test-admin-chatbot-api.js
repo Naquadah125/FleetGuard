@@ -31,16 +31,21 @@ try {
     password: 'SecurePassword123!',
     role: 'ADMIN',
   });
-  const result = await request('/api/analytics/chatbot', 'POST', {
-    session_id: `admin-test-${Date.now()}`,
-    message: 'Tổng quan an toàn đội xe',
-  }, registration.data.token);
-
-  if (result.status !== 200 || result.data.structuredData?.source !== 'internal') {
-    throw new Error(`Unexpected Admin chatbot response: ${JSON.stringify(result.data)}`);
+  const originalGeminiKey = process.env.GEMINI_API_KEY;
+  delete process.env.GEMINI_API_KEY;
+  let result;
+  try {
+    result = await request('/api/analytics/chatbot', 'POST', {
+      session_id: `admin-test-${Date.now()}`,
+      message: 'Tổng quan an toàn đội xe',
+    }, registration.data.token);
+  } finally {
+    if (originalGeminiKey === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = originalGeminiKey;
   }
-  if (result.data.modelStatus?.source !== 'internal') {
-    throw new Error('Admin response is missing sanitized model status');
+
+  if (result.status !== 503 || result.data.success !== false || result.data.code !== 'GEMINI_NOT_CONFIGURED') {
+    throw new Error(`admin_chatbot_returns_503_without_gemini_key: ${JSON.stringify(result.data)}`);
   }
   console.log('Admin chatbot API tests passed.');
 } finally {

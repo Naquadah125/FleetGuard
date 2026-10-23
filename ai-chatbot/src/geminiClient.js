@@ -16,10 +16,11 @@ export function getGeminiClient(options = {}) {
     return null;
   }
 
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({ apiKey, apiVersion: 'v1beta' });
 }
 
-export const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const CURRENT_DEFAULT_MODEL = 'gemini-3.6-flash';
+export const DEFAULT_MODEL = process.env.GEMINI_MODEL || CURRENT_DEFAULT_MODEL;
 
 export function getGeminiModels(options = {}) {
   const configured = options.models
@@ -30,7 +31,7 @@ export function getGeminiModels(options = {}) {
     ? configured
     : String(configured || '').split(',');
   const cleaned = models.map((model) => model.trim()).filter(Boolean);
-  return [...new Set(cleaned.length ? cleaned : [DEFAULT_MODEL])];
+  return [...new Set([...(cleaned.length ? cleaned : [DEFAULT_MODEL]), CURRENT_DEFAULT_MODEL])];
 }
 
 export default {

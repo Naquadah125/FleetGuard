@@ -1,6 +1,7 @@
 import { User } from '../models/User.js';
 import { DrivingSession } from '../models/DrivingSession.js';
 import { EmotionLog } from '../models/EmotionLog.js';
+import { VideoAnalysis } from '../models/VideoAnalysis.js';
 import { getIsMongoConnected, memoryStore } from '../db.js';
 
 const EMOTIONS = ['neutral', 'happy', 'angry', 'sad', 'surprised', 'fatigued'];
@@ -72,6 +73,8 @@ export async function resolveAdminAnalytics({
   sessions,
   emotionLogs,
   videos = [],
+  mongoConnected = getIsMongoConnected(),
+  models = { User, DrivingSession, EmotionLog, VideoAnalysis },
 } = {}) {
   if (!organizationId) {
     return emptyResult(null, periodFor(7, now));
@@ -90,14 +93,14 @@ export async function resolveAdminAnalytics({
     scopedSessions = sessions.map(toPlain).filter((session) => driverIds.has(String(session.user_id)));
     scopedEmotionLogs = emotionLogs.map(toPlain).filter((log) => driverIds.has(String(log.driver_id)));
     scopedVideos = videos.map(toPlain).filter((video) => driverIds.has(String(video.driver_id)));
-  } else if (getIsMongoConnected()) {
-    scopedUsers = await User.find({ organizationId }).select('name id _id role').lean();
+  } else if (mongoConnected) {
+    scopedUsers = await models.User.find({ organizationId }).select('name id _id role').lean();
     const driverIds = scopedUsers
       .filter((user) => ['DRIVER', 'USER'].includes(user.role))
       .map((user) => String(user.id || user._id));
-    scopedSessions = await DrivingSession.find({ user_id: { $in: driverIds } }).lean();
-    scopedEmotionLogs = await EmotionLog.find({ driver_id: { $in: driverIds } }).lean();
-    scopedVideos = [];
+    scopedSessions = await models.DrivingSession.find({ user_id: { $in: driverIds } }).lean();
+    scopedEmotionLogs = await models.EmotionLog.find({ driver_id: { $in: driverIds } }).lean();
+    scopedVideos = await models.VideoAnalysis.find({ driver_id: { $in: driverIds } }).lean();
   } else {
     return resolveAdminAnalytics({
       organizationId,

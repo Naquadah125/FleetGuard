@@ -2,10 +2,10 @@
 
 ## Intent
 
-Add a real Gemini-powered assistant to the User/Driver area so a driver can ask
-about safety and emotion telemetry, request emotion statistics for a time range,
-and inspect emotion results from an analyzed video. The first release is a
-simple chat surface with a visible "new session" action.
+Provide a real Gemini-powered assistant to the User/Driver area so a driver can
+ask about their driving-session safety statistics, emotion telemetry, and
+results from an analyzed video. The chat surface supports a visible "new
+session" action.
 
 The feature must also support the end-of-term demonstration questions:
 
@@ -17,8 +17,8 @@ The feature must also support the end-of-term demonstration questions:
 
 - Replace the disabled User navigation item with a working `/driver/chat` route.
 - Send chat requests through the backend to the real Gemini API.
-- Let Gemini call controlled backend tools for emotion statistics and video
-  emotion breakdowns.
+- Let Gemini call controlled backend tools for driving-session summaries,
+  emotion statistics, and video emotion breakdowns.
 - Return both a natural-language answer and optional structured data for the UI.
 - Persist chat messages by user/session in MongoDB when available.
 - Keep the Gemini API key on the backend only.
@@ -27,7 +27,8 @@ The feature must also support the end-of-term demonstration questions:
 
 ## Non-goals
 
-- Do not add the chatbot to the Admin area in this iteration.
+- This User design does not change the separate Admin assistant; see
+  `2026-10-23-admin-ai-assistant-design.md`.
 - Do not implement video upload or a new emotion-recognition model here.
 - Do not expose the Gemini API key to the frontend.
 - Do not invent emotion data when the requested telemetry/video does not exist.
@@ -38,14 +39,19 @@ The feature must also support the end-of-term demonstration questions:
 ## Constraints and assumptions
 
 - Existing stack: React/Vite frontend and Express/Mongoose backend.
-- Existing analytics endpoints are the source of truth for emotion data.
-- Existing Gemini integration under `FleetGuard/ai-chatbot/` is the starting point,
-  but its current role check is for `FLEET_ADMIN`; User access must be changed to
-  the application's authenticated `DRIVER`/`USER` roles with data scoped to that
-  user.
+- `DrivingSession`, `EmotionLog`, and `VideoAnalysis` are the source of truth
+  for the corresponding User analytics.
+- The shared Gemini service allows the authenticated application's `DRIVER` and
+  `USER` roles on the User flow and scopes tool data to that user.
 - The frontend already stores the JWT as `fleet_token`.
 - `GEMINI_API_KEY` and optional `GEMINI_MODEL` are backend environment variables.
-- The default model remains `gemini-2.5-flash` unless configuration overrides it.
+- User driving-session summaries and emotion statistics default to the latest
+  7 days. Explicit date ranges and session IDs take precedence.
+- The current tested model default is `gemini-3.6-flash`; configured models are
+  attempted first, with the default appended as a fallback.
+- The shared gateway uses the `@google/genai` 2.x Interactions API on `v1beta`.
+- `GEMINI_MODELS` may configure ordered provider failover and
+  `GEMINI_TIMEOUT_MS` sets the request timeout.
 - When Gemini is unavailable or returns an error, the API must return an explicit
   error state rather than silently presenting a successful fake answer.
 
@@ -70,9 +76,8 @@ and structured emotion tables.
 ### C. Rule-based local chatbot
 
 Useful as an offline prototype but insufficient for the requirement to use the
-real Gemini API and for demonstrating model inference/tool calling. It may only
-remain as an explicit configuration-free error explanation, not as a success
-fallback.
+real Gemini API and for demonstrating model inference/tool calling. It is not a
+success fallback.
 
 ## Data contract
 
@@ -98,12 +103,26 @@ The authenticated user comes from the bearer JWT, not from client-supplied
   "session_id": "chat_1729680000000",
   "reply": "...",
   "structuredData": {
-    "type": "emotion_stats",
-    "source": "query_emotion_stats",
-    "data": {}
+    "type": "user_safety_summary",
+    "recordsUsed": { "sessions": 2 },
+    "metrics": {
+      "session_count": 2,
+      "average_safety_score": 92.5,
+      "drowsy_count": 0,
+      "yawn_count": 1,
+      "distracted_count": 0,
+      "critical_alerts": 0,
+      "warning_alerts": 1,
+      "duration_seconds": 5400
+    }
   },
-  "toolsUsed": ["query_emotion_stats"],
-  "model": "gemini-2.5-flash",
+  "toolsUsed": ["get_user_safety_summary"],
+  "modelStatus": {
+    "source": "gemini",
+    "attemptedModels": ["gemini-3.6-flash"],
+    "selectedModel": "gemini-3.6-flash"
+  },
+  "model": "gemini-3.6-flash",
   "timestamp": "2026-10-23T..."
 }
 ```
@@ -132,8 +151,16 @@ local storage only for the active user. MongoDB persists the actual messages.
 - Scope analytics queries to the authenticated driver where the data model
   supports it.
 - Keep API keys and Gemini calls server-side.
-- Tool declarations whitelist only `query_emotion_stats` and
-  `get_video_emotion_breakdown`.
+- Tool declarations whitelist `get_user_safety_summary`,
+  `query_emotion_stats`, and `get_video_emotion_breakdown`.
+- The session summary reads only the authenticated user's `DrivingSession`.
+  Emotion detail reads that user's `EmotionLog`; video detail verifies
+  ownership of `VideoAnalysis`.
+- Summary and emotion statistics default to 7 days. Explicit date ranges and
+  session IDs take precedence.
+- Missing Gemini configuration returns HTTP 503. Exhausted provider attempts
+  or failed required tools return safe non-2xx errors; there is no successful
+  local fallback response.
 - The guide will explain: prompt → Gemini function call → backend tool →
   structured JSON → Gemini summary → UI rendering.
 

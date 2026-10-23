@@ -8,6 +8,7 @@
  */
 
 import http from 'http';
+import strictAssert from 'node:assert/strict';
 import { ChatService } from '../src/chatService.js';
 import { geminiToolDeclarations, executeTool } from '../src/tools.js';
 
@@ -30,8 +31,146 @@ const MOCK_PORT = 5059;
 
 console.log('\n\x1b[1m=== BẮT ĐẦU KIỂM THỬ: FLEET COPILOT AI CHATBOT ===\x1b[0m\n');
 
+async function user_summary_tool_uses_authenticated_identity() {
+  let requested;
+  let declarations;
+  let callCount = 0;
+  const gemini = {
+    models: {
+      generateContent: async (request) => {
+        callCount += 1;
+        if (request.config.tools) declarations = request.config.tools[0].functionDeclarations;
+        if (callCount === 1) {
+          return {
+            functionCalls: [{
+              name: 'get_user_safety_summary',
+              args: {
+                requested_days: 7,
+                session_id: 'session-self',
+                user_id: 'other-user',
+                driver_id: 'other-driver',
+              },
+            }],
+          };
+        }
+        return { text: 'Tổng hợp chuyến lái của bạn.' };
+      },
+    },
+  };
+  const service = new ChatService({
+    gemini,
+    allowedRoles: ['USER'],
+    driverId: 'driver-self',
+  });
+  const result = await service.sendMessage(
+    'Thống kê chuyến lái của tôi',
+    { id: 'driver-self', role: 'USER' },
+    [],
+    {
+      userAnalyticsResolver: async (args) => {
+        requested = args;
+        return { type: 'user_safety_summary', metrics: { session_count: 2 } };
+      },
+    },
+  );
+
+  strictAssert.deepEqual(requested, {
+    requestedDays: 7,
+    startDate: undefined,
+    endDate: undefined,
+    sessionId: 'session-self',
+  });
+  strictAssert.ok(declarations.some((tool) => tool.name === 'get_user_safety_summary'));
+  strictAssert.ok(!declarations.some((tool) => tool.name === 'resolve_admin_analytics'));
+  strictAssert.equal(result.structuredData.metrics.session_count, 2);
+  strictAssert.equal(result.modelStatus.source, 'gemini');
+}
+
+async function admin_analytics_tool_uses_server_resolver() {
+  let requested;
+  let declarations;
+  let callCount = 0;
+  const resultData = { type: 'alert_breakdown', recordsUsed: { sessions: 3 } };
+  const gemini = {
+    models: {
+      generateContent: async (request) => {
+        callCount += 1;
+        if (request.config.tools) declarations = request.config.tools[0].functionDeclarations;
+        if (callCount === 1) {
+          return {
+            functionCalls: [{
+              name: 'resolve_admin_analytics',
+              args: {
+                intent: 'alerts',
+                requested_days: 7,
+                organization_id: 'foreign-org',
+                driver_id: 'foreign-driver',
+              },
+            }],
+          };
+        }
+        return { text: 'Ba cảnh báo trong phạm vi tổ chức.' };
+      },
+    },
+  };
+  const service = new ChatService({ gemini, allowedRoles: ['ADMIN'] });
+  const result = await service.sendMessage(
+    'Tổng hợp cảnh báo đội xe',
+    { id: 'admin-a', role: 'ADMIN', organizationId: 'org-a' },
+    [],
+    {
+      adminAnalyticsResolver: async (args) => {
+        requested = args;
+        return resultData;
+      },
+    },
+  );
+
+  strictAssert.deepEqual(requested, { intent: 'alerts', requestedDays: 7 });
+  strictAssert.ok(declarations.some((tool) => tool.name === 'resolve_admin_analytics'));
+  strictAssert.ok(!declarations.some((tool) => tool.name === 'get_user_safety_summary'));
+  strictAssert.deepEqual(result.structuredData, resultData);
+  strictAssert.deepEqual(result.toolsUsed, ['resolve_admin_analytics']);
+  strictAssert.equal(result.modelStatus.source, 'gemini');
+}
+
+async function no_data_admin_result_is_interpreted_by_gemini() {
+  let callCount = 0;
+  let interpretationRequest;
+  const noData = { type: 'no_data_guidance', title: 'Chưa có dữ liệu' };
+  const gemini = {
+    models: {
+      generateContent: async (request) => {
+        callCount += 1;
+        if (callCount === 1) {
+          return {
+            functionCalls: [{
+              name: 'resolve_admin_analytics',
+              args: { intent: 'overview', requested_days: 7 },
+            }],
+          };
+        }
+        interpretationRequest = request;
+        return { text: 'Tổ chức chưa có dữ liệu trong khoảng đã chọn.' };
+      },
+    },
+  };
+  const service = new ChatService({ gemini, allowedRoles: ['ADMIN'] });
+  const result = await service.sendMessage(
+    'Tổng quan đội xe',
+    { id: 'admin-a', role: 'ADMIN', organizationId: 'org-a' },
+    [],
+    { adminAnalyticsResolver: async () => noData },
+  );
+
+  strictAssert.equal(result.reply, 'Tổ chức chưa có dữ liệu trong khoảng đã chọn.');
+  strictAssert.deepEqual(result.structuredData, noData);
+  strictAssert.ok(JSON.stringify(interpretationRequest.contents).includes('no_data_guidance'));
+}
+
 async function runTests() {
   let mockServer = null;
+  let emotionRequestUrl;
 
   try {
     // 0. Khởi động Mock Backend Server
@@ -40,6 +179,7 @@ async function runTests() {
       res.setHeader('Content-Type', 'application/json');
 
       if (req.url.startsWith('/api/analytics/emotions')) {
+        emotionRequestUrl = req.url;
         res.writeHead(200);
         res.end(JSON.stringify({
           success: true,
@@ -91,6 +231,10 @@ async function runTests() {
     await new Promise((resolve) => mockServer.listen(MOCK_PORT, resolve));
     assert(mockServer !== null, `Mock backend server sẵn sàng trên port ${MOCK_PORT}`);
 
+    await user_summary_tool_uses_authenticated_identity();
+    await admin_analytics_tool_uses_server_resolver();
+    await no_data_admin_result_is_interpreted_by_gemini();
+
     const chatService = new ChatService({
       backendUrl: `http://localhost:${MOCK_PORT}`
     });
@@ -129,15 +273,23 @@ async function runTests() {
     };
     const sdkShapeService = new ChatService({
       backendUrl: `http://localhost:${MOCK_PORT}`,
-      gemini: sdkShapeGemini
+      gemini: sdkShapeGemini,
+      allowedRoles: ['USER'],
+      driverId: 'drv_test_01',
     });
     const sdkShapeRes = await sdkShapeService.sendMessage(
-      'Thống kê cảm xúc',
-      adminUser
+      'Thống kê cảm xúc của tôi',
+      { id: 'drv_test_01', role: 'USER' }
     );
+    const emotionQuery = new URLSearchParams(emotionRequestUrl.split('?')[1]);
+    const requestedRangeMs = Date.parse(emotionQuery.get('end_date')) - Date.parse(emotionQuery.get('start_date'));
     assert(
       sdkShapeRes.reply === 'Đã đọc dữ liệu cảm xúc.',
       `Hỗ trợ response functionCalls dạng mảng của Gemini SDK`
+    );
+    strictAssert.ok(
+      Math.abs(requestedRangeMs - 7 * 24 * 60 * 60 * 1000) < 5000,
+      'user_emotion_stats_default_to_last_seven_days',
     );
 
     let secondRequest;
@@ -172,9 +324,14 @@ async function runTests() {
     };
     const thoughtSignatureService = new ChatService({
       backendUrl: `http://localhost:${MOCK_PORT}`,
-      gemini: thoughtSignatureGemini
+      gemini: thoughtSignatureGemini,
+      allowedRoles: ['USER'],
+      driverId: 'drv_test_01',
     });
-    await thoughtSignatureService.sendMessage('Thống kê cảm xúc', adminUser);
+    await thoughtSignatureService.sendMessage(
+      'Thống kê cảm xúc của tôi',
+      { id: 'drv_test_01', role: 'USER' },
+    );
     assert(
       secondRequest.contents.some((content) =>
         content.role === 'model' &&
@@ -196,15 +353,14 @@ async function runTests() {
       allowedRoles: ['USER'],
       driverId: 'drv_test_01'
     });
-    const fallbackRes = await fallbackService.sendMessage(
-      'Thống kê cảm xúc của tôi',
-      { id: 'drv_test_01', role: 'USER' },
-      [],
-      { authToken: 'test-token' }
-    );
-    assert(
-      fallbackRes.structuredData?.metrics?.total_records === 120,
-      `Fallback vẫn trả analytics thật khi Gemini tạm thời lỗi`
+    await strictAssert.rejects(
+      fallbackService.sendMessage(
+        'Thống kê cảm xúc của tôi',
+        { id: 'drv_test_01', role: 'USER' },
+        [],
+        { authToken: 'test-token' },
+      ),
+      (error) => error.code === 'GEMINI_UNAVAILABLE',
     );
 
     const hangingGemini = {
@@ -219,13 +375,12 @@ async function runTests() {
       allowedRoles: ['USER'],
       driverId: 'drv_test_01'
     });
-    const timeoutRes = await timeoutService.sendMessage(
-      'Thống kê cảm xúc của tôi',
-      { id: 'drv_test_01', role: 'USER' }
-    );
-    assert(
-      timeoutRes.structuredData?.metrics?.total_records === 120,
-      `Fallback sau timeout Gemini không làm kẹt chatbot`
+    await strictAssert.rejects(
+      timeoutService.sendMessage(
+        'Thống kê cảm xúc của tôi',
+        { id: 'drv_test_01', role: 'USER' },
+      ),
+      (error) => error.code === 'GEMINI_UNAVAILABLE',
     );
 
     const genericGemini = {
@@ -239,19 +394,18 @@ async function runTests() {
       allowedRoles: ['USER'],
       driverId: 'drv_test_01'
     });
-    const intentFallbackRes = await intentFallbackService.sendMessage(
-      'Thống kê các cảm xúc của tôi',
-      { id: 'drv_test_01', role: 'USER' }
-    );
-    assert(
-      intentFallbackRes.structuredData?.metrics?.total_records === 120,
-      `Câu hỏi thống kê luôn trả structuredData dù Gemini không gọi tool`
+    await strictAssert.rejects(
+      intentFallbackService.sendMessage(
+        'Thống kê các cảm xúc của tôi',
+        { id: 'drv_test_01', role: 'USER' },
+      ),
+      (error) => error.code === 'GEMINI_TOOL_REQUIRED',
     );
 
     // 2. Kiểm tra Tool Declarations
     console.log('\n\x1b[36m[Test 2] Kiểm tra Khai báo Công cụ (Gemini Function Declarations)\x1b[0m');
     assert(Array.isArray(geminiToolDeclarations), `Khai báo công cụ là một mảng`);
-    assert(geminiToolDeclarations.length === 2, `Có đầy đủ 2 công cụ cốt lõi`);
+    assert(geminiToolDeclarations.length === 3, `Có ba công cụ dữ liệu dành cho User`);
 
     const hasEmotionTool = geminiToolDeclarations.some(t => t.name === 'query_emotion_stats');
     const hasVideoTool = geminiToolDeclarations.some(t => t.name === 'get_video_emotion_breakdown');
@@ -275,27 +429,6 @@ async function runTests() {
     assert(videoToolRes.status === 'SUCCESS', `Thực thi tool get_video_emotion_breakdown thành công`);
     assert(videoToolRes.data.violations.length === 2, `Lấy đúng danh sách vi phạm video (2 sự cố)`);
     assert(videoToolRes.data.summary.safety_score === 70, `Lấy đúng điểm an toàn video (70/100)`);
-
-    // 5. Kiểm tra Agent trả lời câu hỏi tài xế kèm structuredData
-    console.log('\n\x1b[36m[Test 5] Kiểm tra Agent Xử lý Câu hỏi Tài xế & Trả về Structured Data\x1b[0m');
-    const chatDriverRes = await chatService.sendMessage(
-      'Tài xế drv_test_01 có dấu hiệu mệt mỏi hay buồn ngủ không?',
-      adminUser
-    );
-    assert(chatDriverRes.toolsUsed.includes('query_emotion_stats'), `Agent tự động kích hoạt tool 'query_emotion_stats'`);
-    assert(chatDriverRes.structuredData !== null, `Trả về structuredData cho giao diện dashboard`);
-    assert(chatDriverRes.reply.includes('120 bản ghi'), `Nội dung trả lời tự nhiên có nhắc đến số liệu`);
-    assert(chatDriverRes.reply.includes('Cảnh báo an toàn'), `Copilot tự động đưa ra cảnh báo can thiệp kịp thời`);
-
-    // 6. Kiểm tra Agent trả lời câu hỏi video
-    console.log('\n\x1b[36m[Test 6] Kiểm tra Agent Xử lý Câu hỏi Phân tích Video\x1b[0m');
-    const chatVideoRes = await chatService.sendMessage(
-      'Kiểm tra vi phạm trong video cam_trip_888',
-      adminUser
-    );
-    assert(chatVideoRes.toolsUsed.includes('get_video_emotion_breakdown'), `Agent tự động kích hoạt tool 'get_video_emotion_breakdown'`);
-    assert(chatVideoRes.structuredData !== null, `Có structuredData video`);
-    assert(chatVideoRes.reply.includes('2 vi phạm'), `Nội dung tóm tắt chính xác 2 vi phạm trong video`);
 
   } catch (err) {
     console.error('\x1b[31m[Lỗi Test Chatbot]:\x1b[0m', err);

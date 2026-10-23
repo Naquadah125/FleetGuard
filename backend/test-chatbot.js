@@ -41,24 +41,34 @@ try {
   });
   assert.equal(unauthenticated.status, 401);
 
-  const registration = await request('/api/auth/login', 'POST', {
-    email: 'user@fleet.vn',
-    password: 'password123',
+  const registration = await request('/api/auth/register', 'POST', {
+    name: 'Chatbot User Test',
+    email: `chatbot-user-${Date.now()}@fleet.vn`,
+    password: 'SecurePassword123!',
+    role: 'USER',
   });
-  assert.equal(registration.status, 200);
+  assert.equal(registration.status, 201);
 
-  const missingGemini = await request(
-    '/api/analytics/chatbot',
-    'POST',
-    {
-      session_id: CHAT_SESSION_ID,
-      message: 'Thống kê cảm xúc',
-    },
-    registration.data.token,
-  );
-  assert.equal(missingGemini.status, 200);
-  assert.equal(missingGemini.data.success, true);
-  assert.equal(missingGemini.data.toolsUsed.includes('query_emotion_stats'), true);
+  const originalGeminiKey = process.env.GEMINI_API_KEY;
+  delete process.env.GEMINI_API_KEY;
+  let missingGemini;
+  try {
+    missingGemini = await request(
+      '/api/analytics/chatbot',
+      'POST',
+      {
+        session_id: CHAT_SESSION_ID,
+        message: 'Thống kê cảm xúc',
+      },
+      registration.data.token,
+    );
+  } finally {
+    if (originalGeminiKey === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = originalGeminiKey;
+  }
+  assert.equal(missingGemini.status, 503, 'user_chatbot_returns_503_without_gemini_key');
+  assert.equal(missingGemini.data.success, false);
+  assert.equal(missingGemini.data.code, 'GEMINI_NOT_CONFIGURED');
 
   const session = await request(
     `/api/analytics/chatbot/sessions/${CHAT_SESSION_ID}`,

@@ -2,150 +2,103 @@
 
 ## Intent
 
-Add an Admin-only AI assistant to the existing FleetGuard chat module. The
-assistant helps a company administrator understand fleet activity, alerts, and
-emotion signals in Vietnamese without mixing data from other organizations.
+Provide a Gemini-backed Admin assistant for questions about fleet overview,
+alerts, emotion signals, and driver risk. It operates only on users in the
+authenticated Admin's organization.
 
 ## Goals
 
-- Support fleet overview, alert/violation, and emotion questions.
-- Default analytics period to the last 7 days.
-- Expand the search window to 30 days, then all organization history when the
-  requested period has no usable records.
-- Scope every query to the authenticated Admin's organization.
-- Return stable structured data for cards, tables, charts, and driver links.
-- Use internal MongoDB analytics as the source of truth.
-- Use Gemini only as an optional natural-language interpretation layer.
-- Try multiple configured Gemini models in order when a model is unavailable,
-  rate-limited, overloaded, or times out.
-- Show a clear quota/API status and use internal analytics fallback when all
-  configured models fail.
-- Provide a technical explanation panel with sanitized model/tool metadata.
-- Keep CSV/JSON export compatible with the structured response.
+- Use Gemini to select an allowed analytics intent and explain its result.
+- Use backend analytics as the source of numeric data.
+- Query the authenticated Admin's organization only.
+- Preserve structured data for UI rendering and CSV/JSON export.
+- Return an explicit error when Gemini or a required tool cannot complete.
 
 ## Non-goals
 
-- The assistant will not delete users or sessions.
-- It will not edit safety scores, camera thresholds, or organization data.
-- It will not send real alerts or start/end driving sessions.
-- It will not use frontend demo localStorage as a source for Admin analytics.
-- It will not infer psychological certainty from facial emotion predictions.
-- PDF export is deferred.
+- Reading or mixing data from other organizations.
+- Mutating users, sessions, scores, alerts, or organization data.
+- Using frontend demo/localStorage data as analytics input.
+- Treating predicted emotion as psychological certainty.
+- Replacing or training the computer-vision model.
 
-## Existing constraints
+## Architecture and data flow
 
-- The project already has an Admin route/layout and a chatbot backend with
-  Gemini, tool execution, timeout, and internal fallback behavior.
-- The frontend contains demo data in `frontend/src/store/db.js`; this data must
-  not be included in organization-scoped Admin AI results.
-- Existing backend users may not have organization fields. New company Admin
-  accounts must receive an organization identity, and existing accounts need a
-  safe migration/backfill before organization filtering is enforced.
-- Gemini model availability and free-tier quotas can change, so model names
-  must be configured rather than embedded throughout the code.
+The authenticated `POST /api/analytics/chatbot` route loads the Admin's chat
+history and passes the message to the shared `ChatService`. Gemini receives
+only the `resolve_admin_analytics` function tool. It chooses an allowed intent
+(`overview`, `alerts`, `emotions`, or `ranking`) and optional requested period.
+The backend—not Gemini—supplies the authenticated Admin's organization to
+`resolveAdminAnalytics`. Structured analytics, including a structured no-data
+result, are sent back to Gemini for the final explanation.
 
-## Approaches
+Analytics use only records belonging to drivers/users in that organization:
 
-### A. Extend the existing chatbot module — selected
+- `DrivingSession`: trip counts, safety scores, duration, alert levels, and
+  drowsy/yawn/distraction counts.
+- `EmotionLog`: emotion and attention telemetry.
+- `VideoAnalysis`: organization-scoped analyzed-video records and record
+  counts.
 
-Add Admin intent handling, organization-scoped analytics, structured response
-schemas, and multi-model retry to the current chat service/controller/UI.
-This minimizes duplication and preserves the existing User fallback path.
+The current Admin response types are `fleet_overview`,
+`driver_alert_ranking`, `emotion_breakdown`, `alert_breakdown`, and
+`no_data_guidance`. Each includes a period, source, record counts, and the
+metrics or rows appropriate to its type.
 
-### B. Create a separate Admin AI service
+## Period selection
 
-This would isolate permissions but duplicate the existing chat persistence,
-Gemini integration, timeout, and fallback code. It is not suitable under the
-current time limit.
+- A period requested in the question or selected by Gemini is queried first.
+- If it has no usable records, the backend expands to 30 days and then all
+  history for that organization.
+- Without an explicit period, the initial period is the latest 7 days.
+- The returned period identifies which window supplied the result.
+
+## Gemini configuration and failures
+
+Configure `GEMINI_API_KEY` in the backend environment. `GEMINI_MODEL` chooses
+the default model; optional `GEMINI_MODELS` supplies an ordered failover list,
+and `GEMINI_TIMEOUT_MS` sets the timeout. Keep credentials backend-only.
+
+Successful chatbot answers require Gemini. Missing key returns HTTP 503 with
+`GEMINI_NOT_CONFIGURED`. If configured models are exhausted or a required
+tool/Gemini response fails, the API returns a safe non-2xx error. It never
+returns an internal-only narrative as a successful Gemini answer. Internal
+analytics are used as the numeric source only after Gemini has selected the
+tool.
+
+## Access control and UI
+
+- The JWT supplies the Admin identity and organization.
+- Tool arguments cannot set `organizationId`, driver IDs, or user IDs.
+- Results are rendered from structured data, never model-generated HTML.
+- The UI may display model/tool/source metadata and export the structured
+  response.
+- Emotion confidence is a model signal, not a psychological conclusion.
+
+## Approaches considered
+
+### A. Extend the existing shared ChatService and tool layer — selected
+
+Reuses Gemini configuration, failover, chat history, and response handling
+while the server-side Admin resolver enforces organization scope.
+
+### B. Create a separate Admin Gemini service
+
+Would isolate the role but duplicate provider configuration, failover, timeout,
+and chat handling without improving the organization boundary.
 
 ### C. Internal analytics only
 
-This would be the most deterministic option, but would remove the natural
-language model layer needed for the Admin AI demonstration. The selected
-approach uses internal analytics as truth while retaining Gemini as optional
-interpretation.
+Would provide deterministic numbers but remove the Gemini intent-selection
+and explanation flow required by this assistant.
 
-## Model fallback design
+## Verification
 
-The backend will read an ordered model list from environment configuration:
-
-```text
-GEMINI_MODELS=primary-model,fallback-model-1,fallback-model-2
-```
-
-`GEMINI_MODEL` remains supported as the first model when `GEMINI_MODELS` is not
-set. Each request attempts models in order. A model failure is retryable when
-it is caused by quota/rate limiting (`429`), temporary overload (`503`), an
-unavailable model, or the configured timeout. The service must not retry the
-same model repeatedly within one request.
-
-If every model fails:
-
-1. Run the internal analytics query.
-2. Return the structured result and a Vietnamese explanation generated by the
-   deterministic fallback.
-3. Mark the response as internal fallback and include a user-safe status:
-   `Gemini API đã hết quota hoặc tạm thời không khả dụng`.
-
-The response must not expose API keys, JWTs, raw provider errors, or internal
-stack traces. Provider failure details remain server logs only.
-
-## Data and response contract
-
-Admin analytics will support these structured response types:
-
-- `fleet_overview`
-- `driver_alert_ranking`
-- `emotion_breakdown`
-- `alert_breakdown`
-- `no_data_guidance`
-
-Every response includes:
-
-- `type`
-- `title`
-- `period`
-- `source`
-- `recordsUsed`
-- structured metrics/rows appropriate to the type
-- optional `modelStatus`
-- optional sanitized `explanation`
-
-Driver ranking rows include `driverId` and a frontend link to the employee
-profile. The link is rendered only when the driver belongs to the current
-organization.
-
-Emotion confidence is displayed as a model signal, not a psychological fact.
-The UI will use the existing six labels: neutral, happy, angry, sad,
-surprised, and fatigued.
-
-## Empty and insufficient data behavior
-
-- Query the requested period first.
-- If empty, expand to 30 days and then all organization history.
-- Clearly state which period produced the result.
-- If no organization employees exist, link to Admin employee management.
-- If employees exist but have no records, explain how to create a driving
-  session and collect telemetry.
-- Never substitute demo data.
-
-## UI behavior
-
-- Keep the current dedicated Admin AI page placement.
-- Render structured responses by `type`, not model-generated HTML.
-- Show a compact source/status label.
-- Include “Thử lại Gemini” only when a provider failure occurred.
-- Include a closed-by-default “Xem cách phân tích” panel with model name(s),
-  intent, tool, source, and record count.
-- Provide CSV/JSON export from structured data when feasible.
-
-## Verification criteria
-
-- An Admin cannot retrieve another organization's users, sessions, emotions,
-  or video analysis through chat.
-- A new company Admin has an organization identity.
-- Questions in the three required categories return structured responses.
-- No-data responses never contain demo users or invented numbers.
-- A failed primary model attempts configured fallback models once each.
-- All-model failure produces internal analytics plus a visible quota/API state.
-- Existing User chatbot behavior and frontend build remain functional.
+- User-supplied/model-supplied IDs cannot escape the Admin's organization.
+- Analytics include organization-scoped sessions, emotion logs, and video
+  records; no demo data is substituted.
+- Admin intent selection and structured no-data results pass through Gemini
+  for explanation.
+- Missing key and provider/tool failures return non-success API responses.
+- Configured model failover tries models in order without repeating a model in
+  the same request.

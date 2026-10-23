@@ -58,7 +58,7 @@ Tạo `backend/.env` (không commit file này):
 
 ```env
 GEMINI_API_KEY=your_real_gemini_api_key
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.6-flash
 ```
 
 Gemini chỉ được gọi từ backend. Xem hướng dẫn đầy đủ tại

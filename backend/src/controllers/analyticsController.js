@@ -5,7 +5,8 @@ import { User } from '../models/User.js';
 import { getIsMongoConnected, memoryStore } from '../db.js';
 import { ChatService } from '../../../ai-chatbot/src/chatService.js';
 import { ChatConversation } from '../models/ChatConversation.js';
-import { detectAdminIntent, requestedPeriodDays, resolveAdminAnalytics } from '../services/adminAnalyticsService.js';
+import { requestedPeriodDays, resolveAdminAnalytics } from '../services/adminAnalyticsService.js';
+import { resolveUserAnalytics } from '../services/userAnalyticsService.js';
 import { recordAuditEvent } from '../services/auditLogService.js';
 
 async function saveChatMessage({ userId, sessionId, role, message, structuredData = null }) {
@@ -422,48 +423,26 @@ export async function chatWithSafetyAdvisor(req, res) {
 
     await saveChatMessage({ userId, sessionId: chatSessionId, role: 'user', message });
     const isAdmin = ['ADMIN', 'FLEET_ADMIN'].includes(user.role);
-    if (isAdmin) {
-      const structuredData = await resolveAdminAnalytics({
-        organizationId: user.organizationId,
-        intent: detectAdminIntent(message),
-        requestedDays: requestedPeriodDays(message),
-      });
-      const interpreter = new ChatService({
-        allowedRoles: ['ADMIN', 'FLEET_ADMIN'],
-      });
-      const interpretation = await interpreter.interpretAdminResult(message, user, structuredData);
-      const reply = structuredData.type === 'no_data_guidance' ? structuredData.reply : interpretation.reply;
-      await saveChatMessage({
-        userId,
-        sessionId: chatSessionId,
-        role: 'model',
-        message: reply,
-        structuredData
-      });
-      return res.json({
-        success: true,
-        session_id: chatSessionId,
-        reply,
-        structuredData,
-        toolsUsed: ['resolve_admin_analytics'],
-        modelStatus: interpretation.modelStatus,
-        timestamp: new Date().toISOString()
-      });
-    }
-
     const service = new ChatService({
-      requireGemini: false,
-      allowedRoles: ['DRIVER', 'USER', 'FLEET_ADMIN'],
-      driverId: user.role === 'DRIVER' || user.role === 'USER'
-        ? (user.id || user._id?.toString())
-        : undefined
+      requireGemini: true,
+      allowedRoles: isAdmin ? ['ADMIN', 'FLEET_ADMIN'] : ['DRIVER', 'USER'],
+      driverId: isAdmin ? undefined : userId,
     });
     const result = await service.sendMessage(
       message,
       user,
       previousMessages.reverse().map((item) => ({ role: item.role, message: item.message })),
       {
-      authToken: req.headers.authorization?.replace('Bearer ', '')
+        authToken: req.headers.authorization?.replace('Bearer ', ''),
+        userAnalyticsResolver: (analyticsRequest) => resolveUserAnalytics({
+          userId,
+          ...analyticsRequest,
+        }),
+        adminAnalyticsResolver: ({ intent, requestedDays }) => resolveAdminAnalytics({
+          organizationId: user.organizationId,
+          intent,
+          requestedDays: requestedDays || requestedPeriodDays(message) || 7,
+        }),
       }
     );
     await saveChatMessage({
@@ -488,7 +467,14 @@ export async function chatWithSafetyAdvisor(req, res) {
     if (err.code === 'GEMINI_NOT_CONFIGURED') {
       return res.status(503).json({ success: false, message: err.message, code: err.code });
     }
-    console.error('[Admin chatbot error]:', err);
+    if (['GEMINI_UNAVAILABLE', 'GEMINI_TOOL_REQUIRED', 'GEMINI_EMPTY_RESPONSE', 'CHATBOT_TOOL_FAILED'].includes(err.code)) {
+      return res.status(502).json({
+        success: false,
+        message: 'Gemini không thể hoàn tất yêu cầu lúc này. Vui lòng thử lại.',
+        code: err.code,
+      });
+    }
+    console.error('[Chatbot error]:', err);
     return res.status(500).json({ success: false, message: 'Không thể hoàn tất phân tích lúc này. Vui lòng thử lại.' });
   }
 }
