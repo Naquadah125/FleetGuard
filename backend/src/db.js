@@ -9,7 +9,8 @@ export const memoryStore = {
   sessions: new Map(),
   emotionLogs: [],
   videoAnalyses: new Map(),
-  chatConversations: []
+  chatConversations: [],
+  auditLogs: []
 };
 
 import dns from 'dns';
