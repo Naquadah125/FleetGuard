@@ -12,6 +12,7 @@ export const SFX_OPTIONS = [
 let audioCtx = null
 let alarmInterval = null
 let isMuted = false
+let sfxVolume = 0.75
 let currentSfxAudio = null
 let previewAudio = null
 
@@ -49,7 +50,7 @@ export function startSfxLoop(soundSrc = SFX_OPTIONS[0].src) {
   try {
     currentSfxAudio = new Audio(soundSrc)
     currentSfxAudio.loop = true
-    currentSfxAudio.volume = 1.0
+    currentSfxAudio.volume = sfxVolume
     const playPromise = currentSfxAudio.play()
     if (playPromise !== undefined) {
       playPromise.catch((err) => {
@@ -88,7 +89,7 @@ export function playSfxPreview(soundSrc) {
   }
   try {
     previewAudio = new Audio(soundSrc)
-    previewAudio.volume = 0.9
+    previewAudio.volume = sfxVolume
     const playPromise = previewAudio.play()
     if (playPromise !== undefined) {
       playPromise.catch(() => {})
@@ -102,6 +103,16 @@ export function playSfxPreview(soundSrc) {
       }
     }, 2500)
   } catch (e) {}
+}
+
+export function setSfxVolume(value) {
+  sfxVolume = Math.min(1, Math.max(0, Number(value)))
+  if (currentSfxAudio) currentSfxAudio.volume = sfxVolume
+  if (previewAudio) previewAudio.volume = sfxVolume
+}
+
+export function getSfxVolume() {
+  return sfxVolume
 }
 
 /**
@@ -125,7 +136,7 @@ export function playLevel2Alarm() {
 
     // Volume envelope
     gain.gain.setValueAtTime(0.01, now)
-    gain.gain.linearRampToValueAtTime(0.35, now + 0.04)
+    gain.gain.linearRampToValueAtTime(0.35 * sfxVolume, now + 0.04)
     gain.gain.linearRampToValueAtTime(0.01, now + 0.34)
 
     osc.connect(gain)

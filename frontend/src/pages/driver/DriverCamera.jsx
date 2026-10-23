@@ -20,6 +20,7 @@ import {
   startSfxLoop,
   stopSfxLoop,
   playSfxPreview,
+  setSfxVolume,
 } from '../../utils/audio'
 import Meter from '../../components/common/Meter'
 import { getSocket } from '../../api/socket'
@@ -89,6 +90,10 @@ export default function DriverCamera() {
   const [selectedSfx, setSelectedSfx] = useState(() => {
     return localStorage.getItem('fleetguard_selected_sfx') || SFX_OPTIONS[0].src
   })
+  const [sfxVolume, setSfxVolumeState] = useState(() => {
+    const stored = Number(localStorage.getItem('fleetguard_sfx_volume'))
+    return Number.isFinite(stored) ? Math.min(100, Math.max(0, stored)) : 75
+  })
 
   // Alert Screen & Acknowledge State
   const [alertOverlay, setAlertOverlay] = useState(false)
@@ -119,6 +124,11 @@ export default function DriverCamera() {
   const [tripSync, setTripSync] = useState(null) // { type: 'ok' | 'error', text }
   const sessionRef = useRef(restoredSession) // { id, userId, startTime, accumulatedMs, lastResumeTime, stats }
 
+  useEffect(() => {
+    setSfxVolume(sfxVolume / 100)
+    localStorage.setItem('fleetguard_sfx_volume', String(sfxVolume))
+  }, [sfxVolume])
+
   // Refs
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
@@ -140,14 +150,15 @@ export default function DriverCamera() {
 
   // Register driver with Socket.io server
   useEffect(() => {
-    if (user?._id) {
+    const dId = user?._id || user?.id
+    if (dId) {
       const socket = getSocket()
       socket.emit('driver:join', {
-        driverId: user._id,
+        driverId: dId,
         organizationId: user.organizationId,
       })
     }
-  }, [user?._id, user?.organizationId])
+  }, [user?._id, user?.id, user?.organizationId])
 
   // Stream live camera frames via Socket.IO at ~15 FPS (66ms, 320x240 JPEG 0.5)
   useEffect(() => {
@@ -165,9 +176,11 @@ export default function DriverCamera() {
       try {
         ctx.drawImage(video, 0, 0, 320, 240)
         const frameDataUrl = offscreenCanvas.toDataURL('image/jpeg', 0.5)
-        const socket = getSocket()
+        const dId = user?._id || user?.id
         socket.emit('driver:camera_frame', {
-          driverId: user?._id,
+          driverId: dId,
+          driverName: user?.name,
+          driverEmail: user?.email,
           organizationId: user?.organizationId,
           image: frameDataUrl,
           metrics: {
@@ -188,26 +201,27 @@ export default function DriverCamera() {
   // Cleanup camera active status on unmount
   useEffect(() => {
     return () => {
-      if (user?._id) {
+      const dId = user?._id || user?.id
+      if (dId) {
         const socket = getSocket()
         socket.emit('driver:camera_status', {
-          driverId: user._id,
+          driverId: dId,
           organizationId: user.organizationId,
           cameraActive: false,
           status: 'resting',
         })
 
         updateDB((db) => {
-          const u = db.users.find((d) => d._id === user._id)
+          const u = db.users.find((d) => d._id === dId || d.id === dId)
           if (u) {
             u.cameraActive = false
             u.status = 'resting'
           }
           return db
-        }, { action: 'CAMERA_STATUS', driverId: user._id, cameraActive: false })
+        }, { action: 'CAMERA_STATUS', driverId: dId, cameraActive: false })
       }
     }
-  }, [user?._id, user?.organizationId])
+  }, [user?._id, user?.id, user?.organizationId])
 
   // Format trip timer
   const formatTime = (secs) => {
@@ -508,24 +522,25 @@ export default function DriverCamera() {
       setCalibrating(true)
       setCalibProgress(0)
 
-      if (user?._id) {
+      const dId = user?._id || user?.id
+      if (dId) {
         const socket = getSocket()
         socket.emit('driver:camera_status', {
-          driverId: user._id,
+          driverId: dId,
           organizationId: user.organizationId,
           cameraActive: true,
           status: 'driving',
         })
 
         updateDB((db) => {
-          const u = db.users.find((d) => d._id === user._id)
+          const u = db.users.find((d) => d._id === dId || d.id === dId)
           if (u) {
             u.cameraActive = true
             u.status = 'driving'
             u.lastActiveAt = new Date().toISOString()
           }
           return db
-        }, { action: 'CAMERA_STATUS', driverId: user._id, cameraActive: true })
+        }, { action: 'CAMERA_STATUS', driverId: dId, cameraActive: true })
       }
       return true
     } catch (err) {
@@ -573,24 +588,25 @@ export default function DriverCamera() {
       setMar(0.18)
       setPerclos(0)
 
-      if (user?._id) {
+      const dId = user?._id || user?.id
+      if (dId) {
         const socket = getSocket()
         socket.emit('driver:camera_status', {
-          driverId: user._id,
+          driverId: dId,
           organizationId: user.organizationId,
           cameraActive: false,
           status: 'resting',
         })
 
         updateDB((db) => {
-          const u = db.users.find((d) => d._id === user._id)
+          const u = db.users.find((d) => d._id === dId || d.id === dId)
           if (u) {
             u.cameraActive = false
             u.status = 'resting'
             u.lastActiveAt = new Date().toISOString()
           }
           return db
-        }, { action: 'CAMERA_STATUS', driverId: user._id, cameraActive: false })
+        }, { action: 'CAMERA_STATUS', driverId: dId, cameraActive: false })
       }
     } else {
       await turnOnCamera()
@@ -1032,6 +1048,20 @@ export default function DriverCamera() {
                 <Play size={13} />
                 <span>Nghe thử</span>
               </button>
+              <label className={styles.sfxVolumeControl} htmlFor="sfx-volume">
+                <span>Âm lượng</span>
+                <input
+                  id="sfx-volume"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={sfxVolume}
+                  onChange={(e) => setSfxVolumeState(Number(e.target.value))}
+                  aria-label={`Âm lượng còi báo ${sfxVolume}%`}
+                />
+                <output htmlFor="sfx-volume">{sfxVolume}%</output>
+              </label>
             </div>
           </div>
         </div>
