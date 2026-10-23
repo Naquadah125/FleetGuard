@@ -1049,7 +1049,7 @@ export default function DriverCamera() {
                 <span>Nghe thử</span>
               </button>
               <label className={styles.sfxVolumeControl} htmlFor="sfx-volume">
-                <span>Âm lượng</span>
+                <Volume2 size={15} aria-hidden="true" />
                 <input
                   id="sfx-volume"
                   type="range"
@@ -1059,6 +1059,7 @@ export default function DriverCamera() {
                   value={sfxVolume}
                   onChange={(e) => setSfxVolumeState(Number(e.target.value))}
                   aria-label={`Âm lượng còi báo ${sfxVolume}%`}
+                  style={{ '--volume-level': `${sfxVolume}%` }}
                 />
                 <output htmlFor="sfx-volume">{sfxVolume}%</output>
               </label>

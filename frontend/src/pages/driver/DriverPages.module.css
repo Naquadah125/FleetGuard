@@ -538,22 +538,77 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--text-secondary);
+  color: var(--amber-dark);
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
 }
 
 .sfxVolumeControl input {
-  width: 118px;
-  accent-color: var(--amber-primary);
+  width: 150px;
+  height: 20px;
+  margin: 0;
+  appearance: none;
+  background: transparent;
   cursor: pointer;
 }
 
+.sfxVolumeControl input::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--amber-primary) 0 var(--volume-level),
+    var(--card-border) var(--volume-level) 100%
+  );
+}
+
+.sfxVolumeControl input::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--card-border);
+}
+
+.sfxVolumeControl input::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--amber-primary);
+}
+
+.sfxVolumeControl input::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: -5px;
+  appearance: none;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--amber-primary);
+  box-shadow: 0 0 0 1px var(--amber-dark);
+}
+
+.sfxVolumeControl input::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--amber-primary);
+  box-shadow: 0 0 0 1px var(--amber-dark);
+}
+
+.sfxVolumeControl input:focus-visible {
+  outline: 2px solid var(--amber-dark);
+  outline-offset: 4px;
+  border-radius: 999px;
+}
+
 .sfxVolumeControl output {
-  min-width: 34px;
+  min-width: 42px;
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: var(--amber-bg);
   color: var(--text-main);
   font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 @media (max-width: 620px) {
