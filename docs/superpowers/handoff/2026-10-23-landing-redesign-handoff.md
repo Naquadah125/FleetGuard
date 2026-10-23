@@ -60,7 +60,7 @@ npm run shot -- "http://localhost:5190/" ../.tmp/shots --widths=1440,768,375
 
 ### Code / tooling
 11. **`npm run shot --full` chụp trang trống dưới Hero** — vì section dưới Hero giờ mount lần lượt sau first paint; script tắt ScrollSmoother và chụp trước khi mount xong. Sửa `scripts/shot.mjs`: chờ mọi `section[id]` có nội dung trước khi chụp. (Trang thật không bị.)
-12. Footer: link nhóm "Sản phẩm" đang tra theo label — đổi `FOOTER.groups[0].links` sang `{ label, id }` cùng lúc sửa `Footer.jsx`.
+12. ~~Footer tra link theo label~~ — xong (2026-10-23): menu theo đúng thứ tự section, footer dùng `{ label, id }` (Chat Zalo nằm ở cột Liên hệ); mục chưa có trang (Blog, API, Tuyển dụng, Điều khoản…) hiện chữ + nhãn "Sắp ra mắt", không còn link `#`. Khi có trang thật: thêm `href` vào item trong `FOOTER` và một nhánh trong `FooterLink`.
 13. Xoá class thừa `.brandText` / `.brandAccent` trong `pages/{admin,driver}/*Layout.module.css`.
 14. Đường chạy trên điện thoại ở AuthShell dùng path SVG nhân bản bằng code — nên chuyển vào `PhoneMap.jsx` (hoạt động đúng, chỉ là dọn dẹp).
 15. Phím mũi tên cho ToggleGroup chọn loại tài khoản ở Register và nút tháng/năm ở Pricing.

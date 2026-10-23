@@ -119,7 +119,7 @@ export default function PricingCard({ plan, billing, unit, popularBadge, classNa
       {plan.popular ? (
         <div
           data-popular-strip
-          className="relative h-[18px] overflow-hidden bg-linear-to-r from-brand-dark from-60% to-[#0b8a5c] text-center text-[9px] leading-[18px] font-bold tracking-[0.22em] text-white"
+          className="relative h-[18px] overflow-hidden bg-linear-to-r from-brand-dark from-60% to-[#0b8a5c] text-center text-[10px] leading-[18px] font-bold tracking-[0.2em] text-white lg:text-[9px] lg:tracking-[0.22em]"
         >
           {popularBadge}
           <span

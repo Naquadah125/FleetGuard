@@ -1,9 +1,9 @@
-import { Mail, MapPin, Phone } from 'lucide-react'
+import { Mail, MapPin, MessageCircle, Phone } from 'lucide-react'
 
 import FleetGuardLogo, { FleetGuardMark } from '@/components/brand/FleetGuardLogo'
 import Reveal from '@/components/landing/Reveal'
 import { Separator } from '@/components/ui/separator'
-import { FOOTER, NAV_LINKS } from '@/content/landing'
+import { CONTACT_CTA, FOOTER } from '@/content/landing'
 import { scrollToSection } from '@/lib/motion/scroll'
 import { cn } from '@/lib/utils'
 
@@ -86,8 +86,7 @@ function FooterRoutes() {
   )
 }
 
-/** Product-group items that are also landing sections ("Tính năng" → #features …). */
-const PRODUCT_SECTION_IDS = Object.fromEntries(NAV_LINKS.map((l) => [l.label, l.id]))
+const ZALO_HREF = `https://zalo.me/${CONTACT_CTA.zaloNumber}`
 
 // -mx-1 px-1: the focus outline gets breathing room without shifting the text; min-w-11 keeps
 // short labels ("Blog") a 44px touch target.
@@ -96,60 +95,100 @@ const linkClass = cn(
   'transition-colors duration-200 outline-none hover:text-white focus-ring-light',
 )
 
-/** Placeholder links (no destination yet) must not jump to the top or append "#" to the URL. */
-const stayPut = (event) => event.preventDefault()
+/** Items without a page yet: plain text (not focusable, nothing to click) + a "soon" badge. */
+const soonClass = 'inline-flex min-h-11 items-center gap-2 text-body text-white/60 lg:min-h-8'
 
+function SoonBadge() {
+  return (
+    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] leading-4 font-medium whitespace-nowrap text-white/75">
+      {FOOTER.soon}
+    </span>
+  )
+}
+
+const ZaloLink = ({ className, children, ...props }) => (
+  <a href={ZALO_HREF} target="_blank" rel="noopener noreferrer" className={className} {...props}>
+    {children}
+    <span className="sr-only"> {CONTACT_CTA.newTabHint}</span>
+  </a>
+)
+
+const socialCircle = 'relative flex size-9 items-center justify-center rounded-full'
+
+/** Zalo is live (same chat as the floating CTA); the other networks have no page yet. */
 function SocialIcon({ name }) {
   const icon = SOCIAL[name]
   if (!icon) return null
+  const glyph = (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="size-[18px]" fill="currentColor">
+      <path d={icon.path} fillRule="evenodd" clipRule="evenodd" />
+    </svg>
+  )
+  if (name !== 'zalo') {
+    const label = `${icon.label} – ${FOOTER.soon}`
+    return (
+      <span role="img" aria-label={label} title={label} className={cn(socialCircle, 'bg-white/5 text-white/50')}>
+        {glyph}
+      </span>
+    )
+  }
   return (
-    <a
-      href="#"
-      onClick={stayPut}
-      aria-label={icon.label}
+    <ZaloLink
+      aria-label={`${icon.label} ${CONTACT_CTA.newTabHint}`}
       className={cn(
         // 36px circle; the ::after extends the hit area to 44px.
-        'relative flex size-9 items-center justify-center rounded-full bg-white/10 text-white',
+        socialCircle,
+        'bg-white/10 text-white',
         'transition-[background-color,transform] duration-200 outline-none after:absolute after:-inset-1 after:content-[""]',
         'hover:-translate-y-0.5 hover:bg-white/20 focus-ring-light',
         'motion-reduce:transition-none motion-reduce:hover:translate-y-0',
       )}
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="size-[18px]" fill="currentColor">
-        <path d={icon.path} fillRule="evenodd" clipRule="evenodd" />
-      </svg>
-    </a>
+      {glyph}
+    </ZaloLink>
   )
 }
 
-function LinkGroup({ group, sectionLinks }) {
+const isSoon = (link) => !link.id
+
+function FooterLink({ link, badge }) {
+  if (link.id) {
+    return (
+      <a
+        href={`#${link.id}`}
+        onClick={(event) => {
+          event.preventDefault()
+          scrollToSection(link.id)
+        }}
+        className={linkClass}
+      >
+        {link.label}
+      </a>
+    )
+  }
+  return (
+    <span className={soonClass}>
+      {link.label}
+      {badge ? <SoonBadge /> : null}
+    </span>
+  )
+}
+
+/** A group with no live link carries one badge on its heading instead of one per item. */
+function LinkGroup({ group }) {
+  const allSoon = group.links.every(isSoon)
   return (
     <div data-reveal className="flex flex-col gap-3">
-      <h3 className="text-body font-semibold text-white">{group.title}</h3>
+      <h3 className="flex items-center gap-2 text-body font-semibold text-white">
+        {group.title}
+        {allSoon ? <SoonBadge /> : null}
+      </h3>
       <ul className="flex flex-col lg:gap-1">
-        {group.links.map((label) => {
-          const id = sectionLinks ? PRODUCT_SECTION_IDS[label] : undefined
-          return (
-            <li key={label}>
-              {id ? (
-                <a
-                  href={`#${id}`}
-                  onClick={(event) => {
-                    event.preventDefault()
-                    scrollToSection(id)
-                  }}
-                  className={linkClass}
-                >
-                  {label}
-                </a>
-              ) : (
-                <a href="#" onClick={stayPut} className={linkClass}>
-                  {label}
-                </a>
-              )}
-            </li>
-          )
-        })}
+        {group.links.map((link) => (
+          <li key={link.label}>
+            <FooterLink link={link} badge={!allSoon} />
+          </li>
+        ))}
       </ul>
     </div>
   )
@@ -214,8 +253,8 @@ export default function Footer() {
             </ul>
           </div>
 
-          {FOOTER.groups.map((group, i) => (
-            <LinkGroup key={group.title} group={group} sectionLinks={i === 0} />
+          {FOOTER.groups.map((group) => (
+            <LinkGroup key={group.title} group={group} />
           ))}
 
           <div data-reveal className="col-span-2 flex flex-col gap-3 md:col-span-3 lg:col-span-1">
@@ -226,6 +265,12 @@ export default function Footer() {
                   <Phone aria-hidden="true" className="size-4 shrink-0 text-white/70" />
                   {FOOTER.phone}
                 </a>
+              </li>
+              <li>
+                <ZaloLink className={cn(linkClass, 'gap-3')}>
+                  <MessageCircle aria-hidden="true" className="size-4 shrink-0 text-white/70" />
+                  {FOOTER.zaloLabel}
+                </ZaloLink>
               </li>
               <li>
                 <a href={`mailto:${FOOTER.email}`} className={cn(linkClass, 'gap-3 break-all')}>
@@ -243,21 +288,23 @@ export default function Footer() {
 
         <Separator className="mt-12 bg-white/10 lg:mt-14" />
 
-        <div className="flex flex-col-reverse gap-3 pt-6 text-body pr-20 min-[1360px]:pr-0 md:flex-row md:items-center md:justify-between">
+        {/* Stacked below lg (copyright under the legal items, one per line on phones); one row from lg. */}
+        <div className="flex flex-col-reverse gap-3 pt-6 text-body pr-20 min-[1360px]:pr-0 lg:flex-row lg:items-center lg:justify-between">
           <p className="text-white/70">
             © {year} {FOOTER.copyright}
           </p>
-          <ul className="flex flex-wrap items-center gap-x-3">
+          <ul className="flex flex-col items-start gap-x-3 sm:flex-row sm:flex-wrap sm:items-center">
             {FOOTER.legal.map((label, i) => (
               <li key={label} className="flex items-center gap-3">
                 {i > 0 ? (
-                  <span aria-hidden="true" className="text-white/40">
+                  <span aria-hidden="true" className="hidden text-white/40 sm:inline">
                     |
                   </span>
                 ) : null}
-                <a href="#" onClick={stayPut} className={linkClass}>
+                <span className={soonClass}>
                   {label}
-                </a>
+                  <SoonBadge />
+                </span>
               </li>
             ))}
           </ul>
