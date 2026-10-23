@@ -5,35 +5,26 @@ import axios from 'axios';
  */
 export const geminiToolDeclarations = [
   {
-    name: 'query_user_drowsiness_stats',
-    description: 'Truy vấn thống kê mệt mỏi, buồn ngủ (drowsy), ngáp (yawn), xao nhãng và các khung giờ rủi ro cao từ các phiên lái xe của tài xế.',
+    name: 'get_user_safety_summary',
+    description: 'Summarize the authenticated user’s driving sessions, safety scores, drowsiness, yawning, distraction, alerts, and driving duration.',
     parameters: {
       type: 'OBJECT',
       properties: {
-        driver_id: {
-          type: 'STRING',
-          description: 'Mã định danh tài xế.'
-        },
-        timeframe: {
-          type: 'STRING',
-          description: 'Khoảng thời gian: "today", "week", "all".'
-        }
-      }
-    }
-  },
-  {
-    name: 'get_fleet_safety_summary',
-    description: 'Tổng hợp báo cáo an toàn toàn hệ thống dành cho Admin (tổng số vi phạm cấp 2, tài xế có nguy cơ cao nhất, số ca lái đêm).',
-    parameters: {
-      type: 'OBJECT',
-      properties: {
-        timeframe: {
-          type: 'STRING',
-          description: 'Khoảng thời gian: "today", "week", "month", "all".'
-        },
-        min_safety_score: {
+        requested_days: {
           type: 'INTEGER',
-          description: 'Lọc tài xế có điểm an toàn dưới ngưỡng này (VD: 90).'
+          description: 'Period in days; defaults to the most recent 7 days.'
+        },
+        start_date: {
+          type: 'STRING',
+          description: 'Optional inclusive period start in ISO format.'
+        },
+        end_date: {
+          type: 'STRING',
+          description: 'Optional inclusive period end in ISO format.'
+        },
+        session_id: {
+          type: 'STRING',
+          description: 'Optional driving session ID to summarize.'
         }
       }
     }
@@ -67,24 +58,6 @@ export const geminiToolDeclarations = [
       }
     }
   },
-  {
-    name: 'get_video_emotion_breakdown',
-    description: 'Lấy timeline phân tích cảm xúc chi tiết và danh sách mốc thời gian vi phạm trong video hành trình đã upload.',
-    parameters: {
-      type: 'OBJECT',
-      properties: {
-        video_id: {
-          type: 'STRING',
-          description: 'Mã định danh ID của video đã phân tích.'
-        },
-        threshold_level: {
-          type: 'INTEGER',
-          description: 'Lọc cấp độ cảnh báo tối thiểu: 1 (Cảnh báo) hoặc 2 (Nguy hiểm khẩn cấp).'
-        }
-      },
-      required: ['video_id']
-    }
-  }
 ];
 
 export const adminGeminiToolDeclarations = [
@@ -124,6 +97,40 @@ export async function executeTool(name, args = {}, context = {}) {
   }
 
   try {
+    if (name === 'get_user_safety_summary') {
+      if (typeof context.userAnalyticsResolver !== 'function') {
+        throw new Error('User analytics resolver is unavailable');
+      }
+      return {
+        tool: name,
+        status: 'SUCCESS',
+        data: await context.userAnalyticsResolver({
+          requestedDays: args.requested_days,
+          startDate: args.start_date,
+          endDate: args.end_date,
+          sessionId: args.session_id,
+        })
+      };
+    }
+
+    if (name === 'resolve_admin_analytics') {
+      if (typeof context.adminAnalyticsResolver !== 'function') {
+        throw new Error('Admin analytics resolver is unavailable');
+      }
+      const allowedIntents = ['overview', 'alerts', 'emotions', 'ranking'];
+      if (!allowedIntents.includes(args.intent)) {
+        throw new Error('Unsupported Admin analytics intent');
+      }
+      return {
+        tool: name,
+        status: 'SUCCESS',
+        data: await context.adminAnalyticsResolver({
+          intent: args.intent,
+          requestedDays: args.requested_days,
+        })
+      };
+    }
+
     if (name === 'query_emotion_stats') {
       const params = {};
       if (args.driver_id) params.driver_id = args.driver_id;
@@ -141,27 +148,6 @@ export async function executeTool(name, args = {}, context = {}) {
         tool: 'query_emotion_stats',
         status: 'SUCCESS',
         data: res.data
-      };
-    }
-
-    if (name === 'get_video_emotion_breakdown') {
-      const res = await axios.get(`${backendUrl}/api/analytics/videos/${args.video_id}`, {
-        headers,
-        timeout: 5000
-      });
-
-      let analysis = res.data.analysis;
-      if (args.threshold_level && analysis && analysis.violations) {
-        analysis = {
-          ...analysis,
-          violations: analysis.violations.filter(v => v.alert_level >= args.threshold_level)
-        };
-      }
-
-      return {
-        tool: 'get_video_emotion_breakdown',
-        status: 'SUCCESS',
-        data: analysis
       };
     }
 

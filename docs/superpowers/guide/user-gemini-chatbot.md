@@ -63,8 +63,6 @@ node test-chatbot.js
    - `get_user_safety_summary`: đọc `DrivingSession` của User đã xác thực;
    - `query_emotion_stats`: đọc `EmotionLog` cảm xúc/attention, backend ép
      `driver_id` về User đã xác thực;
-   - `get_video_emotion_breakdown`: đọc `VideoAnalysis`, backend kiểm tra
-     quyền sở hữu video.
 4. Thống kê chuyến lái và emotion mặc định dùng 7 ngày gần nhất. Ngày bắt
    đầu/kết thúc hoặc `session_id` cụ thể được giữ nguyên; truy vấn session cụ
    thể không bị giới hạn nhầm bởi cửa sổ 7 ngày.

@@ -6,7 +6,7 @@
  * 3. 2-Second Telemetry Batching Buffer (Queueing and flushing)
  * 4. Critical Alert Level 2 Instant Relay to Fleet Admin
  * 5. Emotion Analytics Aggregation API (/api/analytics/emotions)
- * 6. Video Analysis Report Persistence (/api/analytics/videos)
+ * 6. Removed Video Analysis report endpoints
  */
 
 import { io as ClientSocket } from 'socket.io-client';
@@ -208,35 +208,13 @@ async function runTests() {
     assert(analyticsRes.data.metrics.critical_alerts >= 1, `Ghi nhận chính xác số cảnh báo khẩn cấp (>= 1)`);
     assert(analyticsRes.data.emotion_distribution.neutral !== undefined, `Phân phối cảm xúc chứa 'neutral'`);
 
-    // 7. Kiểm tra Lưu và Đọc Video Analysis Report
-    console.log('\n\x1b[36m[Test 7] Kiểm tra Lưu và Truy vấn Báo cáo Phân tích Video (/api/analytics/videos)\x1b[0m');
-    const sampleVideoPayload = {
-      video_name: 'dashcam_trip_101.mp4',
-      driver_id: driverId,
-      duration_sec: 120,
-      violations: [
-        { timestamp_sec: 15.5, type: 'DROWSY', alert_level: 2, description: 'Nhắm mắt 2s' },
-        { timestamp_sec: 45.0, type: 'DISTRACTED', alert_level: 2, description: 'Quay đầu > 25°' }
-      ],
-      emotion_timeline: [
-        { timestamp_sec: 0, dominant_emotion: 'neutral', alert_level: 0 },
-        { timestamp_sec: 15.5, dominant_emotion: 'fatigued', alert_level: 2 }
-      ],
-      summary: {
-        total_duration_sec: 120,
-        total_violations: 2,
-        safety_score: 75
-      }
-    };
+    // 7. Removed offline video analysis report API
+    console.log('\n\x1b[36m[Test 7] Xác nhận API báo cáo phân tích video đã bị gỡ\x1b[0m');
+    const saveVidRes = await httpRequest('/api/analytics/videos', 'POST', { video_name: 'removed.mp4' });
+    assert(saveVidRes.status === 404, `POST /api/analytics/videos không còn khả dụng (Status: ${saveVidRes.status})`);
 
-    const saveVidRes = await httpRequest('/api/analytics/videos', 'POST', sampleVideoPayload);
-    assert(saveVidRes.status === 201, `Lưu báo cáo video thành công (Status: ${saveVidRes.status})`);
-    const videoId = saveVidRes.data.id;
-
-    const getVidRes = await httpRequest(`/api/analytics/videos/${videoId}`, 'GET');
-    assert(getVidRes.status === 200, `Lấy báo cáo video theo ID thành công`);
-    assert(getVidRes.data.analysis.violations.length === 2, `Dữ liệu vi phạm gồm 2 markers`);
-    assert(getVidRes.data.analysis.summary.safety_score === 75, `Điểm an toàn lưu trữ chính xác (75)`);
+    const getVidRes = await httpRequest('/api/analytics/videos/removed-id', 'GET');
+    assert(getVidRes.status === 404, `GET /api/analytics/videos/:id không còn khả dụng (Status: ${getVidRes.status})`);
 
   } catch (err) {
     console.error('\x1b[31m[Lỗi Test]:\x1b[0m', err);

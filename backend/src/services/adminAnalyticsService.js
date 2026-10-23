@@ -1,7 +1,6 @@
 import { User } from '../models/User.js';
 import { DrivingSession } from '../models/DrivingSession.js';
 import { EmotionLog } from '../models/EmotionLog.js';
-import { VideoAnalysis } from '../models/VideoAnalysis.js';
 import { getIsMongoConnected, memoryStore } from '../db.js';
 
 const EMOTIONS = ['neutral', 'happy', 'angry', 'sad', 'surprised', 'fatigued'];
@@ -59,7 +58,7 @@ function emptyResult(organizationId, period) {
     reply: 'Tổ chức chưa có dữ liệu phù hợp. Hãy thêm nhân viên và tạo phiên lái để FleetGuard bắt đầu ghi nhận.',
     period: { source: period.source, organizationId },
     source: 'internal',
-    recordsUsed: { sessions: 0, emotionLogs: 0, videos: 0 },
+    recordsUsed: { sessions: 0, emotionLogs: 0 },
   };
 }
 
@@ -72,9 +71,8 @@ export async function resolveAdminAnalytics({
   users,
   sessions,
   emotionLogs,
-  videos = [],
   mongoConnected = getIsMongoConnected(),
-  models = { User, DrivingSession, EmotionLog, VideoAnalysis },
+  models = { User, DrivingSession, EmotionLog },
 } = {}) {
   if (!organizationId) {
     return emptyResult(null, periodFor(7, now));
@@ -83,7 +81,6 @@ export async function resolveAdminAnalytics({
   let scopedUsers;
   let scopedSessions;
   let scopedEmotionLogs;
-  let scopedVideos;
 
   if (users && sessions && emotionLogs) {
     scopedUsers = users.map(toPlain).filter((user) => user.organizationId === organizationId);
@@ -92,7 +89,6 @@ export async function resolveAdminAnalytics({
       .map((user) => String(user.id || user._id)));
     scopedSessions = sessions.map(toPlain).filter((session) => driverIds.has(String(session.user_id)));
     scopedEmotionLogs = emotionLogs.map(toPlain).filter((log) => driverIds.has(String(log.driver_id)));
-    scopedVideos = videos.map(toPlain).filter((video) => driverIds.has(String(video.driver_id)));
   } else if (mongoConnected) {
     scopedUsers = await models.User.find({ organizationId }).select('name id _id role').lean();
     const driverIds = scopedUsers
@@ -100,7 +96,6 @@ export async function resolveAdminAnalytics({
       .map((user) => String(user.id || user._id));
     scopedSessions = await models.DrivingSession.find({ user_id: { $in: driverIds } }).lean();
     scopedEmotionLogs = await models.EmotionLog.find({ driver_id: { $in: driverIds } }).lean();
-    scopedVideos = await models.VideoAnalysis.find({ driver_id: { $in: driverIds } }).lean();
   } else {
     return resolveAdminAnalytics({
       organizationId,
@@ -111,11 +106,10 @@ export async function resolveAdminAnalytics({
       users: Array.from(memoryStore.users.values()),
       sessions: Array.from(memoryStore.sessions.values()),
       emotionLogs: memoryStore.emotionLogs,
-      videos: Array.from(memoryStore.videoAnalyses.values()),
     });
   }
 
-  const relevantRecords = [...scopedSessions, ...scopedEmotionLogs, ...scopedVideos];
+  const relevantRecords = [...scopedSessions, ...scopedEmotionLogs];
   const requestedPeriod = requestedDays ? periodFor(requestedDays, now) : null;
   const period = requestedPeriod && relevantRecords.some((record) => inPeriod(record.timestamp || record.start_time, requestedPeriod))
     ? requestedPeriod
@@ -124,10 +118,7 @@ export async function resolveAdminAnalytics({
     inPeriod(session.start_time, period) && (!driverId || String(session.user_id) === String(driverId)));
   const filteredEmotionLogs = scopedEmotionLogs.filter((log) =>
     inPeriod(log.timestamp, period) && (!driverId || String(log.driver_id) === String(driverId)));
-  const filteredVideos = scopedVideos.filter((video) =>
-    inPeriod(video.created_at || video.timestamp, period) && (!driverId || String(video.driver_id) === String(driverId)));
-
-  if (!filteredSessions.length && !filteredEmotionLogs.length && !filteredVideos.length) {
+  if (!filteredSessions.length && !filteredEmotionLogs.length) {
     return emptyResult(organizationId, period);
   }
 
@@ -153,7 +144,7 @@ export async function resolveAdminAnalytics({
   const base = {
     period: { source: period.source, start: period.start?.toISOString() || null, end: period.end.toISOString(), organizationId },
     source: 'internal',
-    recordsUsed: { sessions: filteredSessions.length, emotionLogs: filteredEmotionLogs.length, videos: filteredVideos.length },
+    recordsUsed: { sessions: filteredSessions.length, emotionLogs: filteredEmotionLogs.length },
     driverIds: [...new Set([...filteredSessions.map((session) => String(session.user_id)), ...filteredEmotionLogs.map((log) => String(log.driver_id))])],
   };
 

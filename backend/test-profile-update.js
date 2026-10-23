@@ -47,6 +47,76 @@ assert.equal(memoryStore.users.get(userId).name, 'New Name');
 assert.equal(memoryStore.auditLogs.at(-1).action, 'UPDATE_PROFILE');
 assert.deepEqual(memoryStore.auditLogs.at(-1).metadata.changedFields, ['name', 'phone', 'dateOfBirth', 'avatarColor']);
 
+const avatarImage = `data:image/jpeg;base64,${Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString('base64')}`;
+const avatarResponse = await fetch(`http://localhost:${port}/api/auth/me`, {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+  body: JSON.stringify({
+    name: 'New Name',
+    phone: '0901234567',
+    dateOfBirth: '12-04-1998',
+    avatarColor: '#2563eb',
+    avatarImage,
+  }),
+});
+assert.equal(avatarResponse.status, 200);
+const avatarResult = await avatarResponse.json();
+assert.equal(avatarResult.user.avatarImage, avatarImage);
+assert.equal(memoryStore.users.get(userId).avatarImage, avatarImage);
+assert.ok(memoryStore.auditLogs.at(-1).metadata.changedFields.includes('avatarImage'));
+
+const keepAvatarResponse = await fetch(`http://localhost:${port}/api/auth/me`, {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+  body: JSON.stringify({
+    name: 'New Name',
+    phone: '0901234567',
+    dateOfBirth: '12-04-1998',
+    avatarColor: '#2563eb',
+  }),
+});
+assert.equal(keepAvatarResponse.status, 200);
+assert.equal(memoryStore.users.get(userId).avatarImage, avatarImage);
+
+for (const invalidAvatar of [
+  'data:image/png;base64,/9j/2Q==',
+  'data:image/jpeg;base64,not-base64!',
+]) {
+  const invalidAvatarResponse = await fetch(`http://localhost:${port}/api/auth/me`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      name: 'Must Not Save',
+      phone: '0901234567',
+      dateOfBirth: '12-04-1998',
+      avatarColor: '#2563eb',
+      avatarImage: invalidAvatar,
+    }),
+  });
+  assert.equal(invalidAvatarResponse.status, 400);
+  assert.equal(memoryStore.users.get(userId).name, 'New Name');
+  assert.equal(memoryStore.users.get(userId).avatarImage, avatarImage);
+}
+
+const oversizedAvatar = `data:image/jpeg;base64,${Buffer.concat([
+  Buffer.from([0xff, 0xd8, 0xff, 0xd9]),
+  Buffer.alloc(512 * 1024),
+]).toString('base64')}`;
+const oversizedAvatarResponse = await fetch(`http://localhost:${port}/api/auth/me`, {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+  body: JSON.stringify({
+    name: 'Must Not Save',
+    phone: '0901234567',
+    dateOfBirth: '12-04-1998',
+    avatarColor: '#2563eb',
+    avatarImage: oversizedAvatar,
+  }),
+});
+assert.equal(oversizedAvatarResponse.status, 400);
+assert.equal(memoryStore.users.get(userId).name, 'New Name');
+assert.equal(memoryStore.users.get(userId).avatarImage, avatarImage);
+
 const invalidPhone = await fetch(`http://localhost:${port}/api/auth/me`, {
   method: 'PUT',
   headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },

@@ -16,12 +16,10 @@ flowchart TD
     D --> F{Tool selected?}
     F -->|Session summary| G[DrivingSession query for authenticated user]
     F -->|Emotion detail| H[EmotionLog analytics for authenticated user]
-    F -->|Video detail| I[VideoAnalysis lookup with owner check]
     E --> J[Backend validates intent and period]
     J --> K[Analytics for authenticated Admin organization]
     G --> L[Structured tool result]
     H --> L
-    I --> L
     K --> L
     L --> M[Gemini explains returned records]
     M --> N[reply + structuredData + toolsUsed + model status]
@@ -43,9 +41,6 @@ flowchart TD
 - For detailed emotion telemetry, Gemini can call `query_emotion_stats`; the
   backend forces the authenticated User ID and defaults the time range to the
   latest 7 days when no range is supplied.
-- For a requested analyzed video, Gemini can call
-  `get_video_emotion_breakdown`. The authenticated backend verifies ownership
-  of the video record.
 - General safety advice may be answered directly by Gemini; the assistant must
   not invent telemetry when no analytics tool was used.
 
@@ -57,7 +52,7 @@ flowchart TD
   arguments.
 - The backend supplies the authenticated Admin's organization to analytics.
   Records are derived from that organization's users and their
-  `DrivingSession`, `EmotionLog`, and `VideoAnalysis` records.
+  `DrivingSession` and `EmotionLog` records.
 - The default period is 7 days. When it contains no usable records, analytics
   expands to 30 days and then all history for that organization. An explicit
   requested period is tried first.
@@ -101,8 +96,7 @@ Provider errors never expose credentials or raw provider messages to the UI.
 
 `DrivingSession` stores trip-level measures such as safety score, duration,
 drowsiness/yawn/distraction counts, and peak alert level. `EmotionLog` stores
-frame-level emotion and attention telemetry. `VideoAnalysis` stores analyzed
-video timelines and violation markers.
+frame-level emotion and attention telemetry.
 
 Gemini interprets questions, selects approved tools, and explains structured
 results. It does not perform face recognition or train the computer-vision

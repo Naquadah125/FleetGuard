@@ -1,5 +1,4 @@
 import { EmotionLog } from '../models/EmotionLog.js';
-import { VideoAnalysis } from '../models/VideoAnalysis.js';
 import { DrivingSession } from '../models/DrivingSession.js';
 import { User } from '../models/User.js';
 import { getIsMongoConnected, memoryStore } from '../db.js';
@@ -180,73 +179,6 @@ export async function getEmotionAnalytics(req, res) {
         status_counts: statusCounts
       });
     }
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
-}
-
-/**
- * GET /api/videos/analysis/:id
- * Fetch offline video analysis report with emotion timeline and violation markers
- */
-export async function getVideoAnalysis(req, res) {
-  try {
-    const { id } = req.params;
-    const userId = req.user.id || req.user._id?.toString();
-    const isScopedUser = req.user.role === 'DRIVER' || req.user.role === 'USER';
-
-    let analysis = null;
-    if (getIsMongoConnected()) {
-      const filter = isScopedUser ? { _id: id, driver_id: userId } : { _id: id };
-      analysis = await VideoAnalysis.findOne(filter);
-    } else {
-      analysis = memoryStore.videoAnalyses.get(id);
-      if (isScopedUser && analysis?.driver_id !== userId) analysis = null;
-    }
-
-    if (!analysis) {
-      return res.status(404).json({ success: false, message: 'Video analysis report not found' });
-    }
-
-    return res.json({
-      success: true,
-      analysis
-    });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
-}
-
-/**
- * POST /api/videos/analysis
- * Save offline video analysis report
- */
-export async function saveVideoAnalysis(req, res) {
-  try {
-    const payload = req.body;
-    if (!payload || !payload.video_name) {
-      return res.status(400).json({ success: false, message: 'video_name is required' });
-    }
-
-    let saved = null;
-    if (getIsMongoConnected()) {
-      saved = await VideoAnalysis.create(payload);
-    } else {
-      const id = 'vid_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
-      saved = {
-        _id: id,
-        id,
-        ...payload,
-        created_at: new Date()
-      };
-      memoryStore.videoAnalyses.set(id, saved);
-    }
-
-    return res.status(201).json({
-      success: true,
-      id: saved._id || saved.id,
-      analysis: saved
-    });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -497,8 +429,6 @@ export async function getChatSession(req, res) {
 
 export default {
   getEmotionAnalytics,
-  getVideoAnalysis,
-  saveVideoAnalysis,
   getFleetOverview,
   saveDrivingSession,
   getDrivingSessions,

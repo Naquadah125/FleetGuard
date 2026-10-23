@@ -132,63 +132,34 @@ export default function DriverHistory() {
   return (
     <div>
       {/* Filter Bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '20px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div className={styles.historyFilters}>
+        <div className={styles.historyFilterLabel}>
           <Filter size={16} color="var(--text-muted)" />
           <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>
             Lọc theo điểm số:
           </span>
+        </div>
+        <div className={styles.historyFilterOptions}>
           <button
-            style={{
-              padding: '6px 14px',
-              borderRadius: '8px',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              background: filterScore === 'all' ? 'var(--amber-primary)' : '#FFFFFF',
-              color: filterScore === 'all' ? '#0F172A' : 'var(--text-secondary)',
-              border: filterScore === 'all' ? '1px solid var(--amber-primary)' : '1px solid var(--card-border)',
-              boxShadow: 'var(--shadow-sm)',
-            }}
+            type="button"
+            className={`${styles.scoreFilterButton} ${filterScore === 'all' ? styles.scoreFilterActive : ''}`}
+            aria-pressed={filterScore === 'all'}
             onClick={() => setFilterScore('all')}
           >
             Tất cả ({allMyTrips.length})
           </button>
           <button
-            style={{
-              padding: '6px 14px',
-              borderRadius: '8px',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              background: filterScore === 'high' ? 'var(--amber-primary)' : '#FFFFFF',
-              color: filterScore === 'high' ? '#0F172A' : 'var(--text-secondary)',
-              border: filterScore === 'high' ? '1px solid var(--amber-primary)' : '1px solid var(--card-border)',
-              boxShadow: 'var(--shadow-sm)',
-            }}
+            type="button"
+            className={`${styles.scoreFilterButton} ${filterScore === 'high' ? styles.scoreFilterActive : ''}`}
+            aria-pressed={filterScore === 'high'}
             onClick={() => setFilterScore('high')}
           >
             An toàn (&ge; 90đ)
           </button>
           <button
-            style={{
-              padding: '6px 14px',
-              borderRadius: '8px',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              background: filterScore === 'low' ? 'var(--amber-primary)' : '#FFFFFF',
-              color: filterScore === 'low' ? '#0F172A' : 'var(--text-secondary)',
-              border: filterScore === 'low' ? '1px solid var(--amber-primary)' : '1px solid var(--card-border)',
-              boxShadow: 'var(--shadow-sm)',
-            }}
+            type="button"
+            className={`${styles.scoreFilterButton} ${filterScore === 'low' ? styles.scoreFilterActive : ''}`}
+            aria-pressed={filterScore === 'low'}
             onClick={() => setFilterScore('low')}
           >
             Có cảnh báo (&lt; 90đ)

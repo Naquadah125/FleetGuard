@@ -7,11 +7,10 @@ analytics remain the source of numeric data.
 ## Roles and tools
 
 - **User / Driver:** `get_user_safety_summary` reads the authenticated user's
-  `DrivingSession` records. `query_emotion_stats` and
-  `get_video_emotion_breakdown` provide scoped emotion and video detail.
+  `DrivingSession` records; `query_emotion_stats` provides scoped emotion detail.
 - **Admin:** `resolve_admin_analytics` accepts only an analytics intent and
   optional period. The backend derives the authenticated Admin's organization
-  and queries only its users' session, emotion, and video records.
+  and queries only its users' session and emotion records.
 
 User summaries and emotion statistics default to the latest 7 days. Admin
 analytics default to 7 days, expanding to 30 days and then all organization

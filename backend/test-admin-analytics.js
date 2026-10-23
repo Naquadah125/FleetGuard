@@ -49,20 +49,6 @@ const deps = {
       status: 'DROWSY',
     },
   ],
-  videos: [
-    {
-      driver_id: 'driver-a',
-      created_at: daysAgo(12),
-      summary: { safety_score: 82, total_violations: 2 },
-      violations: [{ alert_level: 2 }, { alert_level: 1 }],
-    },
-    {
-      driver_id: 'driver-b',
-      created_at: daysAgo(1),
-      summary: { safety_score: 10, total_violations: 9 },
-      violations: Array(9).fill({ alert_level: 2 }),
-    },
-  ],
 };
 
 const overview = await resolveAdminAnalytics({
@@ -76,7 +62,7 @@ assert.equal(overview.type, 'fleet_overview');
 assert.equal(overview.period.source, '30d');
 assert.equal(overview.recordsUsed.sessions, 1);
 assert.equal(overview.metrics.criticalAlerts, 1);
-assert.equal(overview.recordsUsed.videos, 1);
+assert.equal('videos' in overview.recordsUsed, false);
 assert.deepEqual(overview.driverIds, ['driver-a']);
 
 const queryModel = (records) => ({
@@ -102,10 +88,9 @@ const mongoOverview = await resolveAdminAnalytics({
     User: queryModel(deps.users),
     DrivingSession: queryModel(deps.sessions),
     EmotionLog: queryModel(deps.emotionLogs),
-    VideoAnalysis: queryModel(deps.videos),
   },
 });
-assert.equal(mongoOverview.recordsUsed.videos, 1);
+assert.equal('videos' in mongoOverview.recordsUsed, false);
 assert.deepEqual(mongoOverview.driverIds, ['driver-a']);
 
 const requested = await resolveAdminAnalytics({

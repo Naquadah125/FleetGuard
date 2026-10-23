@@ -263,7 +263,9 @@ export default function AdminLayout() {
                   style={{ backgroundColor: user?.avatarColor || '#F59E0B' }}
                   title={user?.name || 'Quản trị viên'}
                 >
-                  {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
+                  {user?.avatarImage
+                    ? <img src={user.avatarImage} alt="" />
+                    : (user?.name ? user.name.charAt(0).toUpperCase() : 'A')}
                 </div>
                 <div className={styles.userInfoText}>
                   <div className={styles.userName}>{user?.name || 'Quản trị viên'}</div>

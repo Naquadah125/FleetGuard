@@ -1,8 +1,6 @@
 import express from 'express';
 import {
   getEmotionAnalytics,
-  getVideoAnalysis,
-  saveVideoAnalysis,
   getFleetOverview,
   saveDrivingSession,
   getDrivingSessions,
@@ -87,9 +85,5 @@ router.post('/admin/audit-log', requireAuth, requireAdmin, async (req, res) => {
   });
   return res.status(201).json({ success: true });
 });
-
-// Video Analysis endpoints
-router.get('/videos/:id', requireAuth, getVideoAnalysis);
-router.post('/videos', saveVideoAnalysis);
 
 export default router;

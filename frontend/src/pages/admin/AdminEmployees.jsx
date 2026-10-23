@@ -269,9 +269,12 @@ export default function AdminEmployees() {
               fontWeight: 800,
               fontSize: '13px',
               flexShrink: 0,
+              overflow: 'hidden',
             }}
           >
-            {row.name ? row.name.charAt(0).toUpperCase() : 'T'}
+            {row.avatarImage
+              ? <img src={row.avatarImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : (row.name ? row.name.charAt(0).toUpperCase() : 'T')}
           </div>
           <div>
             <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{row.name}</div>

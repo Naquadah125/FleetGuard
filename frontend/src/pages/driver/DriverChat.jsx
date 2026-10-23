@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Bot, Plus, Send, Sparkles } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import ChatMessageContent from '../../components/common/ChatMessageContent'
 import styles from './DriverChat.module.css'
 
 const starterPrompts = [
@@ -141,7 +142,9 @@ export default function DriverChat() {
                 key={`${item.timestamp || 'message'}-${index}`}
               >
                 <strong>{item.role === 'user' ? 'Bạn' : 'FleetGuard AI'}</strong>
-                <p>{item.message}</p>
+                <div className={styles.messageBody}>
+                  <ChatMessageContent content={item.message} role={item.role} />
+                </div>
               </article>
             ))}
             {loading && <div className={`${styles.message} ${styles.modelMessage}`}><strong>FleetGuard AI</strong><p>Đang hỏi Gemini và đọc dữ liệu...</p></div>}

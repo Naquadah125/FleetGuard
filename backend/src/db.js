@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { User, EmotionLog, VideoAnalysis, ChatConversation } from './models/index.js';
+import { User, EmotionLog, ChatConversation } from './models/index.js';
 
 let isMongoConnected = false;
 
@@ -8,7 +8,6 @@ export const memoryStore = {
   users: new Map(),
   sessions: new Map(),
   emotionLogs: [],
-  videoAnalyses: new Map(),
   chatConversations: [],
   auditLogs: []
 };

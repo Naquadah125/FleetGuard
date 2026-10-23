@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Bot, Download, Plus, Send, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import ChatMessageContent from '../../components/common/ChatMessageContent'
 import styles from './AdminChat.module.css'
 
 const starterPrompts = [
@@ -110,7 +111,14 @@ export default function AdminChat() {
         <div className={styles.chatPanel}>
           <div className={styles.messages} aria-live="polite">
             {!messages.length && <div className={styles.emptyState}><Sparkles size={28} /><h2>Hỏi về vận hành đội xe</h2><p>Chọn một câu hỏi hoặc nhập yêu cầu phân tích.</p><div className={styles.promptList}>{starterPrompts.map((prompt) => <button key={prompt} type="button" onClick={() => sendMessage(null, prompt)}>{prompt}</button>)}</div></div>}
-            {messages.map((item, index) => <article className={`${styles.message} ${item.role === 'user' ? styles.userMessage : styles.modelMessage}`} key={`${item.timestamp || 'message'}-${index}`}><strong>{item.role === 'user' ? 'Bạn' : 'FleetGuard AI'}</strong><p>{item.message}</p></article>)}
+            {messages.map((item, index) => (
+              <article className={`${styles.message} ${item.role === 'user' ? styles.userMessage : styles.modelMessage}`} key={`${item.timestamp || 'message'}-${index}`}>
+                <strong>{item.role === 'user' ? 'Bạn' : 'FleetGuard AI'}</strong>
+                <div className={styles.messageBody}>
+                  <ChatMessageContent content={item.message} role={item.role} />
+                </div>
+              </article>
+            ))}
             {loading && <article className={`${styles.message} ${styles.modelMessage}`}><strong>FleetGuard AI</strong><p>Đang tổng hợp dữ liệu tổ chức...</p></article>}
           </div>
           {error && <div className={styles.error} role="alert">{error}</div>}

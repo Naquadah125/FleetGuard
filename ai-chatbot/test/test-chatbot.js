@@ -3,7 +3,7 @@
  * Tests:
  * 1. RBAC Security: Enforcing FLEET_ADMIN role, rejecting DRIVER role
  * 2. Tool Declarations: Validating Gemini function calling schemas
- * 3. Tool Execution: Calling query_emotion_stats & get_video_emotion_breakdown
+ * 3. Tool Execution: Calling query_emotion_stats
  * 4. Multi-turn Agent Loop: Synthesizing natural reply + structuredData JSON
  */
 
@@ -203,27 +203,6 @@ async function runTests() {
         return;
       }
 
-      if (req.url.startsWith('/api/analytics/videos/')) {
-        res.writeHead(200);
-        res.end(JSON.stringify({
-          success: true,
-          analysis: {
-            video_name: 'cam_trip_888.mp4',
-            duration_sec: 180,
-            violations: [
-              { timestamp_sec: 24.0, type: 'DROWSY', alert_level: 2 },
-              { timestamp_sec: 95.5, type: 'DISTRACTED', alert_level: 2 }
-            ],
-            summary: {
-              total_duration_sec: 180,
-              total_violations: 2,
-              safety_score: 70
-            }
-          }
-        }));
-        return;
-      }
-
       res.writeHead(404);
       res.end(JSON.stringify({ success: false, message: 'Not found' }));
     });
@@ -405,12 +384,14 @@ async function runTests() {
     // 2. Kiểm tra Tool Declarations
     console.log('\n\x1b[36m[Test 2] Kiểm tra Khai báo Công cụ (Gemini Function Declarations)\x1b[0m');
     assert(Array.isArray(geminiToolDeclarations), `Khai báo công cụ là một mảng`);
-    assert(geminiToolDeclarations.length === 3, `Có ba công cụ dữ liệu dành cho User`);
+    assert(geminiToolDeclarations.length === 2, `Có hai công cụ dữ liệu dành cho User`);
 
     const hasEmotionTool = geminiToolDeclarations.some(t => t.name === 'query_emotion_stats');
     const hasVideoTool = geminiToolDeclarations.some(t => t.name === 'get_video_emotion_breakdown');
     assert(hasEmotionTool, `Công cụ 'query_emotion_stats' được định nghĩa hợp lệ`);
-    assert(hasVideoTool, `Công cụ 'get_video_emotion_breakdown' được định nghĩa hợp lệ`);
+    assert(!hasVideoTool, `Công cụ tra cứu báo cáo video không được khai báo`);
+    const removedVideoTool = await executeTool('get_video_emotion_breakdown', { video_id: 'removed' });
+    assert(removedVideoTool.status === 'ERROR', `Công cụ tra cứu báo cáo video không thể thực thi`);
 
     // 3. Kiểm tra Gọi Tool query_emotion_stats trực tiếp
     console.log('\n\x1b[36m[Test 3] Kiểm tra Thực thi Tool query_emotion_stats\x1b[0m');
@@ -420,15 +401,6 @@ async function runTests() {
     assert(emotionToolRes.status === 'SUCCESS', `Thực thi tool query_emotion_stats thành công`);
     assert(emotionToolRes.data.metrics.total_records === 120, `Lấy đúng số bản ghi (120) từ backend`);
     assert(emotionToolRes.data.metrics.critical_alerts === 2, `Lấy đúng số cảnh báo khẩn cấp (2)`);
-
-    // 4. Kiểm tra Gọi Tool get_video_emotion_breakdown trực tiếp
-    console.log('\n\x1b[36m[Test 4] Kiểm tra Thực thi Tool get_video_emotion_breakdown\x1b[0m');
-    const videoToolRes = await executeTool('get_video_emotion_breakdown', { video_id: 'cam_trip_888' }, {
-      backendUrl: `http://localhost:${MOCK_PORT}`
-    });
-    assert(videoToolRes.status === 'SUCCESS', `Thực thi tool get_video_emotion_breakdown thành công`);
-    assert(videoToolRes.data.violations.length === 2, `Lấy đúng danh sách vi phạm video (2 sự cố)`);
-    assert(videoToolRes.data.summary.safety_score === 70, `Lấy đúng điểm an toàn video (70/100)`);
 
   } catch (err) {
     console.error('\x1b[31m[Lỗi Test Chatbot]:\x1b[0m', err);

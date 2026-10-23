@@ -44,6 +44,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: '#2563EB'
   },
+  avatarImage: {
+    type: String,
+    default: ''
+  },
   created_at: {
     type: Date,
     default: Date.now

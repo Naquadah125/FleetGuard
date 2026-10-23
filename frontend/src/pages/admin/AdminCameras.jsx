@@ -351,9 +351,12 @@ export default function AdminCameras() {
                         fontWeight: 800,
                         fontSize: '12px',
                         flexShrink: 0,
+                        overflow: 'hidden',
                       }}
                     >
-                      {driver.name ? driver.name.charAt(0).toUpperCase() : 'T'}
+                      {driver.avatarImage
+                        ? <img src={driver.avatarImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : (driver.name ? driver.name.charAt(0).toUpperCase() : 'T')}
                     </div>
                     <div>
                       <div className={styles.tileDriverName} style={{ fontSize: '13.5px', fontWeight: 700 }}>
@@ -649,4 +652,3 @@ export default function AdminCameras() {
     </div>
   )
 }
-

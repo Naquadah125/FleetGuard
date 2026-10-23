@@ -125,6 +125,11 @@
 .message strong {
   color: var(--text-main);
   font-size: 12px;
+  display: block;
+}
+
+.messageBody {
+  margin-top: 6px;
 }
 
 .message p {

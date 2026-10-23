@@ -246,6 +246,14 @@
   color: #ffffff;
   font-size: 13px;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.userAvatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
 }
 
 .userName {
@@ -364,4 +372,186 @@
 .content {
   padding: 32px;
   flex: 1;
+}
+
+.mobileMenuButton,
+.mobileDrawerClose,
+.mobileAccount {
+  display: none;
+}
+
+.drawerBackdrop {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    width: min(288px, 86vw);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 0.25s ease, visibility 0s linear 0.25s;
+    z-index: 110;
+    overflow-y: auto;
+  }
+
+  .sidebar.sidebarCollapsed {
+    width: min(288px, 86vw);
+  }
+
+  .sidebar.navigationOpen {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform 0.25s ease;
+  }
+
+  .sidebarBrandCollapsed {
+    padding: 18px 16px;
+    justify-content: space-between;
+  }
+
+  .sidebarBrandCollapsed .collapseBtn {
+    display: none;
+  }
+
+  .mobileDrawerClose {
+    display: grid;
+    place-items: center;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-main);
+    cursor: pointer;
+  }
+
+  .sidebarCollapsed .navGroup {
+    padding: 0 12px;
+  }
+
+  .sidebarCollapsed .navItem {
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 11px 14px;
+  }
+
+  .navItem {
+    min-height: 44px;
+  }
+
+  .sidebarCollapsed .navItem span {
+    display: block;
+  }
+
+  .drawerBackdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 105;
+    border: 0;
+    background: rgba(15, 23, 42, 0.42);
+  }
+
+  .mobileMenuButton {
+    display: grid;
+    place-items: center;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-main);
+    cursor: pointer;
+  }
+
+  .mobileMenuButton:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  .mobileAccount {
+    display: grid;
+    gap: 6px;
+    padding: 16px 12px 20px;
+    border-top: 1px solid var(--card-border);
+  }
+
+  .mobileUser {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 8px 12px;
+    min-width: 0;
+  }
+
+  .mobileAccountItem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .mobileAccountItem:hover {
+    background: var(--bg-subtle);
+  }
+
+  .mobileLogout {
+    color: var(--red-dark);
+  }
+
+  .mainWrapper,
+  .mainWrapperCollapsed {
+    margin-left: 0;
+  }
+
+  .topbar {
+    height: 64px;
+    padding: 0 20px;
+    justify-content: flex-start;
+    gap: 12px;
+  }
+
+  .topbarTitle {
+    min-width: 0;
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar > .userDropdownWrapper {
+    display: none;
+  }
+
+  .content {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar {
+    padding: 0 12px;
+    gap: 8px;
+  }
+
+  .topbarTitle {
+    font-size: 0.95rem;
+  }
+
+  .content {
+    padding: 16px 12px;
+  }
 }

@@ -8,8 +8,9 @@ import { recordAuditEvent } from '../services/auditLogService.js';
 
 const router = express.Router();
 
-const PROFILE_FIELDS = ['name', 'phone', 'dateOfBirth', 'avatarColor'];
+const PROFILE_FIELDS = ['name', 'phone', 'dateOfBirth', 'avatarColor', 'avatarImage'];
 const PASSWORD_FIELDS = ['currentPassword', 'newPassword', 'confirmPassword'];
+const MAX_AVATAR_BYTES = 512 * 1024;
 
 function publicUser(user) {
   const source = user.toObject ? user.toObject() : user;
@@ -19,9 +20,25 @@ function publicUser(user) {
     _id: safeUser._id ? safeUser._id.toString() : safeUser.id,
     id: safeUser._id ? safeUser._id.toString() : safeUser.id,
     avatarColor: safeUser.avatarColor || '#2563EB',
+    avatarImage: safeUser.avatarImage || '',
     phone: safeUser.phone || '',
     dateOfBirth: safeUser.dateOfBirth || '',
   };
+}
+
+function isValidAvatarImage(value) {
+  if (value === '') return true;
+  if (typeof value !== 'string') return false;
+  const match = /^data:image\/jpeg;base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
+  if (!match) return false;
+
+  const image = Buffer.from(match[1], 'base64');
+  return image.toString('base64') === match[1]
+    && image.length <= MAX_AVATAR_BYTES
+    && image.length >= 3
+    && image[0] === 0xff
+    && image[1] === 0xd8
+    && image[2] === 0xff;
 }
 
 function parseDateOfBirth(value) {
@@ -45,6 +62,9 @@ function validateProfileBody(body) {
   if (!/^0\d{9}$/.test(body.phone || '')) return 'Số điện thoại phải có 10 chữ số Việt Nam';
   if (!parseDateOfBirth(body.dateOfBirth)) return 'Ngày sinh phải theo dạng DD-MM-YYYY và tuổi từ 16 đến 100';
   if (!/^#[0-9a-fA-F]{6}$/.test(body.avatarColor || '')) return 'Màu avatar không hợp lệ';
+  if (body.avatarImage !== undefined && !isValidAvatarImage(body.avatarImage)) {
+    return 'Ảnh đại diện phải là JPEG hợp lệ và không vượt quá 512 KB';
+  }
   const hasPassword = PASSWORD_FIELDS.some((key) => body[key] !== undefined && body[key] !== '');
   if (hasPassword && (!body.currentPassword || !body.newPassword || !body.confirmPassword)) {
     return 'Vui lòng nhập đủ thông tin mật khẩu';
@@ -266,12 +286,15 @@ router.put('/me', requireAuth, async (req, res) => {
       return res.status(401).json({ success: false, message: 'Mật khẩu hiện tại không đúng' });
     }
 
-    const changedFields = PROFILE_FIELDS.filter((field) => user[field] !== req.body[field]);
+    const changedFields = PROFILE_FIELDS.filter((field) => (
+      req.body[field] !== undefined && user[field] !== req.body[field]
+    ));
     Object.assign(user, {
       name: req.body.name.trim(),
       phone: req.body.phone,
       dateOfBirth: req.body.dateOfBirth,
       avatarColor: req.body.avatarColor,
+      ...(req.body.avatarImage !== undefined ? { avatarImage: req.body.avatarImage } : {}),
     });
     if (hasPassword) {
       user.passwordHash = await bcrypt.hash(req.body.newPassword, 10);
