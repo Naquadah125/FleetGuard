@@ -20,10 +20,10 @@ import {
   startSfxLoop,
   stopSfxLoop,
   playSfxPreview,
-  setSfxVolume,
 } from '../../utils/audio'
 import Meter from '../../components/common/Meter'
 import { getSocket } from '../../api/socket'
+import { buildTelemetryPayload } from '../../utils/telemetry'
 import styles from './DriverPages.module.css'
 
 // Helper for 2D distance
@@ -90,10 +90,6 @@ export default function DriverCamera() {
   const [selectedSfx, setSelectedSfx] = useState(() => {
     return localStorage.getItem('fleetguard_selected_sfx') || SFX_OPTIONS[0].src
   })
-  const [sfxVolume, setSfxVolumeState] = useState(() => {
-    const stored = Number(localStorage.getItem('fleetguard_sfx_volume'))
-    return Number.isFinite(stored) ? Math.min(100, Math.max(0, stored)) : 75
-  })
 
   // Alert Screen & Acknowledge State
   const [alertOverlay, setAlertOverlay] = useState(false)
@@ -124,11 +120,6 @@ export default function DriverCamera() {
   const [tripSync, setTripSync] = useState(null) // { type: 'ok' | 'error', text }
   const sessionRef = useRef(restoredSession) // { id, userId, startTime, accumulatedMs, lastResumeTime, stats }
 
-  useEffect(() => {
-    setSfxVolume(sfxVolume / 100)
-    localStorage.setItem('fleetguard_sfx_volume', String(sfxVolume))
-  }, [sfxVolume])
-
   // Refs
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
@@ -138,6 +129,7 @@ export default function DriverCamera() {
   const earWindowRef = useRef([])
   const lastFaceTimeRef = useRef(Date.now())
   const lastAlert2TimeRef = useRef(0)
+  const lastTelemetrySentRef = useRef(0)
   const cooldownUntilRef = useRef(0)
   const earRef = useRef(ear)
   const metricsRef = useRef({ ear: 0.32, mar: 0.18, yaw: 0, pitch: 0, perclos: 0, level: 0 })
@@ -168,7 +160,9 @@ export default function DriverCamera() {
     offscreenCanvas.width = 320
     offscreenCanvas.height = 240
     const ctx = offscreenCanvas.getContext('2d', { alpha: false })
+    const socket = getSocket()
 
+    let frameCount = 0
     const intervalId = setInterval(() => {
       const video = videoRef.current
       if (!video || video.readyState < 2) return
@@ -179,8 +173,6 @@ export default function DriverCamera() {
         const dId = user?._id || user?.id
         socket.emit('driver:camera_frame', {
           driverId: dId,
-          driverName: user?.name,
-          driverEmail: user?.email,
           organizationId: user?.organizationId,
           image: frameDataUrl,
           metrics: {
@@ -188,15 +180,19 @@ export default function DriverCamera() {
             timestamp: Date.now(),
           },
         })
+        frameCount++
+        if (frameCount === 1 || frameCount % 150 === 0) {
+          console.log('[DriverCamera] Streaming live frames to Socket.IO. Count:', frameCount)
+        }
       } catch (err) {
-        // ignore capture errors
+        console.warn('[DriverCamera] Frame capture error:', err)
       }
     }, 66)
 
     return () => {
       clearInterval(intervalId)
     }
-  }, [cameraActive, user?._id, user?.organizationId])
+  }, [cameraActive, user?._id, user?.id, user?.organizationId])
 
   // Cleanup camera active status on unmount
   useEffect(() => {
@@ -321,6 +317,11 @@ export default function DriverCamera() {
     setTripBusy(true)
     try {
       await saveSession(buildSessionPayload('ACTIVE'))
+      getSocket().emit('trip:lifecycle', {
+        session_id: sessionRef.current.id,
+        status: 'ACTIVE',
+        driver_id: user?._id || user?.id,
+      })
       setTripSync({ type: 'ok', text: 'Đã tạo phiên trên máy chủ' })
     } catch (err) {
       setTripSync({ type: 'error', text: 'Chưa lưu được phiên: ' + err.message })
@@ -357,6 +358,11 @@ export default function DriverCamera() {
 
     try {
       await saveSession(payload)
+      getSocket().emit('trip:lifecycle', {
+        session_id: payload.session_id,
+        status: 'COMPLETED',
+        driver_id: payload.user_id,
+      })
       setTripSync({ type: 'ok', text: `Đã lưu phiên · Điểm an toàn ${payload.safety_score}` })
     } catch (err) {
       setTripSync({ type: 'error', text: 'Không lưu được phiên: ' + err.message })
@@ -744,21 +750,47 @@ export default function DriverCamera() {
 
             // Determine Alert Level
             let newLvl = 0
+            let status = 'NORMAL'
             if (now > cooldownUntilRef.current) {
               if (consecutiveClosedRef.current >= 45 || currentPerclos >= 30) {
                 newLvl = 2
+                status = 'DROWSY'
                 setAlertReason('Phát hiện mắt nhắm quá lâu — Dấu hiệu ngủ gật nguy hiểm!')
                 triggerIncident('DROWSY', `Độ mở mắt ${currentEar} · ${consecutiveClosedRef.current} frames`, 2)
               } else if (currentMar > 0.60 || Math.abs(currentYaw) > 25 || Math.abs(currentPitch) > 20) {
                 newLvl = 1
-                if (currentMar > 0.60) triggerIncident('YAWN', `Độ mở miệng ${currentMar}`, 1)
-                else triggerIncident('DISTRACTED', `Lệch góc nhìn`, 1)
+                if (currentMar > 0.60) {
+                  status = 'YAWNING'
+                  triggerIncident('YAWN', `Độ mở miệng ${currentMar}`, 1)
+                } else {
+                  status = 'DISTRACTED'
+                  triggerIncident('DISTRACTED', `Lệch góc nhìn`, 1)
+                }
               } else {
                 newLvl = 0
               }
             }
 
             setLevel(newLvl)
+            const driverId = user?._id || user?.id
+            const session = sessionRef.current
+            if (tripActive && driverId && (newLvl === 2 || now - lastTelemetrySentRef.current >= 500)) {
+              getSocket().emit('telemetry:stream', buildTelemetryPayload({
+                sessionId: session?.id,
+                driverId,
+                organizationId: user?.organizationId,
+                timestamp: now,
+                ear: currentEar,
+                mar: currentMar,
+                perclos: currentPerclos,
+                yaw: currentYaw,
+                pitch: currentPitch,
+                level: newLvl,
+                status,
+                yawnCount: session?.stats?.yawn || 0,
+              }))
+              lastTelemetrySentRef.current = now
+            }
 
             // 5. Draw HUD Brackets & Landmarks on Overlay
             drawHudCanvas(ctx, canvas, landmarks, newLvl)
@@ -770,6 +802,18 @@ export default function DriverCamera() {
               setLevel(2)
               setAlertReason('Không phát hiện tài xế nhìn về phía trước quá 5 giây!')
               triggerIncident('NO_FACE', 'Không thấy tài xế > 5 giây', 2)
+              const driverId = user?._id || user?.id
+              if (tripActive && driverId) {
+                getSocket().emit('telemetry:stream', buildTelemetryPayload({
+                  sessionId: sessionRef.current?.id,
+                  driverId,
+                  organizationId: user?.organizationId,
+                  timestamp: now,
+                  level: 2,
+                  status: 'NO_FACE',
+                }))
+                lastTelemetrySentRef.current = now
+              }
             } else if (noFaceSec >= 2) {
               setLevel(1)
             }
@@ -815,7 +859,7 @@ export default function DriverCamera() {
         cameraInstanceRef.current = null
       }
     }
-  }, [cameraActive, earThreshold, triggerIncident])
+  }, [cameraActive, earThreshold, triggerIncident, tripActive, user])
 
   // Clean up media stream and audio on unmount
   useEffect(() => {
@@ -1048,21 +1092,6 @@ export default function DriverCamera() {
                 <Play size={13} />
                 <span>Nghe thử</span>
               </button>
-              <label className={styles.sfxVolumeControl} htmlFor="sfx-volume">
-                <Volume2 size={15} aria-hidden="true" />
-                <input
-                  id="sfx-volume"
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={sfxVolume}
-                  onChange={(e) => setSfxVolumeState(Number(e.target.value))}
-                  aria-label={`Âm lượng còi báo ${sfxVolume}%`}
-                  style={{ '--volume-level': `${sfxVolume}%` }}
-                />
-                <output htmlFor="sfx-volume">{sfxVolume}%</output>
-              </label>
             </div>
           </div>
         </div>

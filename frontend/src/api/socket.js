@@ -9,6 +9,7 @@ export function getSocket() {
     const url = window.location.origin;
     socket = io(url, {
       path: '/socket.io',
+      auth: { token: localStorage.getItem('fleet_token') },
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,

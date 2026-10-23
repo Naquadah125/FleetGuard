@@ -10,6 +10,7 @@ export class TelemetryHandler {
     this.telemetryBuffer = [];
     this.totalFlushedCount = 0;
     this.lastFlushTime = null;
+    this.activeAlerts = new Map();
     this.timer = null;
 
     this._startBatchTimer();
@@ -66,7 +67,11 @@ export class TelemetryHandler {
     this.io.on('connection', (socket) => {
       // 1. Join fleet admin room for real-time monitoring (organization scoped)
       socket.on('admin:join', (data) => {
-        const orgId = data?.organizationId || 'org_6adb1f069a6b13c161dc5f70';
+        const orgId = socket.authUser?.organizationId;
+        if (!orgId || !['ADMIN', 'FLEET_ADMIN'].includes(socket.authUser?.role)) {
+          socket.emit('admin:join:error', { message: 'Admin socket access required' });
+          return;
+        }
         socket.join('room:fleet_admins');
         socket.join(`room:org_${orgId}`);
         socket.emit('admin:joined', { room: `room:org_${orgId}`, timestamp: Date.now() });
@@ -74,11 +79,11 @@ export class TelemetryHandler {
 
       // 2. Driver registers their connection with organization
       socket.on('driver:join', (data) => {
-        if (data?.driverId) {
+        if (data?.driverId && socket.authUser?.id === data.driverId) {
           socket.driverId = data.driverId;
-          socket.organizationId = data.organizationId || null;
-          if (data.organizationId) {
-            socket.join(`room:org_${data.organizationId}`);
+          socket.organizationId = socket.authUser.organizationId || null;
+          if (socket.organizationId) {
+            socket.join(`room:org_${socket.organizationId}`);
           }
         }
       });
@@ -115,6 +120,7 @@ export class TelemetryHandler {
         const normalizedRecord = {
           session_id: payload.session_id || 'default_session',
           driver_id: payload.driver_id || 'default_driver',
+          organization_id: payload.organization_id || null,
           vehicle_id: payload.vehicle_id || null,
           timestamp: payload.timestamp ? new Date(payload.timestamp) : new Date(),
           dominant_emotion: payload.emotion || payload.dominant_emotion || 'neutral',
@@ -136,10 +142,27 @@ export class TelemetryHandler {
         this.io.to('room:fleet_admins').emit('telemetry:live', normalizedRecord);
 
         // Immediate relay if Alert Level 2 (Critical Alert: DROWSY, DISTRACTED, ANGRY_OUTBURST)
-        if (normalizedRecord.alert_level === 2) {
+        const alertKey = `${normalizedRecord.driver_id}:${normalizedRecord.session_id}`;
+        const previousAlert = this.activeAlerts.get(alertKey);
+        if (normalizedRecord.alert_level > 0) {
+          this.activeAlerts.set(alertKey, {
+            level: normalizedRecord.alert_level,
+            status: normalizedRecord.status,
+          });
+        } else {
+          this.activeAlerts.delete(alertKey);
+        }
+
+        const isNewIncident = normalizedRecord.alert_level > 0 && (
+          !previousAlert ||
+          normalizedRecord.alert_level > previousAlert.level ||
+          normalizedRecord.status !== previousAlert.status
+        );
+        if (isNewIncident) {
           const alertPayload = {
             alert_id: 'alt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
             driver_id: normalizedRecord.driver_id,
+            organization_id: normalizedRecord.organization_id,
             vehicle_id: normalizedRecord.vehicle_id,
             session_id: normalizedRecord.session_id,
             status: normalizedRecord.status,
@@ -152,8 +175,11 @@ export class TelemetryHandler {
             timestamp: normalizedRecord.timestamp
           };
 
-          // Broadcast immediately to Fleet Admins
-          this.io.to('room:fleet_admins').emit('alert:critical', alertPayload);
+          // Broadcast immediately so every Admin page can record the incident.
+          this.io.to('room:fleet_admins').emit('alert:incident', alertPayload);
+          if (normalizedRecord.alert_level === 2) {
+            this.io.to('room:fleet_admins').emit('alert:critical', alertPayload);
+          }
 
           // Echo back to Driver client
           socket.emit('alert:critical', alertPayload);
@@ -176,6 +202,17 @@ export class TelemetryHandler {
             this.io.to('room:fleet_admins').emit('driver:camera_status', payload);
           }
         }
+      });
+
+      socket.on('trip:lifecycle', (payload) => {
+        if (!payload || socket.authUser?.id !== payload.driver_id) return;
+        const organizationId = socket.authUser.organizationId;
+        if (!organizationId) return;
+        this.io.to(`room:org_${organizationId}`).emit('trip:lifecycle', {
+          session_id: payload.session_id,
+          status: payload.status,
+          driver_id: socket.authUser.id,
+        });
       });
     });
   }
