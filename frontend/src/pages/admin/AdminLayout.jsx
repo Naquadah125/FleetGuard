@@ -6,6 +6,8 @@ import {
   Users,
   History,
   FileText,
+  Route,
+  ClipboardList,
   Bot,
   LogOut,
   ShieldCheck,
@@ -15,6 +17,8 @@ import {
 } from 'lucide-react'
 import FleetGuardLogo from '@/components/brand/FleetGuardLogo'
 import { useAuth } from '../../context/AuthContext'
+import { getSocket } from '../../api/socket'
+import { updateDB } from '../../store/db'
 import { ToastContainer, toast } from '../../components/common/Toast'
 import styles from './AdminLayout.module.css'
 
@@ -70,6 +74,33 @@ export default function AdminLayout() {
     }
   }, [])
 
+  useEffect(() => {
+    const socket = getSocket()
+    const handleIncident = (payload) => {
+      if (!payload || payload.organization_id !== user?.organizationId) return
+      updateDB((db) => {
+        if (db.incidents.some((incident) => incident._id === payload.alert_id)) return db
+        db.incidents.unshift({
+          _id: payload.alert_id,
+          tripId: payload.session_id || null,
+          driverId: payload.driver_id,
+          organizationId: payload.organization_id,
+          ts: payload.timestamp || new Date().toISOString(),
+          type: payload.status === 'DROWSY' ? 'DROWSY' : payload.status === 'YAWNING' ? 'YAWN' : payload.status,
+          metrics: `EAR ${payload.ear} · MAR ${payload.mar} · PERCLOS ${payload.perclos}`,
+          level: payload.alert_level,
+          status: 'open',
+          resolvedBy: null,
+          note: '',
+        })
+        return db
+      }, { action: 'SOCKET_INCIDENT', incident: payload })
+      if (payload.alert_level === 2) toast.level2(payload)
+    }
+    socket.on('alert:incident', handleIncident)
+    return () => socket.off('alert:incident', handleIncident)
+  }, [user?.organizationId])
+
   const handleLogout = () => {
     setDropdownOpen(false)
     logout()
@@ -82,6 +113,8 @@ export default function AdminLayout() {
     if (path.includes('/employees')) return 'Quản Lý Đội Ngũ Nhân Viên'
     if (path.includes('/history')) return 'Nhật Ký Sự Cố & An Toàn'
     if (path.includes('/reports')) return 'Báo Cáo & Phân Tích An Toàn'
+    if (path.includes('/trips')) return 'Lịch Sử Chuyến Đi'
+    if (path.includes('/audit-log')) return 'Audit Log'
     return 'Trung Tâm Điều Hành Đội Xe'
   }
 
@@ -147,6 +180,24 @@ export default function AdminLayout() {
           >
             <History size={18} />
             <span>Lịch Sử Sự Cố</span>
+          </NavLink>
+
+          <NavLink
+            to="/admin/trips"
+            title="Lịch Sử Chuyến Đi"
+            className={({ isActive }) => `${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
+          >
+            <Route size={18} />
+            <span>Lịch Sử Chuyến Đi</span>
+          </NavLink>
+
+          <NavLink
+            to="/admin/audit-log"
+            title="Audit Log"
+            className={({ isActive }) => `${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
+          >
+            <ClipboardList size={18} />
+            <span>Audit Log</span>
           </NavLink>
 
           <NavLink

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { getDB, updateDB, subscribe } from '../../store/db'
+import { recordAdminAudit } from '../../api/adminOperations'
 import DataTable from '../../components/common/DataTable'
 import StatusBadge from '../../components/common/StatusBadge'
 import Modal from '../../components/common/Modal'
@@ -78,7 +79,7 @@ export default function AdminEmployees() {
   const orgDrivers = useMemo(() => {
     const list = db.users || []
     return list.filter(
-      (u) => u.role === 'DRIVER' && (u.organizationId === targetOrgId || (!user?.organizationId && u.organizationId === 'org_6adb1f069a6b13c161dc5f70'))
+      (u) => (u.role === 'DRIVER' || u.role === 'USER') && (u.organizationId === targetOrgId || (!user?.organizationId && u.organizationId === 'org_6adb1f069a6b13c161dc5f70'))
     )
   }, [db.users, targetOrgId, user?.organizationId])
 
@@ -141,6 +142,7 @@ export default function AdminEmployees() {
           return currentDb
         })
         toast.success('Thành công', `Đã cập nhật thông tin tài xế ${formName}`)
+        recordAdminAudit(token, { action: 'UPDATE_EMPLOYEE', resourceType: 'employee', resourceId: editingDriver._id, description: `Cập nhật nhân viên ${formName}` }).catch(() => {})
       } else {
         // Add new driver to organization via backend API -> MongoDB
         const res = await fetch('/api/auth/employees', {
@@ -163,6 +165,7 @@ export default function AdminEmployees() {
         }
 
         const newDriver = data.user
+        recordAdminAudit(token, { action: 'CREATE_EMPLOYEE', resourceType: 'employee', resourceId: newDriver?._id, description: `Tạo nhân viên ${formName}` }).catch(() => {})
         updateDB((currentDb) => {
           const existingIdx = currentDb.users.findIndex((u) => u._id === newDriver._id || u.email === newDriver.email)
           if (existingIdx !== -1) {
@@ -203,6 +206,7 @@ export default function AdminEmployees() {
       return currentDb
     })
     toast.success('Đã xóa', `Đã xóa tài khoản tài xế ${deleteConfirmDriver.name}`)
+    recordAdminAudit(token, { action: 'DELETE_EMPLOYEE', resourceType: 'employee', resourceId: deleteConfirmDriver._id, description: `Xóa nhân viên ${deleteConfirmDriver.name}` }).catch(() => {})
     setDeleteConfirmDriver(null)
     if (profileDriver?._id === deleteConfirmDriver._id) setProfileDriver(null)
   }

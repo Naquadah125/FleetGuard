@@ -27,6 +27,8 @@ const AdminEmployees = lazy(() => import('./pages/admin/AdminEmployees'))
 const AdminHistory = lazy(() => import('./pages/admin/AdminHistory'))
 const AdminReports = lazy(() => import('./pages/admin/AdminReports'))
 const AdminChat = lazy(() => import('./pages/admin/AdminChat'))
+const AdminTrips = lazy(() => import('./pages/admin/AdminTrips'))
+const AdminAuditLog = lazy(() => import('./pages/admin/AdminAuditLog'))
 
 // Route Guard
 function ProtectedRoute({ children, requireAdmin = false }) {
@@ -85,6 +87,8 @@ export default function App() {
             <Route path="history" element={<AdminHistory />} />
             <Route path="reports" element={<AdminReports />} />
             <Route path="chat" element={<AdminChat />} />
+            <Route path="trips" element={<AdminTrips />} />
+            <Route path="audit-log" element={<AdminAuditLog />} />
           </Route>
 
           {/* Catch-all */}

@@ -15,14 +15,44 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem('fleet_token'))
   const [loading, setLoading] = useState(false)
 
-  // Sync user state if updated in another tab or in DB
+  // Auto-refresh fresh user profile from backend on mount (heals stale sessions)
+  useEffect(() => {
+    const refreshProfile = async () => {
+      const storedToken = localStorage.getItem('fleet_token')
+      if (!storedToken) return
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${storedToken}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success && data.user) {
+            const fresh = {
+              ...data.user,
+              _id: data.user._id || data.user.id,
+              id: data.user.id || data.user._id,
+            }
+            setUser(fresh)
+            localStorage.setItem('fleet_user', JSON.stringify(fresh))
+          }
+        }
+      } catch (err) {
+        console.warn('Silent refresh user failed:', err)
+      }
+    }
+    refreshProfile()
+  }, [])
+
+  // Sync user state if updated in local DB (without stripping organizationId)
   useEffect(() => {
     if (user?._id) {
       const db = getDB()
       const fresh = db.users.find((u) => u._id === user._id)
-      if (fresh && JSON.stringify(fresh) !== JSON.stringify(user)) {
-        setUser(fresh)
-        localStorage.setItem('fleet_user', JSON.stringify(fresh))
+      if (fresh) {
+        const merged = { ...fresh, organizationId: fresh.organizationId || user.organizationId, organizationName: fresh.organizationName || user.organizationName }
+        if (JSON.stringify(merged) === JSON.stringify(user)) return
+        setUser(merged)
+        localStorage.setItem('fleet_user', JSON.stringify(merged))
       }
     }
   }, [user])

@@ -46,44 +46,46 @@ router.get('/admin/trips', requireAuth, requireAdmin, async (req, res) => {
       page: req.query.page,
       limit: req.query.limit,
     });
-    router.get('/admin/audit-log', requireAuth, requireAdmin, async (req, res) => {
-      try {
-        const result = await listAuditEvents({
-          organizationId: req.user.organizationId,
-          startDate: req.query.start_date,
-          endDate: req.query.end_date,
-          action: req.query.action,
-          actorId: req.query.actor_id,
-          resourceType: req.query.resource_type,
-          page: req.query.page,
-          limit: req.query.limit,
-        });
-        router.post('/admin/audit-log', requireAuth, requireAdmin, async (req, res) => {
-          const { action, resourceType, resourceId, description, metadata } = req.body || {};
-          if (!action || !resourceType) {
-            return res.status(400).json({ success: false, message: 'action and resourceType are required' });
-          }
-          await recordAuditEvent({
-            actor: req.user,
-            action,
-            resourceType,
-            resourceId,
-            description,
-            metadata,
-          });
-          return res.status(201).json({ success: true });
-        });
-        return res.json({ success: true, ...result });
-      } catch (error) {
-        console.error('[Admin audit log error]:', error);
-        return res.status(500).json({ success: false, message: 'Không thể tải audit log.' });
-      }
-    });
     return res.json({ success: true, ...result });
   } catch (error) {
     console.error('[Admin trips error]:', error);
     return res.status(500).json({ success: false, message: 'Không thể tải lịch sử chuyến đi.' });
   }
+});
+
+router.get('/admin/audit-log', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const result = await listAuditEvents({
+      organizationId: req.user.organizationId,
+      startDate: req.query.start_date,
+      endDate: req.query.end_date,
+      action: req.query.action,
+      actorId: req.query.actor_id,
+      resourceType: req.query.resource_type,
+      page: req.query.page,
+      limit: req.query.limit,
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('[Admin audit log error]:', error);
+    return res.status(500).json({ success: false, message: 'Không thể tải audit log.' });
+  }
+});
+
+router.post('/admin/audit-log', requireAuth, requireAdmin, async (req, res) => {
+  const { action, resourceType, resourceId, description, metadata } = req.body || {};
+  if (!action || !resourceType) {
+    return res.status(400).json({ success: false, message: 'action and resourceType are required' });
+  }
+  await recordAuditEvent({
+    actor: req.user,
+    action,
+    resourceType,
+    resourceId,
+    description,
+    metadata,
+  });
+  return res.status(201).json({ success: true });
 });
 
 // Video Analysis endpoints
