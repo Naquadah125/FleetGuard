@@ -281,12 +281,18 @@ router.put('/me', requireAuth, async (req, res) => {
     else memoryStore.users.set(userId, user);
 
     await recordAuditEvent({
-      actor: user,
+      actor: {
+        id: userId,
+        name: user.name,
+        email: user.email,
+        organizationId: user.organizationId || `user_${userId}`,
+      },
       action: 'UPDATE_PROFILE',
       resourceType: 'user',
       resourceId: userId,
       description: 'Cập nhật hồ sơ cá nhân',
       metadata: { changedFields },
+      deduplicate: false,
     });
     return res.json({ success: true, user: publicUser(user) });
   } catch (err) {

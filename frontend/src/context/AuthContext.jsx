@@ -50,6 +50,10 @@ export function AuthProvider({ children }) {
       const fresh = db.users.find((u) => u._id === user._id)
       if (fresh) {
         const merged = { ...fresh, organizationId: fresh.organizationId || user.organizationId, organizationName: fresh.organizationName || user.organizationName }
+        for (const field of ['name', 'phone', 'dateOfBirth', 'avatarColor']) {
+          if (user[field] !== undefined) merged[field] = user[field]
+        }
+        delete merged.passwordHash
         if (JSON.stringify(merged) === JSON.stringify(user)) return
         setUser(merged)
         localStorage.setItem('fleet_user', JSON.stringify(merged))
@@ -221,6 +225,24 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('fleet_token')
   }
 
+  const updateUser = (nextUser) => {
+    updateDB((db) => {
+      const index = db.users.findIndex((item) => (item._id || item.id) === (nextUser._id || nextUser.id))
+      if (index >= 0) {
+        db.users[index] = {
+          ...db.users[index],
+          name: nextUser.name,
+          phone: nextUser.phone,
+          dateOfBirth: nextUser.dateOfBirth,
+          avatarColor: nextUser.avatarColor,
+        }
+      }
+      return db
+    })
+    setUser(nextUser)
+    localStorage.setItem('fleet_user', JSON.stringify(nextUser))
+  }
+
   // Get active user's organization
   const getOrganization = () => {
     if (!user || !user.organizationId) return null
@@ -230,6 +252,7 @@ export function AuthProvider({ children }) {
     if (user.organizationName) {
       return { _id: user.organizationId, name: user.organizationName, plan: 'enterprise' }
     }
+
     return { _id: user.organizationId, name: 'Đội xe doanh nghiệp', plan: 'pro' }
   }
 
@@ -242,6 +265,7 @@ export function AuthProvider({ children }) {
         login,
         register,
         logout,
+        updateUser,
         organization: getOrganization(),
         isAuthenticated: !!user,
         isAdmin: user?.role === 'ADMIN',

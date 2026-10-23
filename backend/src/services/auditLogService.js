@@ -38,8 +38,32 @@ function toRecord(input) {
   };
 }
 
+const recentEventsCache = new Map();
+
 export async function recordAuditEvent(input) {
   const record = toRecord(input);
+  if (!record.action) return null;
+
+  if (input.deduplicate !== false) {
+    // Deduplication guard: ignore identical events within 3000ms
+    const dedupKey = `${record.organizationId || ''}_${record.actorId || ''}_${record.action}_${record.resourceType || ''}_${record.resourceId || ''}`;
+    const now = Date.now();
+    const lastTime = recentEventsCache.get(dedupKey);
+    if (lastTime && now - lastTime < 3000) {
+      return null;
+    }
+    recentEventsCache.set(dedupKey, now);
+
+    // Clean old entries periodically
+    if (recentEventsCache.size > 200) {
+      for (const [key, timestamp] of recentEventsCache.entries()) {
+        if (now - timestamp > 10000) {
+          recentEventsCache.delete(key);
+        }
+      }
+    }
+  }
+
   try {
     if (input.persistence?.create) {
       return await input.persistence.create(record);

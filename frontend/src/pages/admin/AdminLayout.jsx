@@ -9,6 +9,7 @@ import {
   Route,
   ClipboardList,
   Bot,
+  UserRound,
   LogOut,
   ShieldCheck,
   ChevronLeft,
@@ -115,6 +116,7 @@ export default function AdminLayout() {
     if (path.includes('/reports')) return 'Báo Cáo & Phân Tích An Toàn'
     if (path.includes('/trips')) return 'Lịch Sử Chuyến Đi'
     if (path.includes('/audit-log')) return 'Audit Log'
+    if (path.includes('/profile')) return 'Hồ Sơ Cá Nhân'
     return 'Trung Tâm Điều Hành Đội Xe'
   }
 
@@ -285,6 +287,14 @@ export default function AdminLayout() {
                     </div>
                   </div>
                   <div className={styles.dropdownDivider} />
+                  <button
+                    type="button"
+                    className={styles.dropdownItem}
+                    onClick={() => { setDropdownOpen(false); navigate('/admin/profile') }}
+                  >
+                    <UserRound size={16} />
+                    <span>Chỉnh sửa thông tin</span>
+                  </button>
                   <button
                     type="button"
                     className={styles.dropdownItemLogout}

@@ -29,9 +29,11 @@ const AdminReports = lazy(() => import('./pages/admin/AdminReports'))
 const AdminChat = lazy(() => import('./pages/admin/AdminChat'))
 const AdminTrips = lazy(() => import('./pages/admin/AdminTrips'))
 const AdminAuditLog = lazy(() => import('./pages/admin/AdminAuditLog'))
+const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'))
+const DriverProfilePage = ProfilePage
 
 // Route Guard
-function ProtectedRoute({ children, requireAdmin = false }) {
+function ProtectedRoute({ children, requireAdmin = false, allowedRoles }) {
   const { user, isAuthenticated } = useAuth()
 
   if (!isAuthenticated) {
@@ -39,8 +41,12 @@ function ProtectedRoute({ children, requireAdmin = false }) {
   }
 
   // If page requires Admin but user is Driver, redirect to /driver
-  if (requireAdmin && user?.role !== 'ADMIN') {
+  if (requireAdmin && !['ADMIN', 'FLEET_ADMIN'].includes(user?.role)) {
     return <Navigate to="/driver" replace />
+  }
+
+  if (allowedRoles && !allowedRoles.includes(user?.role)) {
+    return <Navigate to={['ADMIN', 'FLEET_ADMIN'].includes(user?.role) ? '/admin' : '/driver'} replace />
   }
 
   return children
@@ -70,6 +76,7 @@ export default function App() {
             <Route path="camera" element={<DriverCamera />} />
             <Route path="history" element={<DriverHistory />} />
             <Route path="chat" element={<DriverChat />} />
+            <Route path="profile" element={<ProtectedRoute allowedRoles={['USER', 'DRIVER']}><DriverProfilePage /></ProtectedRoute>} />
           </Route>
 
           {/* Admin Area (ADMIN only, plan pro) */}
@@ -89,6 +96,7 @@ export default function App() {
             <Route path="chat" element={<AdminChat />} />
             <Route path="trips" element={<AdminTrips />} />
             <Route path="audit-log" element={<AdminAuditLog />} />
+            <Route path="profile" element={<ProtectedRoute allowedRoles={['ADMIN', 'FLEET_ADMIN']}><ProfilePage /></ProtectedRoute>} />
           </Route>
 
           {/* Catch-all */}

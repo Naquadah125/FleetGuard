@@ -71,6 +71,14 @@ const wrongPassword = await fetch(`http://localhost:${port}/api/auth/me`, {
 assert.equal(wrongPassword.status, 401);
 assert.equal(memoryStore.users.get(userId).name, 'New Name');
 
+const invalidBirthDate = await fetch(`http://localhost:${port}/api/auth/me`, {
+  method: 'PUT',
+  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ name: 'Should Not Save', phone: '0901234567', dateOfBirth: '31-02-1998', avatarColor: '#2563eb' }),
+});
+assert.equal(invalidBirthDate.status, 400);
+assert.equal(memoryStore.users.get(userId).name, 'New Name');
+
 const protectedField = await fetch(`http://localhost:${port}/api/auth/me`, {
   method: 'PUT',
   headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -84,6 +92,42 @@ const protectedField = await fetch(`http://localhost:${port}/api/auth/me`, {
 });
 assert.equal(protectedField.status, 400);
 assert.equal(memoryStore.users.get(userId).email, 'profile@example.com');
+
+const passwordChange = await fetch(`http://localhost:${port}/api/auth/me`, {
+  method: 'PUT',
+  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    name: 'New Name',
+    phone: '0901234567',
+    dateOfBirth: '12-04-1998',
+    avatarColor: '#2563eb',
+    currentPassword: 'oldpass1',
+    newPassword: 'newpass1',
+    confirmPassword: 'newpass1',
+  }),
+});
+assert.equal(passwordChange.status, 200);
+assert.equal(await bcrypt.compare('newpass1', memoryStore.users.get(userId).passwordHash), true);
+assert.equal(JSON.stringify(memoryStore.auditLogs.at(-1).metadata).includes('newpass1'), false);
+assert.ok(memoryStore.auditLogs.at(-1).metadata.changedFields.includes('password'));
+
+const soloId = 'profile-solo-user';
+memoryStore.users.set(soloId, {
+  _id: soloId,
+  id: soloId,
+  name: 'Solo User',
+  email: 'solo@example.com',
+  passwordHash,
+  role: 'USER',
+});
+const soloToken = jwt.sign({ id: soloId, email: 'solo@example.com', role: 'USER' }, JWT_SECRET);
+const soloResponse = await fetch(`http://localhost:${port}/api/auth/me`, {
+  method: 'PUT',
+  headers: { Authorization: `Bearer ${soloToken}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ name: 'Solo User', phone: '0912345678', dateOfBirth: '12-04-1998', avatarColor: '#2563eb' }),
+});
+assert.equal(soloResponse.status, 200);
+assert.equal(memoryStore.auditLogs.at(-1).organizationId, `user_${soloId}`);
 
 server.close();
 telemetryHandler.stop();

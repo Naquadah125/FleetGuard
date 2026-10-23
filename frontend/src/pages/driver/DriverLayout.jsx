@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  UserRound,
 } from 'lucide-react'
 import FleetGuardLogo from '@/components/brand/FleetGuardLogo'
 import { useAuth } from '../../context/AuthContext'
@@ -59,6 +60,7 @@ export default function DriverLayout() {
     const path = location.pathname
     if (path.includes('/camera')) return 'Buồng Lái & Camera Giám Sát'
     if (path.includes('/history')) return 'Lịch Sử Chuyến Đi & Sự Cố'
+    if (path.includes('/profile')) return 'Hồ Sơ Cá Nhân'
     return 'Tổng Quan Tài Xế'
   }
 
@@ -169,6 +171,14 @@ export default function DriverLayout() {
                   </div>
                 </div>
                 <div className={styles.dropdownDivider} />
+                <button
+                  type="button"
+                  className={styles.dropdownItem}
+                  onClick={() => { setDropdownOpen(false); navigate('/driver/profile') }}
+                >
+                  <UserRound size={16} />
+                  <span>Chỉnh sửa thông tin</span>
+                </button>
                 <button
                   type="button"
                   className={styles.dropdownItemLogout}
