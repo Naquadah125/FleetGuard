@@ -8,11 +8,13 @@ import {
   Sliders,
   Clock,
   Play,
+  Square,
   CheckCircle2,
   RotateCcw,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { updateDB, broadcastAlert } from '../../store/db'
+import { saveSession, computeSafetyScore } from '../../api/sessions'
 import {
   SFX_OPTIONS,
   startSfxLoop,
@@ -20,6 +22,7 @@ import {
   playSfxPreview,
 } from '../../utils/audio'
 import Meter from '../../components/common/Meter'
+import { getSocket } from '../../api/socket'
 import styles from './DriverPages.module.css'
 
 // Helper for 2D distance
@@ -28,6 +31,44 @@ function dist(p1, p2) {
   const dx = p1.x - p2.x
   const dy = p1.y - p2.y
   return Math.sqrt(dx * dx + dy * dy)
+}
+
+const EMPTY_STATS = { drowsy: 0, yawn: 0, distracted: 0, peak: 0 }
+
+// Active session is persisted so it survives route changes / reloads.
+// It is only cleared when the driver explicitly ends the trip.
+const ACTIVE_SESSION_KEY = 'fleetguard_active_session'
+
+function loadActiveSession(userId) {
+  try {
+    const raw = localStorage.getItem(ACTIVE_SESSION_KEY)
+    if (!raw) return null
+    const s = JSON.parse(raw)
+    if (!s?.id || (s.userId && userId && s.userId !== userId)) return null
+    // Camera is always off right after (re)mount, so the restored session starts paused.
+    // Time spent away from the page is not counted.
+    s.lastResumeTime = null
+    return s
+  } catch {
+    return null
+  }
+}
+
+function persistActiveSession(s) {
+  try {
+    if (s) localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(s))
+    else localStorage.removeItem(ACTIVE_SESSION_KEY)
+  } catch {
+    // ignore quota / privacy mode errors
+  }
+}
+
+// Freeze the running segment into accumulatedMs (used on camera off / leaving page)
+function pauseSession(s) {
+  if (s?.lastResumeTime) {
+    s.accumulatedMs += Date.now() - s.lastResumeTime
+    s.lastResumeTime = null
+  }
 }
 
 export default function DriverCamera() {
@@ -65,9 +106,18 @@ export default function DriverCamera() {
   // Error message
   const [cameraError, setCameraError] = useState(null)
 
-  // Trip tracking
-  const [tripSeconds, setTripSeconds] = useState(145)
-  const [tripId] = useState(() => 'trip_live_' + Date.now())
+  // Trip / driving session tracking — only runs after the driver starts a trip.
+  // Restored from localStorage if a trip was in progress before navigating away.
+  const [restoredSession] = useState(() => loadActiveSession(user?._id || user?.id))
+  const [tripActive, setTripActive] = useState(!!restoredSession)
+  const [tripSeconds, setTripSeconds] = useState(() =>
+    restoredSession ? Math.floor(restoredSession.accumulatedMs / 1000) : 0
+  )
+  const [sessionId, setSessionId] = useState(restoredSession?.id || null)
+  const [tripStats, setTripStats] = useState(restoredSession ? { ...restoredSession.stats } : EMPTY_STATS)
+  const [tripBusy, setTripBusy] = useState(false)
+  const [tripSync, setTripSync] = useState(null) // { type: 'ok' | 'error', text }
+  const sessionRef = useRef(restoredSession) // { id, userId, startTime, accumulatedMs, lastResumeTime, stats }
 
   // Refs
   const videoRef = useRef(null)
@@ -80,25 +130,261 @@ export default function DriverCamera() {
   const lastAlert2TimeRef = useRef(0)
   const cooldownUntilRef = useRef(0)
   const earRef = useRef(ear)
+  const metricsRef = useRef({ ear: 0.32, mar: 0.18, yaw: 0, pitch: 0, perclos: 0, level: 0 })
 
-  // Keep earRef up-to-date for calibration loop
+  // Keep metricsRef and earRef up-to-date
   useEffect(() => {
     earRef.current = ear
-  }, [ear])
+    metricsRef.current = { ear, mar, yaw, pitch, perclos, level }
+  }, [ear, mar, yaw, pitch, perclos, level])
+
+  // Register driver with Socket.io server
+  useEffect(() => {
+    if (user?._id) {
+      const socket = getSocket()
+      socket.emit('driver:join', {
+        driverId: user._id,
+        organizationId: user.organizationId,
+      })
+    }
+  }, [user?._id, user?.organizationId])
+
+  // Stream live camera frames via Socket.IO at ~15 FPS (66ms, 320x240 JPEG 0.5)
+  useEffect(() => {
+    if (!cameraActive) return
+
+    const offscreenCanvas = document.createElement('canvas')
+    offscreenCanvas.width = 320
+    offscreenCanvas.height = 240
+    const ctx = offscreenCanvas.getContext('2d', { alpha: false })
+
+    const intervalId = setInterval(() => {
+      const video = videoRef.current
+      if (!video || video.readyState < 2) return
+
+      try {
+        ctx.drawImage(video, 0, 0, 320, 240)
+        const frameDataUrl = offscreenCanvas.toDataURL('image/jpeg', 0.5)
+        const socket = getSocket()
+        socket.emit('driver:camera_frame', {
+          driverId: user?._id,
+          organizationId: user?.organizationId,
+          image: frameDataUrl,
+          metrics: {
+            ...metricsRef.current,
+            timestamp: Date.now(),
+          },
+        })
+      } catch (err) {
+        // ignore capture errors
+      }
+    }, 66)
+
+    return () => {
+      clearInterval(intervalId)
+    }
+  }, [cameraActive, user?._id, user?.organizationId])
+
+  // Cleanup camera active status on unmount
+  useEffect(() => {
+    return () => {
+      if (user?._id) {
+        const socket = getSocket()
+        socket.emit('driver:camera_status', {
+          driverId: user._id,
+          organizationId: user.organizationId,
+          cameraActive: false,
+          status: 'resting',
+        })
+
+        updateDB((db) => {
+          const u = db.users.find((d) => d._id === user._id)
+          if (u) {
+            u.cameraActive = false
+            u.status = 'resting'
+          }
+          return db
+        }, { action: 'CAMERA_STATUS', driverId: user._id, cameraActive: false })
+      }
+    }
+  }, [user?._id, user?.organizationId])
 
   // Format trip timer
   const formatTime = (secs) => {
-    const m = Math.floor(secs / 60)
+    const h = Math.floor(secs / 3600)
+    const m = Math.floor((secs % 3600) / 60)
     const s = secs % 60
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+    const mmss = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+    return h > 0 ? `${h}:${mmss}` : mmss
   }
 
-  // Trip timer runs continuously every second
+  // Trip timer ticks only while session is active AND camera is active
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTripSeconds((s) => s + 1)
-    }, 1000)
+    if (!tripActive || !cameraActive) return
+    const tick = () => {
+      const s = sessionRef.current
+      if (!s) return
+      const currentSegment = s.lastResumeTime ? (Date.now() - s.lastResumeTime) : 0
+      setTripSeconds(Math.floor((s.accumulatedMs + currentSegment) / 1000))
+    }
+    tick()
+    const timer = setInterval(tick, 1000)
     return () => clearInterval(timer)
+  }, [tripActive, cameraActive])
+
+  // Pause or resume session accumulator when camera turns off or on
+  useEffect(() => {
+    if (!tripActive || !sessionRef.current) return
+    const s = sessionRef.current
+    if (!cameraActive) {
+      // Camera turned off -> freeze and accumulate active elapsed time
+      if (s.lastResumeTime) {
+        pauseSession(s)
+        setTripSeconds(Math.floor(s.accumulatedMs / 1000))
+      }
+    } else {
+      // Camera turned back on -> resume from current time
+      if (!s.lastResumeTime) {
+        s.lastResumeTime = Date.now()
+      }
+    }
+    persistActiveSession(s)
+  }, [cameraActive, tripActive])
+
+  // Build a DrivingSession payload (backend schema) from the current session ref
+  const buildSessionPayload = useCallback((status) => {
+    const s = sessionRef.current
+    if (!s) return null
+    const now = Date.now()
+    const currentSegment = s.lastResumeTime ? (now - s.lastResumeTime) : 0
+    const totalSecs = Math.floor((s.accumulatedMs + currentSegment) / 1000)
+    return {
+      session_id: s.id,
+      user_id: user?._id || user?.id || 'anonymous',
+      user_email: user?.email || '',
+      start_time: new Date(s.startTime).toISOString(),
+      end_time: new Date(now).toISOString(),
+      duration_seconds: totalSecs,
+      safety_score: computeSafetyScore(s.stats),
+      drowsy_count: s.stats.drowsy,
+      yawn_count: s.stats.yawn,
+      distracted_count: s.stats.distracted,
+      peak_alert_level: s.stats.peak,
+      status,
+    }
+  }, [user])
+
+  // Start a trip: ensure camera is on, create session locally, start timer, persist ACTIVE session to backend
+  const handleStartTrip = async () => {
+    if (tripActive || tripBusy) return
+    setTripSync(null)
+
+    // Ask for camera permission / turn camera on as part of starting the trip
+    if (!cameraActive) {
+      setTripBusy(true)
+      const ok = await turnOnCamera()
+      setTripBusy(false)
+      if (!ok) {
+        setTripSync({ type: 'error', text: 'Cần bật camera để bắt đầu hành trình.' })
+        return
+      }
+    }
+
+    const id = 'SES-' + Date.now()
+    sessionRef.current = {
+      id,
+      userId: user?._id || user?.id || null,
+      startTime: Date.now(),
+      accumulatedMs: 0,
+      lastResumeTime: Date.now(),
+      stats: { ...EMPTY_STATS },
+    }
+    persistActiveSession(sessionRef.current)
+    setSessionId(id)
+    setTripSeconds(0)
+    setTripStats(EMPTY_STATS)
+    setTripActive(true)
+    setTripBusy(true)
+    try {
+      await saveSession(buildSessionPayload('ACTIVE'))
+      setTripSync({ type: 'ok', text: 'Đã tạo phiên trên máy chủ' })
+    } catch (err) {
+      setTripSync({ type: 'error', text: 'Chưa lưu được phiên: ' + err.message })
+    } finally {
+      setTripBusy(false)
+    }
+  }
+
+  // End a trip: stop timer, persist COMPLETED session, mirror into local history
+  const handleEndTrip = async () => {
+    if (!tripActive || !sessionRef.current) return
+    const payload = buildSessionPayload('COMPLETED')
+    persistActiveSession(null) // only an explicit end clears the active session
+    setTripActive(false)
+    setTripSeconds(payload.duration_seconds)
+    setTripBusy(true)
+
+    updateDB((db) => {
+      db.trips.unshift({
+        _id: payload.session_id,
+        driverId: user?._id || 'user_driver_free',
+        vehicleId: user?.vehicleId || null,
+        startedAt: payload.start_time,
+        endedAt: payload.end_time,
+        distanceKm: 0,
+        safetyScore: payload.safety_score,
+        drowsyCount: payload.drowsy_count,
+        yawnCount: payload.yawn_count,
+        distractedCount: payload.distracted_count,
+        breaks: 0,
+      })
+      return db
+    }, { action: 'TRIP_ENDED', tripId: payload.session_id })
+
+    try {
+      await saveSession(payload)
+      setTripSync({ type: 'ok', text: `Đã lưu phiên · Điểm an toàn ${payload.safety_score}` })
+    } catch (err) {
+      setTripSync({ type: 'error', text: 'Không lưu được phiên: ' + err.message })
+    } finally {
+      sessionRef.current = null
+      setSessionId(null)
+      setTripBusy(false)
+    }
+  }
+
+  // Leaving the page (route change / reload / closing tab) does NOT end the trip:
+  // pause the timer and keep the session in localStorage so it resumes on return.
+  useEffect(() => {
+    const keep = () => {
+      const s = sessionRef.current
+      if (!s) return
+      pauseSession(s)
+      persistActiveSession(s)
+    }
+    window.addEventListener('beforeunload', keep)
+    return () => {
+      window.removeEventListener('beforeunload', keep)
+      keep()
+    }
+  }, [])
+
+  // Coming back to a paused trip: re-open camera automatically if permission was already granted
+  useEffect(() => {
+    if (!restoredSession) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const perm = await navigator.permissions?.query({ name: 'camera' })
+        if (!cancelled && perm?.state === 'granted') await turnOnCamera()
+      } catch {
+        // Permissions API unsupported — driver can press "Bật Camera" manually
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Calibration loop (Smooth 5-second sampling without resetting)
@@ -143,11 +429,23 @@ export default function DriverCamera() {
     if (now - lastAlert2TimeRef.current < 4000) return
     lastAlert2TimeRef.current = now
 
+    // Tally incident into the active session (if any)
+    const s = sessionRef.current
+    if (s) {
+      if (type === 'DROWSY') s.stats.drowsy += 1
+      else if (type === 'YAWN') s.stats.yawn += 1
+      else s.stats.distracted += 1
+      s.stats.peak = Math.max(s.stats.peak, lvl)
+      setTripStats({ ...s.stats })
+      persistActiveSession(s)
+    }
+
     const newInc = {
       _id: 'inc_' + now,
-      tripId,
+      tripId: s?.id || null,
       driverId: user?._id || 'user_driver_1',
-      vehicleId: user?.vehicleId || '51F-889.24',
+      driverName: user?.name || 'Tài xế',
+      organizationId: user?.organizationId || null,
       ts: new Date().toISOString(),
       type,
       metrics,
@@ -166,13 +464,15 @@ export default function DriverCamera() {
     // Broadcast across tabs if Level 2
     if (lvl === 2) {
       broadcastAlert({
+        driverId: user?._id,
         driverName: user?.name || 'Tài xế',
-        vehiclePlate: user?.vehicleId || '51F-889.24',
+        organizationId: user?.organizationId,
         type: type === 'DROWSY' ? 'Ngủ gật nghiêm trọng' : 'Mất tập trung',
         metrics,
+        level: lvl,
       })
     }
-  }, [tripId, user])
+  }, [user])
 
   // Trigger Level 2 alert & continuous SFX loop
   useEffect(() => {
@@ -191,6 +491,53 @@ export default function DriverCamera() {
     consecutiveClosedRef.current = 0
     earWindowRef.current = []
     cooldownUntilRef.current = Date.now() + 6000 // 6-second grace period
+  }
+
+  // Request camera permission and turn camera on. Returns true on success.
+  const turnOnCamera = async () => {
+    setCameraError(null)
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Trình duyệt không hỗ trợ truy cập Camera.')
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+      })
+      streamRef.current = stream
+      setCameraActive(true)
+      setCalibrating(true)
+      setCalibProgress(0)
+
+      if (user?._id) {
+        const socket = getSocket()
+        socket.emit('driver:camera_status', {
+          driverId: user._id,
+          organizationId: user.organizationId,
+          cameraActive: true,
+          status: 'driving',
+        })
+
+        updateDB((db) => {
+          const u = db.users.find((d) => d._id === user._id)
+          if (u) {
+            u.cameraActive = true
+            u.status = 'driving'
+            u.lastActiveAt = new Date().toISOString()
+          }
+          return db
+        }, { action: 'CAMERA_STATUS', driverId: user._id, cameraActive: true })
+      }
+      return true
+    } catch (err) {
+      console.error('Lỗi khi xin quyền camera:', err)
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setCameraError('Quyền truy cập Camera bị từ chối. Vui lòng cấp quyền Camera trên trình duyệt để tiếp tục.')
+      } else {
+        setCameraError('Không thể mở Camera: ' + (err.message || 'Lỗi không xác định.'))
+      }
+      setCameraActive(false)
+      return false
+    }
   }
 
   // Toggle Camera with explicit browser permission request
@@ -225,29 +572,28 @@ export default function DriverCamera() {
       setEar(0.32)
       setMar(0.18)
       setPerclos(0)
-    } else {
-      // Request permission and turn on
-      setCameraError(null)
-      try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          throw new Error('Trình duyệt không hỗ trợ truy cập Camera.')
-        }
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+
+      if (user?._id) {
+        const socket = getSocket()
+        socket.emit('driver:camera_status', {
+          driverId: user._id,
+          organizationId: user.organizationId,
+          cameraActive: false,
+          status: 'resting',
         })
-        streamRef.current = stream
-        setCameraActive(true)
-        setCalibrating(true)
-        setCalibProgress(0)
-      } catch (err) {
-        console.error('Lỗi khi xin quyền camera:', err)
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          setCameraError('Quyền truy cập Camera bị từ chối. Vui lòng cấp quyền Camera trên trình duyệt để tiếp tục.')
-        } else {
-          setCameraError('Không thể mở Camera: ' + (err.message || 'Lỗi không xác định.'))
-        }
-        setCameraActive(false)
+
+        updateDB((db) => {
+          const u = db.users.find((d) => d._id === user._id)
+          if (u) {
+            u.cameraActive = false
+            u.status = 'resting'
+            u.lastActiveAt = new Date().toISOString()
+          }
+          return db
+        }, { action: 'CAMERA_STATUS', driverId: user._id, cameraActive: false })
       }
+    } else {
+      await turnOnCamera()
     }
   }
 
@@ -708,17 +1054,17 @@ export default function DriverCamera() {
                     width: 7,
                     height: 7,
                     borderRadius: '50%',
-                    background: '#10B981',
-                    boxShadow: '0 0 6px #10B981',
+                    background: !tripActive ? 'var(--text-muted)' : cameraActive ? '#10B981' : '#F59E0B',
+                    boxShadow: !tripActive ? 'none' : cameraActive ? '0 0 6px #10B981' : '0 0 6px #F59E0B',
                   }}
-                  title="Đang ghi nhận"
+                  title={!tripActive ? 'Chưa bắt đầu' : cameraActive ? 'Đang ghi nhận' : 'Tạm dừng (Camera tắt)'}
                 />
                 <span
                   style={{
                     fontFamily: 'var(--font-mono)',
                     fontSize: '18px',
                     fontWeight: 800,
-                    color: 'var(--amber-dark)',
+                    color: !tripActive ? 'var(--text-muted)' : cameraActive ? 'var(--amber-dark)' : '#F59E0B',
                     letterSpacing: '0.5px',
                   }}
                 >
@@ -726,6 +1072,61 @@ export default function DriverCamera() {
                 </span>
               </div>
             </div>
+
+            {tripActive && !cameraActive && (
+              <div style={{ marginTop: 8, fontSize: '11.5px', color: '#F59E0B', background: 'rgba(245, 158, 11, 0.1)', padding: '6px 10px', borderRadius: '6px' }}>
+                ⏸ Hành trình tạm dừng do camera tắt. Bật lại camera để tiếp tục tính giờ.
+              </div>
+            )}
+
+            {tripActive && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 10, fontSize: '11.5px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
+                <span title="Mã phiên">{sessionId}</span>
+                <span style={{ marginLeft: 'auto' }}>Ngủ gật {tripStats.drowsy}</span>
+                <span>Ngáp {tripStats.yawn}</span>
+                <span>Mất tập trung {tripStats.distracted}</span>
+              </div>
+            )}
+
+            <button
+              type="button"
+              id="trip-toggle-btn"
+              onClick={tripActive ? handleEndTrip : handleStartTrip}
+              disabled={tripBusy}
+              style={{
+                marginTop: 12,
+                width: '100%',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                padding: '9px 14px',
+                borderRadius: 8,
+                border: `1px solid ${tripActive ? 'rgba(239, 68, 68, 0.5)' : 'rgba(16, 185, 129, 0.5)'}`,
+                background: tripActive ? 'rgba(239, 68, 68, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+                color: tripActive ? '#EF4444' : '#10B981',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: tripBusy ? 'wait' : 'pointer',
+                opacity: tripBusy ? 0.6 : 1,
+                transition: 'background 0.15s ease, opacity 0.15s ease',
+              }}
+            >
+              {tripActive ? <Square size={14} /> : <Play size={14} />}
+              <span>{tripActive ? 'Kết Thúc Hành Trình' : 'Bắt Đầu Hành Trình'}</span>
+            </button>
+
+            {!tripActive && !cameraActive && !tripSync && (
+              <div style={{ marginTop: 8, fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                Camera sẽ được bật khi bắt đầu hành trình.
+              </div>
+            )}
+
+            {tripSync && (
+              <div style={{ marginTop: 8, fontSize: '11.5px', color: tripSync.type === 'ok' ? '#10B981' : '#F87171' }}>
+                {tripSync.text}
+              </div>
+            )}
           </div>
 
           {/* Card 2: Real-time Telemetry Meters */}

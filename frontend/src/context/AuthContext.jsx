@@ -30,16 +30,22 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     setLoading(true)
     const lowerEmail = email.trim().toLowerCase()
+    let allowMockFallback = false
 
     try {
       // 1. Try real backend first
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: lowerEmail, password }),
-      })
+      let res
+      try {
+        res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: lowerEmail, password }),
+        })
+      } catch {
+        res = null
+      }
 
-      if (res.ok) {
+      if (res?.ok) {
         const data = await res.json()
         if (data.success && data.user) {
           const u = data.user
@@ -50,8 +56,22 @@ export function AuthProvider({ children }) {
           return { success: true, user: u, isMock: false }
         }
       }
+
+      if (res?.status === 401) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.message || 'Email hoặc mật khẩu không chính xác!')
+      }
+
+      if (!res) {
+        allowMockFallback = true
+        throw new Error('Backend offline or invalid credentials')
+      }
+
+      allowMockFallback = true
       throw new Error('Backend offline or invalid credentials')
-    } catch {
+    } catch (error) {
+      if (!allowMockFallback) throw error
+
       // 2. Fallback to Local Mock Database
       const db = getDB()
       const matched = db.users.find(
@@ -82,21 +102,41 @@ export function AuthProvider({ children }) {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email: lowerEmail, password, role, orgName }),
+        body: JSON.stringify({
+          name,
+          email: lowerEmail,
+          password,
+          role,
+          orgName: role === 'ADMIN' ? orgName : undefined,
+        }),
       })
 
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.user) {
-          setUser(data.user)
+          const registeredUser = {
+            ...data.user,
+            _id: data.user.id || data.user._id,
+          }
+          setUser(registeredUser)
           setToken(data.token || 'jwt_' + Date.now())
-          localStorage.setItem('fleet_user', JSON.stringify(data.user))
+          localStorage.setItem('fleet_user', JSON.stringify(registeredUser))
           localStorage.setItem('fleet_token', data.token || 'jwt_' + Date.now())
-          return { success: true, user: data.user, isMock: false }
+          return { success: true, user: registeredUser, isMock: false }
         }
       }
+
+      if (res.status === 409 || res.status === 400) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.message || 'Email này đã được sử dụng!')
+      }
+
       throw new Error('Backend offline')
-    } catch {
+    } catch (err) {
+      if (err.message && err.message !== 'Backend offline') {
+        throw err
+      }
+
       // 2. Fallback to Local Mock Database
       let newOrgId = null
       let newOrg = null
@@ -119,6 +159,7 @@ export function AuthProvider({ children }) {
         passwordHash: password,
         role: role === 'ADMIN' ? 'ADMIN' : 'DRIVER',
         organizationId: newOrgId,
+        organizationName: role === 'ADMIN' ? (orgName.trim() || 'Công Ty Vận Tải Mới') : null,
         vehicleId: null,
         status: role === 'ADMIN' ? 'active' : 'resting',
         avatarColor: '#2563EB',
@@ -154,7 +195,12 @@ export function AuthProvider({ children }) {
   const getOrganization = () => {
     if (!user || !user.organizationId) return null
     const db = getDB()
-    return db.organizations.find((o) => o._id === user.organizationId) || null
+    const found = db.organizations.find((o) => o._id === user.organizationId)
+    if (found) return found
+    if (user.organizationName) {
+      return { _id: user.organizationId, name: user.organizationName, plan: 'enterprise' }
+    }
+    return { _id: user.organizationId, name: 'Đội xe doanh nghiệp', plan: 'pro' }
   }
 
   return (

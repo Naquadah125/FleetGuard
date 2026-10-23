@@ -10,7 +10,7 @@ export function BarChart({
 
   return (
     <div style={{ width: '100%', height }}>
-      <svg width="100%" height={height} viewBox={`0 0 ${data.length * 48} ${height}`} preserveAspectRatio="none">
+      <svg width="100%" height={height} viewBox={`0 0 ${data.length * 48} ${height}`} preserveAspectRatio="xMidYMid meet">
         {/* Horizontal grid lines */}
         <line x1="0" y1={height - 24} x2={data.length * 48} y2={height - 24} stroke="rgba(15, 23, 42, 0.1)" strokeWidth="1" />
         <line x1="0" y1={(height - 24) / 2} x2={data.length * 48} y2={(height - 24) / 2} stroke="rgba(15, 23, 42, 0.05)" strokeDasharray="3 3" />

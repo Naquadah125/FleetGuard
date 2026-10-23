@@ -1,13 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Mail, Lock, ArrowRight, Key, AlertCircle, Info } from 'lucide-react'
+import { Mail, Lock, ArrowRight, AlertCircle, Info } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import AuthShell, { AuthBanner, AuthField } from '@/components/auth/AuthShell'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-
-const QUICK_BTN_CLASS =
-  'h-auto min-h-11 gap-1 border-line px-3 py-2 leading-snug text-navy hover:border-brand sm:flex-col sm:gap-0'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -16,13 +12,6 @@ export default function LoginPage() {
   const [notice, setNotice] = useState('')
   const { login, loading } = useAuth()
   const navigate = useNavigate()
-
-  const handleQuickFill = (demoEmail) => {
-    setEmail(demoEmail)
-    setPassword('fleet1234')
-    setError('')
-    setNotice('')
-  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -62,37 +51,6 @@ export default function LoginPage() {
       }
     >
       <div className="flex flex-col gap-5">
-        {/* Quick Demo Credentials Fill */}
-        <div className="flex flex-col gap-3 rounded-md border border-dashed border-brand/40 bg-brand-50/60 p-3.5">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-body-sm font-semibold text-brand-dark">
-            <Key className="size-3.5" aria-hidden="true" />
-            <span>Tài khoản kiểm thử nhanh</span>
-            <Badge variant="neutral" className="bg-white font-medium text-ink ring-1 ring-line">
-              Mật khẩu: fleet1234
-            </Badge>
-          </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Button
-              type="button"
-              variant="outline"
-              className={QUICK_BTN_CLASS}
-              onClick={() => handleQuickFill('user@fleet.vn')}
-            >
-              <span className="font-semibold">Tài xế</span>{' '}
-              <span className="font-medium text-ink">(user@fleet.vn)</span>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className={QUICK_BTN_CLASS}
-              onClick={() => handleQuickFill('admin@fleet.vn')}
-            >
-              <span className="font-semibold">Quản trị</span>{' '}
-              <span className="font-medium text-ink">(admin@fleet.vn)</span>
-            </Button>
-          </div>
-        </div>
-
         {notice && (
           <AuthBanner tone="info" icon={Info}>
             {notice}

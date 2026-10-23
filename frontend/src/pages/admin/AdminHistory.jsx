@@ -7,8 +7,9 @@ import {
   Save,
   Clock,
   User,
-  Truck,
+  ShieldCheck,
 } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 import { getDB, updateDB, subscribe } from '../../store/db'
 import DataTable from '../../components/common/DataTable'
 import StatusBadge from '../../components/common/StatusBadge'
@@ -17,6 +18,7 @@ import { toast } from '../../components/common/Toast'
 import styles from './AdminPages.module.css'
 
 export default function AdminHistory() {
+  const { user, organization } = useAuth()
   const [db, setDb] = useState(() => getDB())
   const [selectedIncident, setSelectedIncident] = useState(null)
   const [resolveNote, setResolveNote] = useState('')
@@ -30,13 +32,24 @@ export default function AdminHistory() {
     return subscribe((newDb) => setDb(newDb))
   }, [])
 
+  // Filter Drivers by logged in admin's organization
   const orgDrivers = useMemo(() => {
-    return db.users.filter((u) => u.role === 'DRIVER' && u.organizationId)
-  }, [db.users])
+    const list = db.users || []
+    if (!user?.organizationId) return []
+    return list.filter(
+      (u) => u.role === 'DRIVER' && u.organizationId === user.organizationId
+    )
+  }, [db.users, user?.organizationId])
 
-  // Filtered incidents
+  const orgDriverIds = useMemo(() => orgDrivers.map((d) => d._id), [orgDrivers])
+
+  // Filtered incidents belonging to this Organization
   const filteredIncidents = useMemo(() => {
-    return db.incidents.filter((inc) => {
+    return (db.incidents || []).filter((inc) => {
+      // Must belong to this organization or its drivers
+      const belongs = orgDriverIds.includes(inc.driverId) || (user?.organizationId && inc.organizationId === user.organizationId)
+      if (!belongs) return false
+
       if (filterSeverity === 'level2' && inc.level !== 2) return false
       if (filterSeverity === 'level1' && inc.level !== 1) return false
       if (filterStatus === 'open' && inc.status !== 'open') return false
@@ -44,11 +57,11 @@ export default function AdminHistory() {
       if (filterDriver !== 'all' && inc.driverId !== filterDriver) return false
       return true
     })
-  }, [db.incidents, filterSeverity, filterStatus, filterDriver])
+  }, [db.incidents, orgDriverIds, user?.organizationId, filterSeverity, filterStatus, filterDriver])
 
   const handleOpenResolve = (inc) => {
     setSelectedIncident(inc)
-    setResolveNote(inc.note || 'Đã liên hệ tài xế qua bộ đàm, yêu cầu dừng xe kiểm tra an toàn.')
+    setResolveNote(inc.note || 'Đã liên hệ tài xế qua hệ thống, nhắc nhở giữ khoảng cách an toàn và nghỉ ngơi.')
   }
 
   const handleSaveResolve = () => {
@@ -57,12 +70,12 @@ export default function AdminHistory() {
       const inc = currentDb.incidents.find((i) => i._id === selectedIncident._id)
       if (inc) {
         inc.status = 'resolved'
-        inc.resolvedBy = 'Trần Quản Trị'
+        inc.resolvedBy = user?.name || 'Quản Trị Viên'
         inc.note = resolveNote.trim()
       }
       return currentDb
     })
-    toast.success('Đã xử lý sự cố', 'Đã lưu ghi nhận giải quyết vào nhật ký đội xe.')
+    toast.success('Đã xử lý sự cố', 'Biên bản xử lý đã được lưu vào nhật ký an toàn.')
     setSelectedIncident(null)
   }
 
@@ -85,16 +98,12 @@ export default function AdminHistory() {
       header: 'Tài Xế',
       render: (row) => {
         const d = db.users.find((u) => u._id === row.driverId)
-        return <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{d ? d.name : 'Tài xế'}</span>
+        return (
+          <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+            {d ? d.name : row.driverName || 'Tài xế'}
+          </span>
+        )
       },
-    },
-    {
-      header: 'Phương Tiện',
-      render: (row) => (
-        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
-          {row.vehicleId}
-        </span>
-      ),
     },
     {
       header: 'Loại Vi Phạm & Chi Tiết',
@@ -141,7 +150,7 @@ export default function AdminHistory() {
           style={{
             background: row.status === 'resolved' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(245, 158, 11, 0.15)',
             border: `1px solid ${row.status === 'resolved' ? 'var(--card-border)' : 'rgba(245, 158, 11, 0.4)'}`,
-            color: row.status === 'resolved' ? 'var(--text-secondary)' : 'var(--amber-primary)',
+            color: row.status === 'resolved' ? 'var(--text-secondary)' : 'var(--amber-dark)',
             padding: '6px 12px',
             borderRadius: '6px',
             fontSize: '12px',
@@ -234,6 +243,8 @@ export default function AdminHistory() {
         searchPlaceholder="Tìm theo chi tiết cảnh báo hoặc loại vi phạm..."
         searchKey="type"
         pageSize={10}
+        emptyTitle="Chưa có sự cố nào được ghi nhận"
+        emptyDescription="Khi tài xế vi phạm ngủ gật hoặc mất tập trung trong buồng lái, sự cố sẽ tự động lưu lại ở đây."
       />
 
       {/* Incident Detail & Resolve Modal */}
@@ -241,7 +252,7 @@ export default function AdminHistory() {
         <Modal
           isOpen={!!selectedIncident}
           onClose={() => setSelectedIncident(null)}
-          title={`Chi Tiết & Xử Lý Sự Cố · ${selectedIncident.type}`}
+          title={`Chi Tiết & Xử Lý Sự Cố · ${selectedIncident.type === 'DROWSY' ? 'Ngủ Gật' : selectedIncident.type === 'YAWN' ? 'Ngáp Buồn Ngủ' : 'Mất Tập Trung'}`}
           footer={
             <>
               <button className={styles.btnSecondary} onClick={() => setSelectedIncident(null)}>
@@ -255,23 +266,18 @@ export default function AdminHistory() {
           }
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-              <div style={{ background: 'rgba(6, 14, 28, 0.6)', padding: 12, borderRadius: 8 }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>MỨC ĐỘ NGUY HIỂM</div>
-                <StatusBadge level={selectedIncident.level} />
-              </div>
-
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
               <div style={{ background: 'var(--bg-subtle)', padding: 12, borderRadius: 8, border: '1px solid var(--card-border)' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>THỜI ĐIỂM GHI NHẬN</div>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>
-                  {formatDate(selectedIncident.ts)}
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>MỨC ĐỘ NGUY HIỂM</div>
+                <div style={{ marginTop: 4 }}>
+                  <StatusBadge level={selectedIncident.level} />
                 </div>
               </div>
 
               <div style={{ background: 'var(--bg-subtle)', padding: 12, borderRadius: 8, border: '1px solid var(--card-border)' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>PHƯƠNG TIỆN</div>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--blue-primary)', fontFamily: 'var(--font-mono)' }}>
-                  {selectedIncident.vehicleId}
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>THỜI ĐIỂM GHI NHẬN</div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', marginTop: 4 }}>
+                  {formatDate(selectedIncident.ts)}
                 </div>
               </div>
             </div>
@@ -284,6 +290,14 @@ export default function AdminHistory() {
                 {selectedIncident.metrics}
               </div>
             </div>
+
+            {selectedIncident.status === 'resolved' && (
+              <div style={{ background: 'var(--green-bg)', border: '1px solid var(--green-border)', padding: 12, borderRadius: 8 }}>
+                <div style={{ fontSize: '11px', color: 'var(--green-dark)', fontWeight: 700 }}>
+                  ĐÃ XỬ LÝ BỞI: {selectedIncident.resolvedBy || 'Quản trị viên'}
+                </div>
+              </div>
+            )}
 
             <div>
               <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', marginBottom: 6, display: 'block', textTransform: 'uppercase' }}>

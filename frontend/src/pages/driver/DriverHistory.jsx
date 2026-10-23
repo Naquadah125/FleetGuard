@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Calendar,
   Clock,
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { getDB, generateTelemetryForTrip } from '../../store/db'
+import { fetchSessions, getUserId } from '../../api/sessions'
 import Modal from '../../components/common/Modal'
 import { LineChart } from '../../components/common/SVGCharts'
 import styles from './DriverPages.module.css'
@@ -17,13 +18,41 @@ export default function DriverHistory() {
   const { user, organization } = useAuth()
   const [selectedTrip, setSelectedTrip] = useState(null)
   const [filterScore, setFilterScore] = useState('all')
+  const [serverTrips, setServerTrips] = useState([])
+  const [historyError, setHistoryError] = useState('')
 
   const isFreePlan = !organization || organization.plan === 'free'
+  const userId = getUserId(user)
 
   const db = getDB()
   const allMyTrips = useMemo(() => {
-    return db.trips.filter((t) => t.driverId === user?._id)
-  }, [db.trips, user?._id])
+    const localTrips = db.trips.filter((t) => t.driverId === userId)
+    const tripsById = new Map(localTrips.map((trip) => [trip._id, trip]))
+    serverTrips.forEach((trip) => tripsById.set(trip._id, { ...tripsById.get(trip._id), ...trip }))
+    return [...tripsById.values()].sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt))
+  }, [db.trips, serverTrips, userId])
+
+  useEffect(() => {
+    if (!userId) return
+
+    let cancelled = false
+    fetchSessions(userId)
+      .then((trips) => {
+        if (!cancelled) {
+          setServerTrips(trips)
+          setHistoryError('')
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setHistoryError(`${err.message}. Đang hiển thị dữ liệu cục bộ.`)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [userId])
 
   // Filter 7 days if free plan
   const visibleTrips = useMemo(() => {
@@ -141,10 +170,39 @@ export default function DriverHistory() {
         </div>
       </div>
 
+      {historyError && (
+        <div style={{ marginBottom: 12, fontSize: '12px', color: 'var(--amber-dark)' }}>
+          {historyError}
+        </div>
+      )}
+
       {/* Trips List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {visibleTrips.map((trip) => {
-          const isHigh = trip.safetyScore >= 90
+        {visibleTrips.length === 0 ? (
+          <div
+            style={{
+              padding: '48px 24px',
+              textAlign: 'center',
+              background: 'var(--bg-subtle)',
+              borderRadius: '16px',
+              border: '1px dashed var(--card-border)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <Clock size={36} color="var(--text-muted)" style={{ opacity: 0.6 }} />
+            <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>
+              Chưa có hành trình lái xe nào
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', maxWidth: 420, lineHeight: 1.5 }}>
+              Hệ thống sẽ tự động lưu lại phiên làm việc, điểm an toàn và các cảnh báo sau khi bạn kích hoạt camera tại mục Giám Sát.
+            </div>
+          </div>
+        ) : (
+          visibleTrips.map((trip) => {
+            const isHigh = trip.safetyScore >= 90
           return (
             <div
               key={trip._id}
@@ -214,7 +272,7 @@ export default function DriverHistory() {
               </div>
             </div>
           )
-        })}
+        }))}
       </div>
 
       {/* Trip Detail Modal */}

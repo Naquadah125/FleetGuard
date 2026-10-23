@@ -112,6 +112,142 @@ async function runTests() {
       `Chấp thuận người dùng có quyền FLEET_ADMIN`
     );
 
+    const sdkShapeGemini = {
+      models: {
+        generateContent: async ({ contents }) => {
+          if (contents.length === 1) {
+            return {
+              functionCalls: [{
+                name: 'query_emotion_stats',
+                args: { driver_id: 'drv_test_01' }
+              }]
+            };
+          }
+          return { text: 'Đã đọc dữ liệu cảm xúc.' };
+        }
+      }
+    };
+    const sdkShapeService = new ChatService({
+      backendUrl: `http://localhost:${MOCK_PORT}`,
+      gemini: sdkShapeGemini
+    });
+    const sdkShapeRes = await sdkShapeService.sendMessage(
+      'Thống kê cảm xúc',
+      adminUser
+    );
+    assert(
+      sdkShapeRes.reply === 'Đã đọc dữ liệu cảm xúc.',
+      `Hỗ trợ response functionCalls dạng mảng của Gemini SDK`
+    );
+
+    let secondRequest;
+    const thoughtSignature = 'signature-from-gemini';
+    const thoughtSignatureGemini = {
+      models: {
+        generateContent: async (request) => {
+          if (request.contents.length === 1) {
+            return {
+              functionCalls: [{
+                name: 'query_emotion_stats',
+                args: { driver_id: 'drv_test_01' }
+              }],
+              candidates: [{
+                content: {
+                  role: 'model',
+                  parts: [{
+                    functionCall: {
+                      name: 'query_emotion_stats',
+                      args: { driver_id: 'drv_test_01' }
+                    },
+                    thoughtSignature
+                  }]
+                }
+              }]
+            };
+          }
+          secondRequest = request;
+          return { text: 'Đã giữ nguyên chữ ký của Gemini.' };
+        }
+      }
+    };
+    const thoughtSignatureService = new ChatService({
+      backendUrl: `http://localhost:${MOCK_PORT}`,
+      gemini: thoughtSignatureGemini
+    });
+    await thoughtSignatureService.sendMessage('Thống kê cảm xúc', adminUser);
+    assert(
+      secondRequest.contents.some((content) =>
+        content.role === 'model' &&
+        content.parts?.some((part) => part.thoughtSignature === thoughtSignature)
+      ),
+      `Giữ thought_signature khi gửi kết quả tool về Gemini`
+    );
+
+    const unavailableGemini = {
+      models: {
+        generateContent: async () => {
+          throw new Error('Gemini temporarily unavailable');
+        }
+      }
+    };
+    const fallbackService = new ChatService({
+      backendUrl: `http://localhost:${MOCK_PORT}`,
+      gemini: unavailableGemini,
+      allowedRoles: ['USER'],
+      driverId: 'drv_test_01'
+    });
+    const fallbackRes = await fallbackService.sendMessage(
+      'Thống kê cảm xúc của tôi',
+      { id: 'drv_test_01', role: 'USER' },
+      [],
+      { authToken: 'test-token' }
+    );
+    assert(
+      fallbackRes.structuredData?.metrics?.total_records === 120,
+      `Fallback vẫn trả analytics thật khi Gemini tạm thời lỗi`
+    );
+
+    const hangingGemini = {
+      models: {
+        generateContent: () => new Promise(() => {})
+      }
+    };
+    const timeoutService = new ChatService({
+      backendUrl: `http://localhost:${MOCK_PORT}`,
+      gemini: hangingGemini,
+      geminiTimeoutMs: 10,
+      allowedRoles: ['USER'],
+      driverId: 'drv_test_01'
+    });
+    const timeoutRes = await timeoutService.sendMessage(
+      'Thống kê cảm xúc của tôi',
+      { id: 'drv_test_01', role: 'USER' }
+    );
+    assert(
+      timeoutRes.structuredData?.metrics?.total_records === 120,
+      `Fallback sau timeout Gemini không làm kẹt chatbot`
+    );
+
+    const genericGemini = {
+      models: {
+        generateContent: async () => ({ text: 'Tôi có thể giúp gì thêm?' })
+      }
+    };
+    const intentFallbackService = new ChatService({
+      backendUrl: `http://localhost:${MOCK_PORT}`,
+      gemini: genericGemini,
+      allowedRoles: ['USER'],
+      driverId: 'drv_test_01'
+    });
+    const intentFallbackRes = await intentFallbackService.sendMessage(
+      'Thống kê các cảm xúc của tôi',
+      { id: 'drv_test_01', role: 'USER' }
+    );
+    assert(
+      intentFallbackRes.structuredData?.metrics?.total_records === 120,
+      `Câu hỏi thống kê luôn trả structuredData dù Gemini không gọi tool`
+    );
+
     // 2. Kiểm tra Tool Declarations
     console.log('\n\x1b[36m[Test 2] Kiểm tra Khai báo Công cụ (Gemini Function Declarations)\x1b[0m');
     assert(Array.isArray(geminiToolDeclarations), `Khai báo công cụ là một mảng`);

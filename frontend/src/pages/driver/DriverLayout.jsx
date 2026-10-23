@@ -16,7 +16,7 @@ import { ToastContainer } from '../../components/common/Toast'
 import styles from './DriverLayout.module.css'
 
 export default function DriverLayout() {
-  const { user, logout } = useAuth()
+  const { user, organization, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [collapsed, setCollapsed] = useState(() => {
@@ -115,13 +115,16 @@ export default function DriverLayout() {
             <span>Lịch Sử Hành Trình</span>
           </NavLink>
 
-          <div
-            className={`${styles.navItem} ${styles.navItemDisabled}`}
-            title="Tính năng đang được phát triển"
+          <NavLink
+            to="/driver/chat"
+            title="Trợ lý AI"
+            className={({ isActive }) =>
+              `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
+            }
           >
             <Bot size={18} />
-            <span>Trợ lý AI (sắp ra mắt)</span>
-          </div>
+            <span>Trợ lý AI</span>
+          </NavLink>
         </nav>
       </aside>
 
@@ -146,9 +149,9 @@ export default function DriverLayout() {
                 {user?.name ? user.name.charAt(0).toUpperCase() : 'T'}
               </div>
               <div className={styles.userInfoText}>
-                <div className={styles.userName}>{user?.name || 'Nguyễn Văn Lái Xe'}</div>
+                <div className={styles.userName}>{user?.name || 'Tài xế'}</div>
                 <div className={styles.userSub}>
-                  {user?.vehicleId ? 'Xe: ' + user.vehicleId : 'Xe: veh_free_1'}
+                  {organization?.name || 'Tài xế buồng lái'}
                 </div>
               </div>
               <ChevronDown
@@ -160,9 +163,9 @@ export default function DriverLayout() {
             {dropdownOpen && (
               <div className={styles.dropdownMenu}>
                 <div className={styles.dropdownHeader}>
-                  <div className={styles.dropdownName}>{user?.name || 'Nguyễn Văn Lái Xe'}</div>
+                  <div className={styles.dropdownName}>{user?.name || 'Tài xế'}</div>
                   <div className={styles.dropdownSub}>
-                    {user?.vehicleId ? 'Phương tiện: ' + user.vehicleId : 'Xe: veh_free_1'}
+                    {organization?.name || 'Tài khoản buồng lái'}
                   </div>
                 </div>
                 <div className={styles.dropdownDivider} />

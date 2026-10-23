@@ -64,13 +64,51 @@ export class TelemetryHandler {
    */
   _setupSocketListeners() {
     this.io.on('connection', (socket) => {
-      // 1. Join fleet admin room for real-time monitoring
-      socket.on('admin:join', () => {
+      // 1. Join fleet admin room for real-time monitoring (organization scoped)
+      socket.on('admin:join', (data) => {
+        const orgId = data?.organizationId || 'org_6adb1f069a6b13c161dc5f70';
         socket.join('room:fleet_admins');
-        socket.emit('admin:joined', { room: 'room:fleet_admins', timestamp: Date.now() });
+        socket.join(`room:org_${orgId}`);
+        socket.emit('admin:joined', { room: `room:org_${orgId}`, timestamp: Date.now() });
       });
 
-      // 2. Driver stream telemetry event
+      // 2. Driver registers their connection with organization
+      socket.on('driver:join', (data) => {
+        if (data?.driverId) {
+          socket.driverId = data.driverId;
+          socket.organizationId = data.organizationId || null;
+          if (data.organizationId) {
+            socket.join(`room:org_${data.organizationId}`);
+          }
+        }
+      });
+
+      // 3. Driver stream live camera frame (10-15 fps JPEG)
+      socket.on('driver:camera_frame', (payload) => {
+        if (!payload || !payload.driverId) return;
+        const orgId = payload.organizationId;
+        const targetRoom = orgId ? `room:org_${orgId}` : 'room:fleet_admins';
+
+        // Relay live frame to Admin room
+        this.io.to(targetRoom).emit('driver:camera_frame', payload);
+        if (targetRoom !== 'room:fleet_admins') {
+          this.io.to('room:fleet_admins').emit('driver:camera_frame', payload);
+        }
+      });
+
+      // 4. Driver camera status toggle (cameraActive: true/false)
+      socket.on('driver:camera_status', (payload) => {
+        if (!payload || !payload.driverId) return;
+        const orgId = payload.organizationId;
+        const targetRoom = orgId ? `room:org_${orgId}` : 'room:fleet_admins';
+
+        this.io.to(targetRoom).emit('driver:camera_status', payload);
+        if (targetRoom !== 'room:fleet_admins') {
+          this.io.to('room:fleet_admins').emit('driver:camera_status', payload);
+        }
+      });
+
+      // 5. Driver stream telemetry event
       socket.on('telemetry:stream', (payload) => {
         if (!payload) return;
 
@@ -123,7 +161,21 @@ export class TelemetryHandler {
       });
 
       socket.on('disconnect', () => {
-        // Disconnected cleanly
+        if (socket.driverId) {
+          const orgId = socket.organizationId;
+          const targetRoom = orgId ? `room:org_${orgId}` : 'room:fleet_admins';
+          const payload = {
+            driverId: socket.driverId,
+            organizationId: orgId,
+            cameraActive: false,
+            status: 'resting',
+            reason: 'disconnected'
+          };
+          this.io.to(targetRoom).emit('driver:camera_status', payload);
+          if (targetRoom !== 'room:fleet_admins') {
+            this.io.to('room:fleet_admins').emit('driver:camera_status', payload);
+          }
+        }
       });
     });
   }

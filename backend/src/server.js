@@ -65,7 +65,6 @@ const telemetryHandler = new TelemetryHandler(io, {
  */
 export async function startServer(port = process.env.PORT || 5000) {
   await connectDB(process.env.MONGODB_URI);
-  await seedDatabase();
 
   return new Promise((resolve) => {
     httpServer.listen(port, () => {

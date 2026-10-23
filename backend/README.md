@@ -52,6 +52,18 @@ Máy chủ trung tâm xử lý REST API, truyền nhận dữ liệu thời gian
 
 ## 🛠️ Hướng Dẫn Chạy & Nạp Dữ Liệu
 
+### Cấu hình Gemini Chatbot
+
+Tạo `backend/.env` (không commit file này):
+
+```env
+GEMINI_API_KEY=your_real_gemini_api_key
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+Gemini chỉ được gọi từ backend. Xem hướng dẫn đầy đủ tại
+`docs/superpowers/guide/user-gemini-chatbot.md`.
+
 ```bash
 cd backend
 

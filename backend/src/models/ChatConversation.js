@@ -6,6 +6,11 @@ const chatConversationSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  session_id: {
+    type: String,
+    required: true,
+    index: true
+  },
   role: {
     type: String,
     enum: ['user', 'model', 'system'],
@@ -25,7 +30,7 @@ const chatConversationSchema = new mongoose.Schema({
   }
 });
 
-chatConversationSchema.index({ user_id: 1, timestamp: 1 });
+chatConversationSchema.index({ user_id: 1, session_id: 1, timestamp: 1 });
 
 export const ChatConversation = mongoose.models.ChatConversation || mongoose.model('ChatConversation', chatConversationSchema);
 export default ChatConversation;

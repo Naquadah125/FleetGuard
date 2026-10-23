@@ -1,0 +1,258 @@
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--amber-dark);
+}
+
+.titleRow h1 {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 1.6rem;
+}
+
+.header p,
+.dataPanel p {
+  color: var(--text-secondary);
+  margin: 8px 0 0;
+  max-width: 620px;
+  line-height: 1.5;
+}
+
+.newSessionButton,
+.promptList button {
+  border: 1px solid var(--amber-border);
+  background: var(--amber-bg);
+  color: var(--amber-dark);
+  border-radius: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.newSessionButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  white-space: nowrap;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.8fr);
+  gap: 24px;
+}
+
+.chatPanel,
+.dataPanel {
+  background: #fff;
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.chatPanel {
+  min-height: 620px;
+  display: flex;
+  flex-direction: column;
+}
+
+.messages {
+  flex: 1;
+  padding: 24px;
+}
+
+.emptyState {
+  min-height: 390px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.emptyState svg {
+  margin: 0 auto 10px;
+  color: var(--amber-dark);
+}
+
+.emptyState h2 {
+  color: var(--text-main);
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+}
+
+.emptyState p {
+  margin: 0 auto 20px;
+  max-width: 430px;
+}
+
+.promptList {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.promptList button {
+  padding: 9px 11px;
+  background: var(--bg-subtle);
+  border-color: var(--card-border);
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: left;
+}
+
+.message {
+  max-width: 82%;
+  padding: 13px 15px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.message strong {
+  color: var(--text-main);
+  font-size: 12px;
+}
+
+.message p {
+  white-space: pre-wrap;
+  margin: 6px 0 0;
+  line-height: 1.55;
+  color: var(--text-main);
+}
+
+.userMessage {
+  margin-left: auto;
+  background: var(--amber-bg);
+}
+
+.modelMessage {
+  background: var(--bg-subtle);
+}
+
+.composer {
+  border-top: 1px solid var(--card-border);
+  padding: 16px 20px 20px;
+}
+
+.composer label {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 7px;
+}
+
+.inputRow {
+  display: flex;
+  gap: 10px;
+}
+
+.inputRow textarea {
+  flex: 1;
+  resize: vertical;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 11px 12px;
+  font: inherit;
+  color: var(--text-main);
+}
+
+.inputRow button {
+  width: 46px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--amber-primary);
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.inputRow button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.error {
+  margin: 0 20px 12px;
+  padding: 10px 12px;
+  background: var(--red-bg);
+  color: var(--red-dark);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.dataPanel {
+  padding: 20px;
+  align-self: start;
+}
+
+.dataPanel h2 {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 1rem;
+}
+
+.dataEmpty {
+  margin-top: 22px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+.result {
+  margin-top: 20px;
+}
+
+.result h3 {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 10px;
+}
+
+.dataLine {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--card-border);
+  font-size: 12px;
+}
+
+.dataLine strong {
+  color: var(--text-main);
+  text-align: right;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .header {
+    flex-direction: column;
+  }
+
+  .newSessionButton {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .message {
+    max-width: 94%;
+  }
+}

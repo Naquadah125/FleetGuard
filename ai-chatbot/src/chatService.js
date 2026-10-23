@@ -1,4 +1,4 @@
-import { getGeminiClient, DEFAULT_MODEL } from './geminiClient.js';
+import { getGeminiClient, DEFAULT_MODEL, getGeminiModels } from './geminiClient.js';
 import { FLEET_COPILOT_SYSTEM_PROMPT } from './systemPrompt.js';
 import { geminiToolDeclarations, executeTool } from './tools.js';
 
@@ -7,11 +7,21 @@ export class ChatService {
    * @param {Object} [options]
    * @param {string} [options.backendUrl] URL of backend REST server
    * @param {string} [options.model] Gemini model name
+   * @param {string[]} [options.allowedRoles] Roles allowed to use the service
+   * @param {boolean} [options.requireGemini] Disable local fallback when true
+   * @param {string} [options.driverId] Force analytics tools to this driver
+   * @param {number} [options.geminiTimeoutMs] Maximum wait for a Gemini response
    */
   constructor(options = {}) {
     this.backendUrl = options.backendUrl || process.env.BACKEND_URL || 'http://localhost:5000';
     this.model = options.model || DEFAULT_MODEL;
-    this.gemini = getGeminiClient();
+    this.models = getGeminiModels({ models: options.models, model: this.model });
+    this.model = this.models[0];
+    this.allowedRoles = options.allowedRoles || ['FLEET_ADMIN'];
+    this.requireGemini = options.requireGemini || false;
+    this.driverId = options.driverId;
+    this.geminiTimeoutMs = options.geminiTimeoutMs || Number(process.env.GEMINI_TIMEOUT_MS || 8000);
+    this.gemini = options.gemini || getGeminiClient();
   }
 
   /**
@@ -19,13 +29,13 @@ export class ChatService {
    * @param {string} message User question/prompt
    * @param {Object} user User profile with { id, role, name }
    * @param {Array<Object>} [conversationHistory=[]] Previous chat turns
+   * @param {Object} [requestOptions] Per-request options
    * @returns {Promise<{reply: string, structuredData: Object|null, toolsUsed: Array<string>}>}
    */
-  async sendMessage(message, user = {}, conversationHistory = []) {
-    // 1. RBAC Security Check: Enforce FLEET_ADMIN role
-    if (!user || user.role !== 'FLEET_ADMIN') {
+  async sendMessage(message, user = {}, conversationHistory = [], requestOptions = {}) {
+    if (!user || !this.allowedRoles.includes(user.role)) {
       return {
-        reply: 'Rất tiếc, bạn không có quyền FLEET_ADMIN để truy vấn dữ liệu an toàn và cảm xúc của đội xe.',
+        reply: 'Rất tiếc, bạn không có quyền FLEET_ADMIN để truy vấn dữ liệu an toàn này.',
         structuredData: null,
         toolsUsed: []
       };
@@ -39,24 +49,113 @@ export class ChatService {
       };
     }
 
-    // 2. If Gemini API is configured, use official SDK with Function Calling
+    if (!this.gemini && this.requireGemini) {
+      const error = new Error('GEMINI_API_KEY chưa được cấu hình ở backend.');
+      error.code = 'GEMINI_NOT_CONFIGURED';
+      throw error;
+    }
+
     if (this.gemini) {
+      const attemptedModels = [];
+      let lastError;
+      for (const model of this.models) {
+        attemptedModels.push(model);
+        try {
+          const geminiRequest = this._callGeminiWithTools(message, user, conversationHistory, requestOptions, model);
+          const timeout = new Promise((_, reject) => {
+            setTimeout(() => reject(Object.assign(new Error('Gemini response timed out'), { code: 'GEMINI_TIMEOUT' })), this.geminiTimeoutMs);
+          });
+          const geminiResult = await Promise.race([geminiRequest, timeout]);
+          const asksForAnalytics = /thống kê|cảm xúc|video|buồn ngủ|mệt mỏi|an toàn/i.test(message);
+          const modelStatus = {
+            source: 'gemini',
+            attemptedModels,
+            selectedModel: model,
+          };
+          if (asksForAnalytics && !geminiResult.structuredData) {
+            return await this._fallbackLocalCopilot(message, user, { ...requestOptions, modelStatus });
+          }
+          return { ...geminiResult, modelStatus };
+        } catch (err) {
+          lastError = err;
+          if (!this._isRetryableGeminiError(err)) break;
+        }
+      }
+      if (this.requireGemini) throw lastError;
+      const failureCode = lastError?.status === 429 ? 'GEMINI_QUOTA_EXHAUSTED' : 'GEMINI_UNAVAILABLE';
+      const modelStatus = { source: 'internal', attemptedModels, failureCode };
+      console.warn(`[Gemini SDK Notice]: ${lastError?.message}. Falling back to Smart Copilot Engine.`);
+      const fallback = await this._fallbackLocalCopilot(message, user, { ...requestOptions, modelStatus });
+      return {
+        ...fallback,
+        modelStatus,
+        reply: `${fallback.reply}\n\nGemini API đang tạm thời không khả dụng; dữ liệu trên là phân tích nội bộ.`
+      };
+    }
+
+    return await this._fallbackLocalCopilot(message, user, {
+      ...requestOptions,
+      modelStatus: { source: 'internal', attemptedModels: [], failureCode: 'GEMINI_NOT_CONFIGURED' }
+    });
+  }
+
+  _isRetryableGeminiError(error) {
+    return [429, 500, 502, 503, 504].includes(Number(error?.status)) ||
+      ['GEMINI_TIMEOUT', 'UND_ERR_CONNECT_TIMEOUT'].includes(error?.code) ||
+      /unavailable|overloaded|quota|rate.?limit|timeout/i.test(error?.message || '');
+  }
+
+  async interpretAdminResult(message, user, structuredData) {
+    const attemptedModels = [];
+    if (!this.gemini) {
+      return {
+        reply: `${structuredData.title || 'Đã tổng hợp dữ liệu.'}. Dữ liệu được lấy từ analytics nội bộ.`,
+        modelStatus: { source: 'internal', attemptedModels, failureCode: 'GEMINI_NOT_CONFIGURED' }
+      };
+    }
+
+    let lastError;
+    for (const model of this.models) {
+      attemptedModels.push(model);
       try {
-        return await this._callGeminiWithTools(message, user, conversationHistory);
-      } catch (err) {
-        console.warn(`[Gemini SDK Notice]: ${err.message}. Falling back to Smart Copilot Engine.`);
-        return await this._fallbackLocalCopilot(message, user);
+        const response = await Promise.race([
+          this.gemini.models.generateContent({
+            model,
+            contents: [{
+              role: 'user',
+              parts: [{ text: `${message}\nDữ liệu cấu trúc:\n${JSON.stringify(structuredData)}` }]
+            }],
+            config: { systemInstruction: FLEET_COPILOT_SYSTEM_PROMPT }
+          }),
+          new Promise((_, reject) => setTimeout(
+            () => reject(Object.assign(new Error('Gemini response timed out'), { code: 'GEMINI_TIMEOUT' })),
+            this.geminiTimeoutMs
+          ))
+        ]);
+        return {
+          reply: response.text || `${structuredData.title}. Đã tổng hợp dữ liệu nội bộ.`,
+          modelStatus: { source: 'gemini', attemptedModels, selectedModel: model }
+        };
+      } catch (error) {
+        lastError = error;
+        if (!this._isRetryableGeminiError(error)) break;
       }
     }
 
-    // 3. Fallback Smart Copilot (for offline dev and test verification)
-    return await this._fallbackLocalCopilot(message, user);
+    return {
+      reply: `${structuredData.title || 'Đã tổng hợp dữ liệu.'}. Gemini đang tạm thời không khả dụng; số liệu bên dưới là phân tích nội bộ.`,
+      modelStatus: {
+        source: 'internal',
+        attemptedModels,
+        failureCode: lastError?.status === 429 ? 'GEMINI_QUOTA_EXHAUSTED' : 'GEMINI_UNAVAILABLE'
+      }
+    };
   }
 
   /**
    * Multi-turn Function Calling loop using @google/genai SDK
    */
-  async _callGeminiWithTools(message, user, conversationHistory = []) {
+  async _callGeminiWithTools(message, user, conversationHistory = [], requestOptions = {}, model = this.model) {
     const toolsUsed = [];
     let structuredData = null;
 
@@ -74,7 +173,7 @@ export class ChatService {
     });
 
     const response = await this.gemini.models.generateContent({
-      model: this.model,
+      model,
       contents,
       config: {
         systemInstruction: FLEET_COPILOT_SYSTEM_PROMPT,
@@ -83,24 +182,33 @@ export class ChatService {
     });
 
     // Check for Function Calls
-    const functionCalls = response.functionCalls();
+    const functionCalls = typeof response.functionCalls === 'function'
+      ? response.functionCalls()
+      : response.functionCalls;
 
     if (functionCalls && functionCalls.length > 0) {
       const call = functionCalls[0];
       toolsUsed.push(call.name);
 
-      const toolResult = await executeTool(call.name, call.args, {
-        backendUrl: this.backendUrl
+      const toolArgs = {
+        ...call.args,
+        ...(this.driverId || requestOptions.driverId
+          ? { driver_id: this.driverId || requestOptions.driverId }
+          : {})
+      };
+      const toolResult = await executeTool(call.name, toolArgs, {
+        backendUrl: this.backendUrl,
+        authToken: requestOptions.authToken
       });
 
       structuredData = toolResult.data;
 
       // Provide tool result back to Gemini for the final natural explanation
       const secondTurnResponse = await this.gemini.models.generateContent({
-        model: this.model,
+        model,
         contents: [
           ...contents,
-          {
+          response.candidates?.[0]?.content || {
             role: 'model',
             parts: [{ functionCall: call }]
           },
@@ -138,7 +246,7 @@ export class ChatService {
    * Smart Copilot Rule-based Fallback
    * Matches intents, calls tools, and formats structured response
    */
-  async _fallbackLocalCopilot(message, user) {
+  async _fallbackLocalCopilot(message, user, requestOptions = {}) {
     const text = message.toLowerCase();
     const toolsUsed = [];
     let structuredData = null;
@@ -151,7 +259,8 @@ export class ChatService {
 
       toolsUsed.push('get_video_emotion_breakdown');
       const toolRes = await executeTool('get_video_emotion_breakdown', { video_id: videoId }, {
-        backendUrl: this.backendUrl
+        backendUrl: this.backendUrl,
+        authToken: requestOptions.authToken
       });
 
       if (toolRes.status === 'SUCCESS' && toolRes.data) {
@@ -162,7 +271,7 @@ export class ChatService {
         reply = `Không tìm thấy báo cáo phân tích cho video mã "${videoId}". Bạn vui lòng kiểm tra lại mã video.`;
       }
 
-      return { reply, structuredData, toolsUsed };
+      return { reply, structuredData, toolsUsed, modelStatus: requestOptions.modelStatus };
     }
 
     // Check for driver metrics inquiry
@@ -176,11 +285,12 @@ export class ChatService {
       text.includes('an toàn')
     ) {
       const driverMatch = text.match(/(?:tài xế|driver|mã)\s*[:#]?\s*([a-zA-Z0-9_\-]+)/i);
-      const driverId = driverMatch ? driverMatch[1] : undefined;
+      const driverId = this.driverId || requestOptions.driverId || driverMatch?.[1];
 
       toolsUsed.push('query_emotion_stats');
       const toolRes = await executeTool('query_emotion_stats', { driver_id: driverId }, {
-        backendUrl: this.backendUrl
+        backendUrl: this.backendUrl,
+        authToken: requestOptions.authToken
       });
 
       if (toolRes.status === 'SUCCESS' && toolRes.data) {
@@ -200,16 +310,27 @@ export class ChatService {
         reply = 'Hiện chưa có dữ liệu telemetry trong khoảng thời gian này để tổng hợp.';
       }
 
-      return { reply, structuredData, toolsUsed };
+      return { reply, structuredData, toolsUsed, modelStatus: requestOptions.modelStatus };
     }
 
-    // Default introductory help
-    reply = 'Chào bạn! Tôi là Fleet Safety Copilot. Bạn có thể hỏi tôi các câu hỏi như:\n' +
-      '- "Thống kê tình trạng an toàn của tài xế drv_test_01?"\n' +
-      '- "Kiểm tra vi phạm trong video dashcam_trip_101?"\n' +
-      '- "Tỷ lệ tập trung và số lần buồn ngủ của đội xe hôm nay?"';
+    toolsUsed.push('query_emotion_stats');
+    const toolRes = await executeTool('query_emotion_stats', {
+      driver_id: this.driverId || requestOptions.driverId
+    }, {
+      backendUrl: this.backendUrl,
+      authToken: requestOptions.authToken
+    });
 
-    return { reply, structuredData: null, toolsUsed };
+    if (toolRes.status === 'SUCCESS' && toolRes.data) {
+      structuredData = toolRes.data;
+      const total = toolRes.data.metrics?.total_records || 0;
+      reply = `Đã tổng hợp dữ liệu an toàn của bạn: **${total} bản ghi telemetry**. ` +
+        'Bạn có thể hỏi thêm về cảm xúc, buồn ngủ, mất tập trung hoặc video.';
+    } else {
+      reply = 'Chưa có dữ liệu telemetry để tổng hợp. Bạn có thể thử lại sau khi hoàn tất một phiên lái.';
+    }
+
+    return { reply, structuredData, toolsUsed, modelStatus: requestOptions.modelStatus };
   }
 }
 

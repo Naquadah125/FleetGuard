@@ -1,24 +1,20 @@
-import { useState, useEffect } from 'react'
-import { Outlet, NavLink, useNavigate, useLocation, Link } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
   Grid,
   Users,
-  Truck,
   History,
   FileText,
   Bot,
-  Camera,
-  RotateCcw,
   LogOut,
   ShieldCheck,
-  Building2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
 } from 'lucide-react'
 import FleetGuardLogo from '@/components/brand/FleetGuardLogo'
 import { useAuth } from '../../context/AuthContext'
-import { resetDemo, getDB } from '../../store/db'
 import { ToastContainer, toast } from '../../components/common/Toast'
 import styles from './AdminLayout.module.css'
 
@@ -29,6 +25,23 @@ export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem('fleetguard_admin_sidebar_collapsed') === 'true'
   })
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const dropdownRef = useRef(null)
+
+  // Handle clicking outside user dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false)
+      }
+    }
+    if (dropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [dropdownOpen])
 
   const toggleCollapse = () => {
     setCollapsed((prev) => {
@@ -58,31 +71,18 @@ export default function AdminLayout() {
   }, [])
 
   const handleLogout = () => {
+    setDropdownOpen(false)
     logout()
     navigate('/login')
-  }
-
-  const handleResetDemo = () => {
-    if (window.confirm('Bạn có chắc chắn muốn đặt lại dữ liệu demo 30 ngày ban đầu?')) {
-      resetDemo()
-      toast.success('Thành công', 'Đã đặt lại toàn bộ dữ liệu mẫu ban đầu!')
-    }
   }
 
   const getPageTitle = () => {
     const path = location.pathname
     if (path.includes('/cameras')) return 'Camera Giám Sát Đội Xe (Live Wall)'
     if (path.includes('/employees')) return 'Quản Lý Đội Ngũ Nhân Viên'
-    if (path.includes('/vehicles')) return 'Quản Lý Phương Tiện Vận Tải'
-    if (path.includes('/history')) return 'Nhật Ký Sự Cố & Hành Trình Đội Xe'
+    if (path.includes('/history')) return 'Nhật Ký Sự Cố & An Toàn'
     if (path.includes('/reports')) return 'Báo Cáo & Phân Tích An Toàn'
     return 'Trung Tâm Điều Hành Đội Xe'
-  }
-
-  const activeVehiclesCount = () => {
-    const db = getDB()
-    const active = db.vehicles.filter((v) => v.status === 'driving').length
-    return `${active}/${db.vehicles.length}`
   }
 
   return (
@@ -103,28 +103,7 @@ export default function AdminLayout() {
           </button>
         </div>
 
-        <div className={`${styles.orgCard} ${collapsed ? styles.orgCardCollapsed : ''}`}>
-          {collapsed ? (
-            <div
-              className={styles.orgIconCollapsed}
-              title={`${organization?.name || 'Vận Tải Phương Nam'} (Gói Chuyên Nghiệp)`}
-            >
-              <Building2 size={18} />
-            </div>
-          ) : (
-            <>
-              <div className={styles.orgName}>
-                {organization?.name || 'Vận Tải Phương Nam'}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span className={styles.orgPlanBadge}>Gói Chuyên Nghiệp</span>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{user?.name}</span>
-              </div>
-            </>
-          )}
-        </div>
-
-        <nav className={styles.navGroup}>
+        <nav className={styles.navGroup} style={{ paddingTop: '16px' }}>
           <NavLink
             to="/admin"
             end
@@ -160,25 +139,14 @@ export default function AdminLayout() {
           </NavLink>
 
           <NavLink
-            to="/admin/vehicles"
-            title="Quản Lý Xe"
-            className={({ isActive }) =>
-              `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
-            }
-          >
-            <Truck size={18} />
-            <span>Quản Lý Xe</span>
-          </NavLink>
-
-          <NavLink
             to="/admin/history"
-            title="Lịch Sử & Sự Cố"
+            title="Lịch Sử Sự Cố"
             className={({ isActive }) =>
               `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
             }
           >
             <History size={18} />
-            <span>Lịch Sử & Sự Cố</span>
+            <span>Lịch Sử Sự Cố</span>
           </NavLink>
 
           <NavLink
@@ -192,64 +160,24 @@ export default function AdminLayout() {
             <span>Báo Cáo An Toàn</span>
           </NavLink>
 
-          <div
-            className={`${styles.navItem} ${styles.navItemDisabled}`}
-            title="Trợ lý AI đang được tích hợp"
+          <NavLink
+            to="/admin/chat"
+            title="Trợ lý AI"
+            className={({ isActive }) =>
+              `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
+            }
           >
             <Bot size={18} />
-            <span>Trợ lý AI (sắp ra mắt)</span>
-          </div>
+            <span>Trợ lý AI</span>
+          </NavLink>
         </nav>
-
-        <div className={styles.sidebarFooter}>
-          <Link to="/driver/camera" className={styles.actionBtn} title="Mở Buồng Lái (Camera)">
-            <Camera size={16} />
-            <span>Mở Buồng Lái (Camera)</span>
-          </Link>
-
-          <button
-            className={`${styles.actionBtn} ${styles.resetBtn}`}
-            onClick={handleResetDemo}
-            title="Reset Dữ Liệu Demo"
-          >
-            <RotateCcw size={15} />
-            <span>Reset Dữ Liệu Demo</span>
-          </button>
-
-          <button
-            className={`${styles.actionBtn} ${styles.logoutBtn}`}
-            onClick={handleLogout}
-            title="Đăng xuất"
-          >
-            <LogOut size={16} />
-            <span>Đăng xuất</span>
-          </button>
-        </div>
       </aside>
 
       <div className={`${styles.mainWrapper} ${collapsed ? styles.mainWrapperCollapsed : ''}`}>
         <header className={styles.topbar}>
           <h2 className={styles.topbarTitle}>{getPageTitle()}</h2>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                background: 'var(--blue-bg)',
-                border: '1px solid var(--blue-border)',
-                color: 'var(--blue-dark)',
-                padding: '6px 14px',
-                borderRadius: '999px',
-                fontSize: '12px',
-                fontWeight: 700,
-                fontFamily: 'var(--font-mono)',
-              }}
-            >
-              <span>XE ĐANG CHẠY: {activeVehiclesCount()}</span>
-            </div>
-
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div
               style={{
                 display: 'inline-flex',
@@ -266,6 +194,56 @@ export default function AdminLayout() {
             >
               <ShieldCheck size={14} />
               <span>Giám Sát 24/7</span>
+            </div>
+
+            {/* User Dropdown Header (Synced with DriverLayout) */}
+            <div className={styles.userDropdownWrapper} ref={dropdownRef}>
+              <button
+                type="button"
+                className={styles.userCardBtn}
+                onClick={() => setDropdownOpen((prev) => !prev)}
+                aria-expanded={dropdownOpen}
+                aria-haspopup="true"
+              >
+                <div
+                  className={styles.userAvatar}
+                  style={{ backgroundColor: user?.avatarColor || '#F59E0B' }}
+                  title={user?.name || 'Quản trị viên'}
+                >
+                  {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
+                </div>
+                <div className={styles.userInfoText}>
+                  <div className={styles.userName}>{user?.name || 'Quản trị viên'}</div>
+                  <div className={styles.userSub}>
+                    {organization?.name || 'Quản trị hệ thống'}
+                  </div>
+                </div>
+                <ChevronDown
+                  size={16}
+                  className={`${styles.dropdownChevron} ${dropdownOpen ? styles.dropdownChevronOpen : ''}`}
+                />
+              </button>
+
+              {dropdownOpen && (
+                <div className={styles.dropdownMenu}>
+                  <div className={styles.dropdownHeader}>
+                    <div className={styles.dropdownName}>{user?.name || 'Quản trị viên'}</div>
+                    <div className={styles.dropdownSub}>{user?.email}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--amber-dark)', fontWeight: 700, marginTop: 4 }}>
+                      {organization?.name || 'Doanh Nghiệp'} (Admin)
+                    </div>
+                  </div>
+                  <div className={styles.dropdownDivider} />
+                  <button
+                    type="button"
+                    className={styles.dropdownItemLogout}
+                    onClick={handleLogout}
+                  >
+                    <LogOut size={16} />
+                    <span>Đăng xuất</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>

@@ -17,15 +17,16 @@ const DriverLayout = lazy(withMonoFont(() => import('./pages/driver/DriverLayout
 const DriverOverview = lazy(() => import('./pages/driver/DriverOverview'))
 const DriverCamera = lazy(() => import('./pages/driver/DriverCamera'))
 const DriverHistory = lazy(() => import('./pages/driver/DriverHistory'))
+const DriverChat = lazy(() => import('./pages/driver/DriverChat'))
 
 // Admin Area
 const AdminLayout = lazy(withMonoFont(() => import('./pages/admin/AdminLayout')))
 const AdminOverview = lazy(() => import('./pages/admin/AdminOverview'))
 const AdminCameras = lazy(() => import('./pages/admin/AdminCameras'))
 const AdminEmployees = lazy(() => import('./pages/admin/AdminEmployees'))
-const AdminVehicles = lazy(() => import('./pages/admin/AdminVehicles'))
 const AdminHistory = lazy(() => import('./pages/admin/AdminHistory'))
 const AdminReports = lazy(() => import('./pages/admin/AdminReports'))
+const AdminChat = lazy(() => import('./pages/admin/AdminChat'))
 
 // Route Guard
 function ProtectedRoute({ children, requireAdmin = false }) {
@@ -66,6 +67,7 @@ export default function App() {
             <Route index element={<DriverOverview />} />
             <Route path="camera" element={<DriverCamera />} />
             <Route path="history" element={<DriverHistory />} />
+            <Route path="chat" element={<DriverChat />} />
           </Route>
 
           {/* Admin Area (ADMIN only, plan pro) */}
@@ -80,9 +82,9 @@ export default function App() {
             <Route index element={<AdminOverview />} />
             <Route path="cameras" element={<AdminCameras />} />
             <Route path="employees" element={<AdminEmployees />} />
-            <Route path="vehicles" element={<AdminVehicles />} />
             <Route path="history" element={<AdminHistory />} />
             <Route path="reports" element={<AdminReports />} />
+            <Route path="chat" element={<AdminChat />} />
           </Route>
 
           {/* Catch-all */}
