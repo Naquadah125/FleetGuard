@@ -13,7 +13,7 @@
 const sel = (svgRoot, part) => svgRoot.querySelector(`[data-part="${part}"]`)
 
 /** Head nod pivot (viewBox units), from the task brief. */
-const NECK = '160 145'
+const NECK = '160 140'
 
 function normal(tl, root, gsap) {
   const torso = sel(root, 'torso')
@@ -82,7 +82,7 @@ function fatigued(tl, root, gsap) {
     .to(yawn, { scale: 1, transformOrigin: '50% 50%', duration: 0.9, ease: 'sine.inOut' }, '>')
 
   // Hand rubs the cheek: small rotation around the elbow, in sync with the yawn.
-  tl.to(hand, { rotation: -3, svgOrigin: '242 206', duration: 0.9, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0.4)
+  tl.to(hand, { rotation: -3, svgOrigin: '244 220', duration: 0.9, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0.4)
   tl.set({}, {}, 3.4)
 }
 

@@ -46,7 +46,7 @@ npm run shot -- "http://localhost:5190/" ../.tmp/shots --widths=1440,768,375
 
 ### Cần người quyết định / cung cấp
 1. **Số Zalo thật** — đang là placeholder `19001234` (`CONTACT_CTA.zaloNumber` trong `src/content/landing.js`). Hotline `1900 1234`, email, địa chỉ, giá (199.000đ/299.000đ), số liệu (98,5%, 10.000+, 500+, 4.9★, 120+ đánh giá) đều là số trong mockup, chưa xác minh với kinh doanh.
-2. **Hình tài xế (AI Demo) chưa giống mockup hoàn toàn** — tóc vẫn là khối đặc, mặt hơi tròn so với tranh vẽ tay trong mockup. SVG đã qua 2 vòng vẽ lại; muốn giống hẳn cần ảnh raster gốc độ phân giải cao của 4 trạng thái (khi đó giữ được nhún/Zzz/ánh điện thoại ở mức lớp phủ, mất chớp mắt/ngáp từng bộ phận). File: `DriverIllustration.jsx`, motion: `demo/driverMotion.js`.
+2. **Hình tài xế (AI Demo) — vòng vẽ lại thứ 3 (2026-10-23)**: bố cục đo theo pixel mockup — mặt trái xoan rộng gò má, tóc rẽ ngôi phải + mái quét chéo, tai lộ, vô-lăng tròn tâm (160,222) nửa dưới khuất khung, tay nắm 9–10 giờ / 2–3 giờ, cẳng tay đi xuống mép dưới. Giữ nguyên toàn bộ `data-part`; tâm xoay đổi: cổ `160 140`, khuỷu tay ngáp `244 220` (đã cập nhật `demo/driverMotion.js`). Còn lệch: nắm tay vẫn là khối "găng", chưa thấy rõ ngón như tranh vẽ tay. Muốn giống hẳn vẫn cần raster gốc độ phân giải cao. File: `DriverIllustration.jsx`.
 3. **Mở PR vào `main`** — chưa mở.
 4. **Nút tạm dừng trên `/login`** — chuyển động điện thoại ở AuthShell chỉ tôn trọng trạng thái tạm dừng đặt từ landing; trang login không có nút riêng (WCAG 2.2.2). Chọn: thêm `MotionPauseButton` vào panel trái, hoặc giới hạn chuyển động ~5 s.
 5. **Màu placeholder input** `ink-subtle` (#94A3B8) chỉ 2.56:1 — spec cho phép vì chỉ dùng cho placeholder; nếu muốn đạt AA cần đổi token.
