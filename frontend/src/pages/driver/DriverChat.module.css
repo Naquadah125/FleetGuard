@@ -120,6 +120,10 @@
   padding: 13px 15px;
   border-radius: 12px;
   margin-bottom: 12px;
+  min-width: 0;
+  overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .message strong {
@@ -130,6 +134,10 @@
 
 .messageBody {
   margin-top: 6px;
+  min-width: 0;
+  max-width: 100%;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .message p {

@@ -1,0 +1,35 @@
+====================================================================
+           DANH SÁCH TÀI KHOẢN HỆ THỐNG FLEETGUARD
+====================================================================
+
+1. TÀI KHOẢN QUẢN TRỊ VIÊN (ADMIN)
+--------------------------------------------------------------------
+- Mục đích: Đăng nhập giao diện Quản trị (/admin)
+            Quản lý 6 tài xế, xem bản đồ xe, camera, báo cáo và AI Copilot
+- Email đăng nhập: admin@fleet.vn
+- Mật khẩu:        password123
+- Vai trò:         ADMIN
+- Tên hiển thị:    Trần Hoàng Nam (Quản trị viên)
+- Tổ chức/Đội xe:  FleetGuard Logistics Corp
+
+
+2. TÀI KHOẢN CÁ NHÂN (USER / TÀI XẾ CÁ NHÂN)
+--------------------------------------------------------------------
+- Mục đích: Đăng nhập giao diện Tài xế (/driver)
+            Xem lịch sử lái xe, camera giám sát khuôn mặt, AI Copilot cá nhân
+- Email đăng nhập: user@fleet.vn
+- Mật khẩu:        password123
+- Vai trò:         USER
+- Tên hiển thị:    Hoàng Văn Khang (Lái xe cá nhân)
+
+
+3. DANH SÁCH 6 TÀI XẾ THUỘC ĐỘI XE CỦA ADMIN (MẬT KHẨU: password123)
+--------------------------------------------------------------------
+1. an.nguyen@fleet.vn   | Nguyễn Văn An  | Xe: 51C-882.14 | SĐT: 0912345601
+2. duc.tran@fleet.vn    | Trần Minh Đức  | Xe: 51D-945.32 | SĐT: 0912345602
+3. bao.le@fleet.vn     | Lê Quốc Bảo   | Xe: 60B-123.88 | SĐT: 0912345603
+4. nam.pham@fleet.vn    | Phạm Hoàng Nam | Xe: 50H-567.89 | SĐT: 0912345604
+5. long.vo@fleet.vn     | Võ Thành Long  | Xe: 51A-789.01 | SĐT: 0912345605
+6. huy.dang@fleet.vn    | Đặng Gia Huy   | Xe: 29C-334.55 | SĐT: 0912345606
+
+====================================================================

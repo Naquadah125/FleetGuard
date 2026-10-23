@@ -8,7 +8,7 @@ import { recordAuditEvent } from '../services/auditLogService.js';
 
 const router = express.Router();
 
-const PROFILE_FIELDS = ['name', 'phone', 'dateOfBirth', 'avatarColor', 'avatarImage'];
+const PROFILE_FIELDS = ['name', 'phone', 'dateOfBirth', 'gender', 'avatarColor', 'avatarImage'];
 const PASSWORD_FIELDS = ['currentPassword', 'newPassword', 'confirmPassword'];
 const MAX_AVATAR_BYTES = 512 * 1024;
 
@@ -23,6 +23,7 @@ function publicUser(user) {
     avatarImage: safeUser.avatarImage || '',
     phone: safeUser.phone || '',
     dateOfBirth: safeUser.dateOfBirth || '',
+    gender: safeUser.gender || '',
   };
 }
 
@@ -61,6 +62,9 @@ function validateProfileBody(body) {
   if (!body.name?.trim()) return 'Họ tên không được để trống';
   if (!/^0\d{9}$/.test(body.phone || '')) return 'Số điện thoại phải có 10 chữ số Việt Nam';
   if (!parseDateOfBirth(body.dateOfBirth)) return 'Ngày sinh phải theo dạng DD-MM-YYYY và tuổi từ 16 đến 100';
+  if (body.gender !== undefined && !['Nam', 'Nữ', 'Khác', ''].includes(body.gender)) {
+    return 'Giới tính không hợp lệ';
+  }
   if (!/^#[0-9a-fA-F]{6}$/.test(body.avatarColor || '')) return 'Màu avatar không hợp lệ';
   if (body.avatarImage !== undefined && !isValidAvatarImage(body.avatarImage)) {
     return 'Ảnh đại diện phải là JPEG hợp lệ và không vượt quá 512 KB';
@@ -293,6 +297,7 @@ router.put('/me', requireAuth, async (req, res) => {
       name: req.body.name.trim(),
       phone: req.body.phone,
       dateOfBirth: req.body.dateOfBirth,
+      gender: req.body.gender || '',
       avatarColor: req.body.avatarColor,
       ...(req.body.avatarImage !== undefined ? { avatarImage: req.body.avatarImage } : {}),
     });

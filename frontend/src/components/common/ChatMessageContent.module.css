@@ -5,6 +5,10 @@
   line-height: 1.6;
   color: var(--text-main, #0f172a);
   font-size: 13.5px;
+  max-width: 100%;
+  min-width: 0;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .userContent {
@@ -41,6 +45,8 @@
   margin: 4px 0;
   padding: 0;
   list-style: none;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .metricItem {
@@ -54,6 +60,8 @@
   border-radius: 9px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
   transition: border-color 0.15s ease;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .metricItem:hover {
@@ -67,6 +75,8 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--text-main, #1e293b);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .indicatorDot {
@@ -105,7 +115,11 @@
   border-radius: 9999px;
   background: var(--bg-subtle, #f1f5f9);
   color: var(--text-main, #334155);
-  white-space: nowrap;
+  max-width: 100%;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  text-align: right;
 }
 
 .metricValueDanger {
@@ -151,7 +165,10 @@
   background: #f8fafc;
   border: 1px solid var(--card-border, #e2e8f0);
   border-left: 4px solid #0e9b78;
-  margin: 4px 0;
+  margin: 6px 0;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .calloutWarning {
@@ -179,14 +196,18 @@
 
 .calloutContent {
   flex: 1;
+  min-width: 0;
   font-size: 13px;
   line-height: 1.55;
   color: var(--text-main, #1e293b);
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .calloutTitle {
   font-weight: 700;
   margin-bottom: 2px;
+  margin-right: 6px;
   color: var(--text-main, #0f172a);
 }
 
@@ -197,3 +218,161 @@
   font-family: monospace;
   font-size: 12px;
 }
+
+/* Driver Ranking Cards */
+.driverCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1px solid var(--card-border, #e2e8f0);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: all 0.15s ease;
+}
+
+.driverCard:hover {
+  border-color: #cbd5e1;
+  background: #fcfdfe;
+}
+
+.driverInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.driverNameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.driverRank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.driverName {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--text-main, #0f172a);
+}
+
+.driverMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.metaBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #475569;
+  font-weight: 500;
+}
+
+.metaBadgeAlert {
+  background: #fef2f2;
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.driverScore {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.scorePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.scorePillSuccess {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.scorePillWarning {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.scorePillDanger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.scoreLabel {
+  font-size: 10px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+/* Markdown Table */
+.tableWrapper {
+  width: 100%;
+  overflow-x: auto;
+  margin: 6px 0;
+  border-radius: 10px;
+  border: 1px solid var(--card-border, #e2e8f0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  text-align: left;
+  background: #ffffff;
+}
+
+.table th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--card-border, #e2e8f0);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  color: var(--text-main, #1e293b);
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.table tr:hover td {
+  background: #f8fafc;
+}
+

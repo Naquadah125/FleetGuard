@@ -15,9 +15,9 @@
 .emptyState p { margin: 0 auto 20px; max-width: 430px; }
 .promptList { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .promptList button { padding: 9px 11px; background: var(--bg-subtle); border-color: var(--card-border); color: var(--text-secondary); font-size: 12px; text-align: left; }
-.message { max-width: 82%; padding: 13px 15px; border-radius: 12px; margin-bottom: 12px; }
+.message { max-width: 82%; padding: 13px 15px; border-radius: 12px; margin-bottom: 12px; min-width: 0; overflow: hidden; word-break: break-word; overflow-wrap: break-word; }
 .message strong { color: var(--text-main); font-size: 12px; display: block; }
-.messageBody { margin-top: 6px; }
+.messageBody { margin-top: 6px; min-width: 0; max-width: 100%; word-break: break-word; overflow-wrap: break-word; }
 .message p { white-space: pre-wrap; margin: 6px 0 0; line-height: 1.55; color: var(--text-main); }
 .userMessage { margin-left: auto; background: var(--amber-bg); }
 .modelMessage { background: var(--bg-subtle); }

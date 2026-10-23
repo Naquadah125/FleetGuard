@@ -31,6 +31,7 @@ const response = await fetch(`http://localhost:${port}/api/auth/me`, {
     name: 'New Name',
     phone: '0901234567',
     dateOfBirth: '12-04-1998',
+    gender: 'Nam',
     avatarColor: '#2563eb',
   }),
 });
@@ -42,10 +43,12 @@ assert.equal(result.user.name, 'New Name');
 assert.equal(result.user.email, 'profile@example.com');
 assert.equal(result.user.phone, '0901234567');
 assert.equal(result.user.dateOfBirth, '12-04-1998');
+assert.equal(result.user.gender, 'Nam');
 assert.equal(result.user.passwordHash, undefined);
 assert.equal(memoryStore.users.get(userId).name, 'New Name');
+assert.equal(memoryStore.users.get(userId).gender, 'Nam');
 assert.equal(memoryStore.auditLogs.at(-1).action, 'UPDATE_PROFILE');
-assert.deepEqual(memoryStore.auditLogs.at(-1).metadata.changedFields, ['name', 'phone', 'dateOfBirth', 'avatarColor']);
+assert.deepEqual(memoryStore.auditLogs.at(-1).metadata.changedFields, ['name', 'phone', 'dateOfBirth', 'gender', 'avatarColor']);
 
 const avatarImage = `data:image/jpeg;base64,${Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString('base64')}`;
 const avatarResponse = await fetch(`http://localhost:${port}/api/auth/me`, {
@@ -147,6 +150,14 @@ const invalidBirthDate = await fetch(`http://localhost:${port}/api/auth/me`, {
   body: JSON.stringify({ name: 'Should Not Save', phone: '0901234567', dateOfBirth: '31-02-1998', avatarColor: '#2563eb' }),
 });
 assert.equal(invalidBirthDate.status, 400);
+assert.equal(memoryStore.users.get(userId).name, 'New Name');
+
+const invalidGender = await fetch(`http://localhost:${port}/api/auth/me`, {
+  method: 'PUT',
+  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ name: 'Should Not Save', phone: '0901234567', dateOfBirth: '12-04-1998', gender: 'InvalidGender', avatarColor: '#2563eb' }),
+});
+assert.equal(invalidGender.status, 400);
 assert.equal(memoryStore.users.get(userId).name, 'New Name');
 
 const protectedField = await fetch(`http://localhost:${port}/api/auth/me`, {

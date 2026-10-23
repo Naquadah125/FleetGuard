@@ -107,9 +107,11 @@ async function runTests() {
 
     // 1. Kiểm tra Auth API (Đăng ký & Đăng nhập)
     console.log('\n\x1b[36m[Test 1] Kiểm tra Auth REST API & JWT RBAC\x1b[0m');
+    const testAdminEmail = `admin-test-${Date.now()}@fleet.vn`;
+    const testDriverEmail = `driver-test-${Date.now()}@fleet.vn`;
     const adminRegRes = await httpRequest('/api/auth/register', 'POST', {
       name: 'Fleet Manager',
-      email: 'admin@fleet.vn',
+      email: testAdminEmail,
       password: 'SecurePassword123!',
       role: 'FLEET_ADMIN',
       organizationId: TEST_ORGANIZATION_ID
@@ -121,7 +123,7 @@ async function runTests() {
 
     const driverRegRes = await httpRequest('/api/auth/register', 'POST', {
       name: 'Nguyễn Văn A',
-      email: 'driver1@fleet.vn',
+      email: testDriverEmail,
       password: 'DriverPass123!',
       role: 'DRIVER',
       vehicle_id: 'VEH-9999',
@@ -130,14 +132,14 @@ async function runTests() {
     assert(driverRegRes.status === 201, `Đăng ký tài khoản DRIVER thành công`);
 
     const loginRes = await httpRequest('/api/auth/login', 'POST', {
-      email: 'driver1@fleet.vn',
+      email: testDriverEmail,
       password: 'DriverPass123!'
     });
     assert(loginRes.status === 200, `Đăng nhập thành công với tài khoản DRIVER`);
     assert(loginRes.data.user.role === 'DRIVER', `Role trả về chính xác là DRIVER`);
 
     const meRes = await httpRequest('/api/auth/me', 'GET', null, adminToken);
-    assert(meRes.status === 200 && meRes.data.user.email === 'admin@fleet.vn', `Xác thực JWT token thành công qua /api/auth/me`);
+    assert(meRes.status === 200 && meRes.data.user.email === testAdminEmail, `Xác thực JWT token thành công qua /api/auth/me`);
 
     // 2. Kiểm tra Socket.io kết nối và tham gia phòng Admin
     console.log('\n\x1b[36m[Test 2] Kiểm tra Kết nối Socket.io & Room tổ chức\x1b[0m');

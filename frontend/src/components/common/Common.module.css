@@ -232,6 +232,10 @@
   border-left-color: var(--green-primary);
 }
 
+.toastError {
+  border-left-color: var(--red-primary);
+}
+
 .toastContent {
   flex: 1;
 }
@@ -387,4 +391,3 @@
 .dataTable tr:hover td {
   background: var(--bg-subtle);
 }
-

@@ -18,5 +18,9 @@ assert.match(driverPages, /@media\s*\(max-width:\s*900px\)[\s\S]*?\.cameraLayout
 assert.match(driverChat, /@media\s*\(max-width:\s*900px\)[\s\S]*?\.layout\s*\{[^}]*grid-template-columns:\s*1fr/s)
 assert.match(driverHistory, /className=\{styles\.historyFilterOptions\}/)
 assert.match(driverPages, /@media\s*\(max-width:\s*640px\)[\s\S]*?\.historyFilterOptions\s*\{[^}]*overflow-x:\s*auto/s)
+assert.match(driverPages, /@media\s*\(max-width:\s*620px\)[\s\S]*?\.acknowledgeOverlay\s*\{[^}]*padding:\s*12px/s)
+assert.match(driverPages, /@media\s*\(max-width:\s*620px\)[\s\S]*?\.acknowledgeOverlay\s*>\s*svg\s*\{[^}]*width:\s*36px/s)
+assert.match(driverPages, /@media\s*\(max-width:\s*620px\)[\s\S]*?\.acknowledgeTitle\s*\{[^}]*font-size:\s*16px/s)
+assert.match(driverPages, /@media\s*\(max-width:\s*620px\)[\s\S]*?\.acknowledgeBtn\s*\{[^}]*min-height:\s*44px/s)
 
 console.log('Driver responsive shell contract test passed.')

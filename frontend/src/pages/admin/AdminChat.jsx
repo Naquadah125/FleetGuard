@@ -3,6 +3,7 @@ import { Bot, Download, Plus, Send, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import ChatMessageContent from '../../components/common/ChatMessageContent'
+import { toast } from '../../components/common/Toast'
 import styles from './AdminChat.module.css'
 
 const starterPrompts = [
@@ -124,7 +125,58 @@ export default function AdminChat() {
           {error && <div className={styles.error} role="alert">{error}</div>}
           <form className={styles.composer} onSubmit={sendMessage}><label htmlFor="admin-chat-message">Câu hỏi vận hành</label><div className={styles.inputRow}><textarea id="admin-chat-message" value={draft} onChange={(event) => setDraft(event.target.value)} rows={2} disabled={loading} placeholder="Ví dụ: Thống kê cảnh báo nguy hiểm trong tuần này" /><button type="submit" aria-label="Gửi câu hỏi" disabled={loading || !draft.trim()}><Send size={18} /></button></div></form>
         </div>
-        <aside className={styles.dataPanel}><h2>Dữ liệu trả về</h2><p>Số liệu nội bộ là nguồn chính để bảo đảm đúng phạm vi tổ chức.</p><ResultView result={latestResult} />{latestResult && <><div className={styles.exportRow}><button type="button" onClick={() => downloadFile('fleetguard-admin-ai.json', JSON.stringify(latestResult, null, 2), 'application/json')}><Download size={13} /> JSON</button><button type="button" onClick={() => exportCsv(latestResult)}>CSV</button></div><details className={styles.explanation}><summary>Xem cách phân tích</summary><p>Nguồn: {latestResult.source}; loại kết quả: {latestResult.type}; đã đọc {latestResult.recordsUsed?.sessions ?? 0} phiên lái.</p><p>Model đã thử: {latestModelMessage?.modelStatus?.attemptedModels?.join(', ') || 'Không dùng Gemini'}{latestModelMessage?.modelStatus?.selectedModel ? `; đang dùng: ${latestModelMessage.modelStatus.selectedModel}` : ''}.</p><p>Tool: resolve_admin_analytics. Cảm xúc là tín hiệu dự đoán, không phải kết luận tâm lý.</p></details>{latestModelMessage?.modelStatus?.failureCode && <button type="button" className={styles.newSessionButton} onClick={() => sendMessage(null, latestUserMessage?.message)}>Thử lại Gemini</button>}</>}</aside>
+        <aside className={styles.dataPanel}>
+          <h2>Dữ liệu trả về</h2>
+          <p>Số liệu nội bộ là nguồn chính để bảo đảm đúng phạm vi tổ chức.</p>
+          <ResultView result={latestResult} />
+          {latestResult && (
+            <>
+              <div className={styles.exportRow}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      downloadFile('fleetguard-admin-ai.json', JSON.stringify(latestResult, null, 2), 'application/json')
+                      toast.success('Đã xuất JSON', 'Tệp JSON đã được tải xuống.')
+                    } catch {
+                      toast.error('Không thể xuất JSON', 'Vui lòng thử lại.')
+                    }
+                  }}
+                >
+                  <Download size={13} /> JSON
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      exportCsv(latestResult)
+                      toast.success('Đã xuất CSV', 'Tệp CSV đã được tải xuống.')
+                    } catch {
+                      toast.error('Không thể xuất CSV', 'Vui lòng thử lại.')
+                    }
+                  }}
+                >
+                  CSV
+                </button>
+              </div>
+              <details className={styles.explanation}>
+                <summary>Xem cách phân tích</summary>
+                <p>Nguồn: {latestResult.source}; loại kết quả: {latestResult.type}; đã đọc {latestResult.recordsUsed?.sessions ?? 0} phiên lái.</p>
+                <p>Model đã thử: {latestModelMessage?.modelStatus?.attemptedModels?.join(', ') || 'Không dùng Gemini'}{latestModelMessage?.modelStatus?.selectedModel ? `; đang dùng: ${latestModelMessage.modelStatus.selectedModel}` : ''}.</p>
+                <p>Tool: resolve_admin_analytics. Cảm xúc là tín hiệu dự đoán, không phải kết luận tâm lý.</p>
+              </details>
+              {latestModelMessage?.modelStatus?.failureCode && (
+                <button
+                  type="button"
+                  className={styles.newSessionButton}
+                  onClick={() => sendMessage(null, latestUserMessage?.message)}
+                >
+                  Thử lại Gemini
+                </button>
+              )}
+            </>
+          )}
+        </aside>
       </div>
     </section>
   )

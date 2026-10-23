@@ -5,7 +5,6 @@ import { useAuth } from '../../context/AuthContext'
 import { toast } from '../../components/common/Toast'
 import styles from './ProfilePage.module.css'
 
-const colors = ['#2563EB', '#0F766E', '#B45309', '#BE123C', '#7C3AED']
 const maxAvatarFileBytes = 10 * 1024 * 1024
 const maxAvatarImageBytes = 512 * 1024
 const avatarSize = 256
@@ -86,6 +85,7 @@ export default function ProfilePage() {
   const location = useLocation()
   const [form, setForm] = useState({
     name: user?.name || '',
+    gender: user?.gender || '',
     phone: user?.phone || '',
     dateOfBirth: user?.dateOfBirth || '',
     avatarColor: user?.avatarColor || '#2563EB',
@@ -103,12 +103,13 @@ export default function ProfilePage() {
     setForm((current) => ({
       ...current,
       name: user?.name || '',
+      gender: user?.gender || '',
       phone: user?.phone || '',
       dateOfBirth: user?.dateOfBirth || '',
       avatarColor: user?.avatarColor || '#2563EB',
       avatarImage: user?.avatarImage || '',
     }))
-  }, [user?.name, user?.phone, user?.dateOfBirth, user?.avatarColor, user?.avatarImage])
+  }, [user?.name, user?.gender, user?.phone, user?.dateOfBirth, user?.avatarColor, user?.avatarImage])
 
   const updateField = (field, value) => setForm((current) => ({ ...current, [field]: value }))
 
@@ -151,6 +152,7 @@ export default function ProfilePage() {
           name: form.name.trim(),
           phone: form.phone,
           dateOfBirth: form.dateOfBirth,
+          gender: form.gender,
           avatarColor: form.avatarColor,
           avatarImage: form.avatarImage,
           ...(passwordEnabled ? {
@@ -186,6 +188,15 @@ export default function ProfilePage() {
             <div className={styles.sectionTitle}><UserRound size={18} /><div><h2>Thông tin cơ bản</h2><p>Email đăng nhập chỉ được xem, không thể đổi tại đây.</p></div></div>
             <label>Email đăng nhập<input value={user?.email || ''} readOnly /></label>
             <label>Họ tên<input value={form.name} onChange={(event) => updateField('name', event.target.value)} required /></label>
+            <label>
+              Giới tính
+              <select value={form.gender} onChange={(event) => updateField('gender', event.target.value)}>
+                <option value="">Chưa chọn</option>
+                <option value="Nam">Nam</option>
+                <option value="Nữ">Nữ</option>
+                <option value="Khác">Khác</option>
+              </select>
+            </label>
             <label>Số điện thoại<input value={form.phone} onChange={(event) => updateField('phone', event.target.value)} inputMode="numeric" maxLength={10} required /></label>
             <label>Ngày sinh<input value={form.dateOfBirth} onChange={(event) => updateField('dateOfBirth', event.target.value)} placeholder="DD-MM-YYYY" maxLength={10} required /></label>
             <fieldset className={styles.avatarField}>
@@ -209,10 +220,6 @@ export default function ProfilePage() {
                   {avatarError && <p className={styles.avatarError} role="alert">{avatarError}</p>}
                 </div>
               </div>
-            </fieldset>
-            <fieldset className={styles.avatarField}>
-              <legend className={styles.avatarLegend}>Màu avatar</legend>
-              <div className={styles.colors}>{colors.map((color) => <button key={color} type="button" aria-label={`Chọn màu ${color}`} className={`${styles.color} ${form.avatarColor === color ? styles.colorSelected : ''}`} style={{ backgroundColor: color }} onClick={() => updateField('avatarColor', color)} />)}</div>
             </fieldset>
           </section>
           <section className={styles.section}>
@@ -239,8 +246,11 @@ export default function ProfilePage() {
               </div>
             </div>
             <dl className={styles.cardDetails}>
-              <div><dt>Email</dt><dd>{user?.email || 'Chưa có email'}</dd></div>
+              <div className={styles.cardDetailFull}><dt>Email</dt><dd>{user?.email || 'Chưa có email'}</dd></div>
               <div><dt>Số điện thoại</dt><dd>{form.phone || 'Chưa cập nhật'}</dd></div>
+              <div><dt>Giới tính</dt><dd>{form.gender || 'Chưa cập nhật'}</dd></div>
+              <div><dt>Ngày sinh</dt><dd>{form.dateOfBirth || 'Chưa cập nhật'}</dd></div>
+              <div><dt>Đơn vị</dt><dd>{user?.organizationName || 'FleetGuard'}</dd></div>
             </dl>
           </div>
           <p className={styles.previewHint}>Thông tin thẻ thay đổi theo nội dung bạn đang chỉnh sửa.</p>

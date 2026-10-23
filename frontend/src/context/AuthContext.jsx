@@ -50,7 +50,7 @@ export function AuthProvider({ children }) {
       const fresh = db.users.find((u) => u._id === user._id)
       if (fresh) {
         const merged = { ...fresh, organizationId: fresh.organizationId || user.organizationId, organizationName: fresh.organizationName || user.organizationName }
-        for (const field of ['name', 'phone', 'dateOfBirth', 'avatarColor', 'avatarImage']) {
+        for (const field of ['name', 'phone', 'dateOfBirth', 'gender', 'avatarColor', 'avatarImage']) {
           if (user[field] !== undefined) merged[field] = user[field]
         }
         delete merged.passwordHash
@@ -234,6 +234,7 @@ export function AuthProvider({ children }) {
           name: nextUser.name,
           phone: nextUser.phone,
           dateOfBirth: nextUser.dateOfBirth,
+          gender: nextUser.gender,
           avatarColor: nextUser.avatarColor,
           avatarImage: nextUser.avatarImage,
         }

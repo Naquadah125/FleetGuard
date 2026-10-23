@@ -12,7 +12,7 @@ export const toast = {
       id: opts.id || 'toast_' + Date.now() + Math.random(),
       title: opts.title || 'Thông báo',
       desc: opts.desc || '',
-      type: opts.type || 'info', // 'info' | 'success' | 'level2'
+      type: opts.type || 'info', // 'info' | 'success' | 'error' | 'level2'
       level: opts.level,
       duration: opts.duration || 6000,
       action: opts.action,
@@ -31,6 +31,7 @@ export const toast = {
   success: (title, desc) => {
     toast.show({ title, desc, type: 'success', duration: 4000 })
   },
+  error: (title, desc) => toast.show({ title, desc, type: 'error', duration: 4000 }),
 }
 
 export function ToastContainer() {
@@ -62,16 +63,19 @@ export function ToastContainer() {
       {toasts.map((t) => {
         const isLevel2 = t.type === 'level2'
         const isSuccess = t.type === 'success'
+        const isError = t.type === 'error'
 
         return (
           <div
             key={t.id}
-            className={`${styles.toast} ${isLevel2 ? styles.toastLevel2 : isSuccess ? styles.toastSuccess : ''}`}
+            className={`${styles.toast} ${isLevel2 ? styles.toastLevel2 : isSuccess ? styles.toastSuccess : isError ? styles.toastError : ''}`}
           >
             {isLevel2 ? (
               <AlertTriangle size={20} color="#EF4444" style={{ flexShrink: 0, marginTop: 2 }} />
             ) : isSuccess ? (
               <CheckCircle size={20} color="#10B981" style={{ flexShrink: 0, marginTop: 2 }} />
+            ) : isError ? (
+              <AlertTriangle size={20} color="#EF4444" style={{ flexShrink: 0, marginTop: 2 }} />
             ) : (
               <Info size={20} color="#38BDF8" style={{ flexShrink: 0, marginTop: 2 }} />
             )}
