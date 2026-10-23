@@ -35,6 +35,19 @@ assert.equal(result.pagination.total, 1);
 const forbidden = await listAuditEvents({ organizationId: 'org-missing', store });
 assert.equal(forbidden.items.length, 0);
 
+const mutationStore = createAuditMemoryStore();
+for (const changedField of ['name', 'email']) {
+  await recordAuditEvent({
+    actor: { id: 'admin-a', organizationId: 'org-a' },
+    action: 'UPDATE_EMPLOYEE',
+    resourceType: 'user',
+    resourceId: 'employee-1',
+    metadata: { changedFields: [changedField] },
+    store: mutationStore,
+  });
+}
+assert.equal(mutationStore.length, 2);
+
 let failedWriteLogged = false;
 const originalError = console.error;
 console.error = (...args) => {

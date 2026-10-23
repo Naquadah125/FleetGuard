@@ -44,7 +44,7 @@ export async function recordAuditEvent(input) {
   const record = toRecord(input);
   if (!record.action) return null;
 
-  if (input.deduplicate !== false) {
+  if (record.action.startsWith('VIEW_') && input.deduplicate !== false) {
     // Deduplication guard: ignore identical events within 3000ms
     const dedupKey = `${record.organizationId || ''}_${record.actorId || ''}_${record.action}_${record.resourceType || ''}_${record.resourceId || ''}`;
     const now = Date.now();
