@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
 import { ChatService } from '../src/chatService.js';
+import { getGeminiModels } from '../src/geminiClient.js';
+
+assert.deepEqual(
+  getGeminiModels({ model: 'gemini-2.5-flash, gemini-2.0-flash' }),
+  ['gemini-2.5-flash', 'gemini-2.0-flash'],
+);
 
 const calls = [];
 const gemini = {

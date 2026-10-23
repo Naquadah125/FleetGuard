@@ -57,12 +57,6 @@ export default function AdminTrips() {
 
   useEffect(() => {
     load(1)
-    recordAdminAudit(token, {
-      action: 'VIEW_TRIPS',
-      resourceType: 'driving_session',
-      description: 'Mở lịch sử chuyến đi',
-      metadata: { period },
-    }).catch(() => {})
   }, [period, status, token])
 
   useEffect(() => {

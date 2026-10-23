@@ -30,11 +30,6 @@ export default function AdminAuditLog() {
 
   useEffect(() => {
     load()
-    recordAdminAudit(token, {
-      action: 'VIEW_AUDIT_LOG',
-      resourceType: 'audit_log',
-      description: 'Mở audit log',
-    }).catch(() => {})
   }, [token])
 
   const updateFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value, page: 1 }))

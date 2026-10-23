@@ -22,12 +22,15 @@ export function getGeminiClient(options = {}) {
 export const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
 export function getGeminiModels(options = {}) {
-  const configured = options.models ?? process.env.GEMINI_MODELS;
+  const configured = options.models
+    ?? process.env.GEMINI_MODELS
+    ?? options.model
+    ?? DEFAULT_MODEL;
   const models = Array.isArray(configured)
     ? configured
     : String(configured || '').split(',');
   const cleaned = models.map((model) => model.trim()).filter(Boolean);
-  return [...new Set(cleaned.length ? cleaned : [options.model || DEFAULT_MODEL])];
+  return [...new Set(cleaned.length ? cleaned : [DEFAULT_MODEL])];
 }
 
 export default {

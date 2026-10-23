@@ -12,6 +12,7 @@ export default function Meter({
   warningColor = '#F59E0B',
   dangerColor = '#EF4444',
   normalColor = '#10B981',
+  showValue = true,
 }) {
   const clamped = Math.max(min, Math.min(max, value))
   const percent = ((clamped - min) / (max - min)) * 100
@@ -33,11 +34,14 @@ export default function Meter({
     <div className={styles.meterWrapper}>
       <div className={styles.meterHeader}>
         <span className={styles.meterLabel}>{label}</span>
-        <span className={styles.meterValue} style={{ color: isAlert ? dangerColor : '#ffffff' }}>
-          {typeof value === 'number' ? value.toFixed(decimals) : value}
-          {unit}
+        <span className={styles.meterValue} style={{ color: isAlert ? dangerColor : 'var(--text-main)' }}>
+          {showValue && typeof value === 'number' && !isNaN(value) && (
+            <span style={{ fontWeight: 800, marginRight: 5 }}>
+              {value.toFixed(decimals)}{unit}
+            </span>
+          )}
           {threshold !== undefined && (
-            <span style={{ color: 'var(--text-muted)', fontSize: '11px', marginLeft: 4 }}>
+            <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>
               ({thresholdType === 'lower' ? '<' : '>'}{threshold})
             </span>
           )}

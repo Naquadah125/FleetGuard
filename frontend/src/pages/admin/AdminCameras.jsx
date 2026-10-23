@@ -10,11 +10,13 @@ import {
   Activity,
   Eye,
   Smile,
+  Zap,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { getDB, subscribe } from '../../store/db'
+import { getDB, updateDB, subscribe } from '../../store/db'
 import { getSocket } from '../../api/socket'
 import StatusBadge from '../../components/common/StatusBadge'
+import Meter from '../../components/common/Meter'
 import Modal from '../../components/common/Modal'
 import EmptyState from '../../components/common/EmptyState'
 import styles from './AdminPages.module.css'
@@ -39,11 +41,12 @@ export default function AdminCameras() {
         if (res.ok) {
           const data = await res.json()
           if (data.success && Array.isArray(data.employees)) {
-            setDb((prev) => {
-              const otherUsers = (prev.users || []).filter(
-                (u) => u.organizationId !== targetOrgId || u.role !== 'DRIVER'
+            updateDB((currentDb) => {
+              const otherUsers = (currentDb.users || []).filter(
+                (u) => !( (u.role === 'DRIVER' || u.role === 'USER') && (u.organizationId === targetOrgId || !u.organizationId) )
               )
-              return { ...prev, users: [...otherUsers, ...data.employees] }
+              currentDb.users = [...otherUsers, ...data.employees]
+              return currentDb
             })
           }
         }
@@ -57,10 +60,20 @@ export default function AdminCameras() {
   // Socket.IO: Join organization room & receive live 15 FPS camera frames
   useEffect(() => {
     const socket = getSocket()
-    socket.emit('admin:join', { organizationId: targetOrgId })
+    const joinRoom = () => {
+      console.log('[AdminCameras] Joining room for organization:', targetOrgId)
+      socket.emit('admin:join', { organizationId: targetOrgId })
+    }
+    joinRoom()
+    socket.on('connect', joinRoom)
 
+    let adminFrameCount = 0
     const handleFrame = (payload) => {
       if (!payload || !payload.driverId) return
+      adminFrameCount++
+      if (adminFrameCount === 1 || adminFrameCount % 150 === 0) {
+        console.log('[AdminCameras] Received live frame from driver:', payload.driverId, 'Count:', adminFrameCount)
+      }
       setLiveFrames((prev) => ({
         ...prev,
         [payload.driverId]: {
@@ -111,10 +124,19 @@ export default function AdminCameras() {
   // Filter Drivers by current admin's Organization
   const orgDrivers = useMemo(() => {
     const list = db.users || []
-    return list.filter(
-      (u) => u.role === 'DRIVER' && (u.organizationId === targetOrgId || (!user?.organizationId && u.organizationId === 'org_6adb1f069a6b13c161dc5f70'))
+    const filtered = list.filter(
+      (u) => (u.role === 'DRIVER' || u.role === 'USER') && (
+        u.organizationId === targetOrgId ||
+        (!user?.organizationId) ||
+        (user?.organizationId && u.organizationId === user.organizationId) ||
+        liveFrames[u._id] || liveFrames[u.id]
+      )
     )
-  }, [db.users, targetOrgId, user?.organizationId])
+    if (filtered.length === 0 && list.some(u => u.role === 'DRIVER' || u.role === 'USER')) {
+      return list.filter(u => u.role === 'DRIVER' || u.role === 'USER')
+    }
+    return filtered
+  }, [db.users, targetOrgId, user?.organizationId, liveFrames])
 
   // Get active alert level for driver (check if there is an open incident in last 5 minutes)
   const getDriverAlertLevel = (driverId) => {
@@ -174,7 +196,8 @@ export default function AdminCameras() {
         /* Camera Wall Grid */
         <div className={styles.cameraWallGrid}>
           {orgDrivers.map((driver) => {
-            const live = liveFrames[driver._id]
+            const driverKey = driver._id || driver.id
+            const live = liveFrames[driverKey] || liveFrames[driver._id] || liveFrames[driver.id]
             const isCameraActive = !!live
             const alertLevel = getDriverAlertLevel(driver._id)
             const isLevel2 = alertLevel === 2
@@ -373,130 +396,254 @@ export default function AdminCameras() {
           isOpen={!!selectedDriver}
           onClose={() => setSelectedDriver(null)}
           title={`Chi Tiết Camera Buồng Lái · ${selectedDriver.name}`}
-          size="medium"
+          size="large"
           footer={
             <button className={styles.btnSecondary} onClick={() => setSelectedDriver(null)}>
               Đóng Cửa Sổ
             </button>
           }
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {liveFrames[selectedDriver._id]?.image ? (
+          {(() => {
+            const selectedKey = selectedDriver._id || selectedDriver.id
+            const liveSelected = liveFrames[selectedKey] || liveFrames[selectedDriver._id] || liveFrames[selectedDriver.id]
+            const isLive = !!liveSelected?.image
+
+            return (
               <div
                 style={{
-                  background: '#0B1120',
-                  borderRadius: 12,
-                  overflow: 'hidden',
-                  border: `2px solid ${selectedDriver.alertLevel === 2 ? '#EF4444' : '#10B981'}`,
-                  position: 'relative',
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(340px, 1.35fr) minmax(290px, 1fr)',
+                  gap: 20,
+                  alignItems: 'start',
                 }}
               >
-                <img
-                  src={liveFrames[selectedDriver._id].image}
-                  alt={selectedDriver.name}
-                  style={{
-                    width: '100%',
-                    maxHeight: 380,
-                    objectFit: 'contain',
-                    display: 'block',
-                    background: '#000000',
-                  }}
-                />
+                {/* Left Column: Continuous Live Video Feed (Clean, without bottom bar) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {isLive ? (
+                    <div
+                      style={{
+                        background: '#0B1120',
+                        borderRadius: 16,
+                        overflow: 'hidden',
+                        border: `2px solid ${selectedDriver.alertLevel === 2 ? '#EF4444' : '#10B981'}`,
+                        position: 'relative',
+                        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
+                        minHeight: 280,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <img
+                        src={liveSelected.image}
+                        alt={selectedDriver.name}
+                        style={{
+                          width: '100%',
+                          maxHeight: 380,
+                          objectFit: 'contain',
+                          display: 'block',
+                          background: '#000000',
+                        }}
+                      />
 
-                {/* Larger bottom telemetry bar */}
-                <div
-                  style={{
-                    background: 'rgba(15, 23, 42, 0.95)',
-                    padding: '12px 18px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-                    fontFamily: 'var(--font-mono)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 800, color: '#10B981' }}>
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981', boxShadow: '0 0 8px #10B981' }} />
-                      LIVE · 15 FPS
-                    </span>
-                    <span style={{ fontSize: '12.5px', color: '#38BDF8' }}>
-                      EAR: {(liveFrames[selectedDriver._id].metrics?.ear ?? 0.32).toFixed(2)}
-                    </span>
-                    <span style={{ fontSize: '12.5px', color: '#F59E0B' }}>
-                      MAR: {(liveFrames[selectedDriver._id].metrics?.mar ?? 0.18).toFixed(2)}
-                    </span>
+                      {/* Top HUD Badge: LIVE · 15 FPS */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 10,
+                          left: 10,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          background: 'rgba(0, 0, 0, 0.75)',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          backdropFilter: 'blur(6px)',
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 7,
+                            height: 7,
+                            borderRadius: '50%',
+                            background: '#10B981',
+                            boxShadow: '0 0 8px #10B981',
+                          }}
+                        />
+                        <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#10B981' }}>
+                          LIVE · 15 FPS
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Inactive Camera Screen */
+                    <div
+                      style={{
+                        background: '#0F172A',
+                        borderRadius: 16,
+                        padding: 44,
+                        textAlign: 'center',
+                        border: '1px solid var(--card-border)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 12,
+                        minHeight: 280,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 56,
+                          height: 56,
+                          borderRadius: '50%',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          color: '#64748B',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <CameraOff size={28} />
+                      </div>
+                      <div style={{ fontSize: '15px', fontWeight: 800, color: '#E2E8F0' }}>
+                        Camera Hiện Đang Tắt
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#94A3B8', maxWidth: 320 }}>
+                        Tài xế {selectedDriver.name} chưa kích hoạt buồng lái hoặc đang nghỉ ngơi giữa ca.
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Driver basic quick info */}
+                  <div
+                    style={{
+                      background: 'var(--bg-subtle, #F8FAFC)',
+                      border: '1px solid var(--card-border, #E2E8F0)',
+                      borderRadius: 12,
+                      padding: '12px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: 8,
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)' }}>
+                        {selectedDriver.name}
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                        {selectedDriver.email}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          fontSize: '11.5px',
+                          fontWeight: 700,
+                          padding: '3px 9px',
+                          borderRadius: '6px',
+                          background: isLive ? 'rgba(16, 185, 129, 0.15)' : 'var(--bg-subtle)',
+                          color: isLive ? '#10B981' : 'var(--text-muted)',
+                          border: `1px solid ${isLive ? 'rgba(16, 185, 129, 0.3)' : 'var(--card-border)'}`,
+                        }}
+                      >
+                        {isLive ? 'Đang Lái Xe' : 'Đang Nghỉ'}
+                      </span>
+                      <StatusBadge level={selectedDriver.alertLevel} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column: CHỈ SỐ SINH TRẮC HỌC Card */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div
+                    style={{
+                      background: '#FFFFFF',
+                      border: '1px solid var(--card-border, #E2E8F0)',
+                      borderRadius: 16,
+                      padding: '20px 22px',
+                      boxShadow: '0 4px 16px rgba(15, 23, 42, 0.05)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 18,
+                    }}
+                  >
+                    {/* Card Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Zap size={18} style={{ color: 'var(--amber-primary, #F59E0B)' }} />
+                        <span style={{ fontSize: '13.5px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.4px', color: 'var(--text-main)' }}>
+                          Chỉ Số Sinh Trắc Học
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>Thời gian thực</span>
+                    </div>
+
+                    {/* Biometric Meters */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                      <Meter
+                        label="Độ Mở Mắt"
+                        value={liveSelected?.metrics?.ear ?? 0.32}
+                        min={0}
+                        max={0.45}
+                        threshold={0.24}
+                        thresholdType="lower"
+                        decimals={2}
+                      />
+
+                      <Meter
+                        label="Độ Mở Miệng"
+                        value={liveSelected?.metrics?.mar ?? 0.18}
+                        min={0}
+                        max={0.85}
+                        threshold={0.60}
+                        thresholdType="upper"
+                        decimals={2}
+                      />
+
+                      <Meter
+                        label="Mức Mệt Mỏi"
+                        value={liveSelected?.metrics?.perclos ?? 0}
+                        min={0}
+                        max={50}
+                        threshold={30}
+                        thresholdType="upper"
+                        unit="%"
+                        decimals={1}
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <StatusBadge level={selectedDriver.alertLevel} />
+                  {/* Summary Explanations */}
+                  <div
+                    style={{
+                      background: 'rgba(56, 189, 248, 0.05)',
+                      border: '1px solid rgba(56, 189, 248, 0.2)',
+                      borderRadius: 14,
+                      padding: '14px 16px',
+                      fontSize: '11.5px',
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.5,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                    }}
+                  >
+                    <div style={{ fontWeight: 700, color: '#0284C7' }}>Quy tắc ngưỡng cảnh báo:</div>
+                    <div>• <strong>EAR &lt; 0.24</strong>: Cảnh báo nhắm mắt / ngủ gật</div>
+                    <div>• <strong>MAR &gt; 0.60</strong>: Cảnh báo mở miệng / ngáp dài</div>
+                    <div>• <strong>PERCLOS &gt; 30%</strong>: Dấu hiệu mệt mỏi tích lũy cao</div>
                   </div>
                 </div>
               </div>
-            ) : (
-              <div
-                style={{
-                  background: '#0F172A',
-                  borderRadius: 12,
-                  padding: 36,
-                  textAlign: 'center',
-                  border: '1px solid var(--card-border)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 12,
-                }}
-              >
-                <div
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: '50%',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    color: '#64748B',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <CameraOff size={28} />
-                </div>
-                <div style={{ fontSize: '15px', fontWeight: 800, color: '#E2E8F0' }}>
-                  Camera Hiện Đang Tắt
-                </div>
-                <div style={{ fontSize: '13px', color: '#94A3B8', maxWidth: 380 }}>
-                  Tài xế {selectedDriver.name} chưa kích hoạt buồng lái hoặc đang nghỉ ngơi giữa ca.
-                </div>
-              </div>
-            )}
-
-            {/* Driver Details Card */}
-            <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--card-border)', borderRadius: 10, padding: 16 }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', marginBottom: 10 }}>
-                Thông Tin Nhân Viên
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Họ và tên</div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>{selectedDriver.name}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Email đăng nhập</div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>{selectedDriver.email}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Trạng thái kết nối</div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: liveFrames[selectedDriver._id]?.image ? '#10B981' : 'var(--text-muted)' }}>
-                    {liveFrames[selectedDriver._id]?.image ? '● Đang truyền hình ảnh trực tiếp' : '○ Ngoại tuyến'}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Mức cảnh báo an toàn</div>
-                  <StatusBadge level={selectedDriver.alertLevel} />
-                </div>
-              </div>
-            </div>
-          </div>
+            )
+          })()}
         </Modal>
       )}
     </div>

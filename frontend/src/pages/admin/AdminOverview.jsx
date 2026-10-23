@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Users,
@@ -13,29 +13,99 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { getDB, updateDB, subscribe } from '../../store/db'
+import { fetchAdminTrips } from '../../api/adminOperations'
+import { getSocket } from '../../api/socket'
 import StatusBadge from '../../components/common/StatusBadge'
 import { Sparkline } from '../../components/common/SVGCharts'
 import EmptyState from '../../components/common/EmptyState'
 import styles from './AdminPages.module.css'
 
 export default function AdminOverview() {
-  const { user, organization } = useAuth()
+  const { user, organization, token } = useAuth()
   const [db, setDb] = useState(() => getDB())
+  const [remoteSummary, setRemoteSummary] = useState(null)
 
   useEffect(() => {
     return subscribe((newDb) => setDb(newDb))
   }, [])
+
+  // Sync trips and employees from backend for real-time safety scores
+  const syncBackendData = useCallback(async () => {
+    if (!token) return
+    try {
+      // 1. Fetch remote trips & summary
+      const tripsRes = await fetchAdminTrips(token, { limit: 100 })
+      if (tripsRes?.summary) {
+        setRemoteSummary(tripsRes.summary)
+      }
+      if (Array.isArray(tripsRes?.items)) {
+        updateDB((currentDb) => {
+          const mappedTrips = tripsRes.items.map((s) => ({
+            id: s.id || s._id || s.session_id,
+            _id: s.id || s._id || s.session_id,
+            driverId: s.driverId || s.driver_id || s.user_id,
+            driverName: s.driverName || s.driver_name,
+            safetyScore: s.safetyScore ?? s.safety_score ?? 90,
+            distanceKm: s.distanceKm ?? s.distance_km ?? 15,
+            status: String(s.status || '').toLowerCase() === 'completed' ? 'completed' : 'active',
+            startTime: s.startTime || s.start_time,
+            endTime: s.endTime || s.end_time,
+            incidentsCount: s.incidentsCount ?? ((s.drowsy_count || 0) + (s.distraction_count || 0)),
+          }))
+          const mappedMap = new Map(mappedTrips.map((t) => [t.id, t]))
+          const otherTrips = (currentDb.trips || []).filter((t) => !mappedMap.has(t.id || t._id))
+          currentDb.trips = [...mappedTrips, ...otherTrips]
+          return currentDb
+        })
+      }
+
+      // 2. Sync employees from backend
+      const targetOrgId = user?.organizationId || organization?.id || 'org_6adb1f069a6b13c161dc5f70'
+      const empRes = await fetch(`/api/auth/employees?organizationId=${targetOrgId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (empRes.ok) {
+        const empData = await empRes.json()
+        if (empData.success && Array.isArray(empData.employees)) {
+          updateDB((currentDb) => {
+            const nonOrgUsers = (currentDb.users || []).filter(
+              (u) => !(u.role === 'DRIVER' && (u.organizationId === targetOrgId || !u.organizationId))
+            )
+            currentDb.users = [...nonOrgUsers, ...empData.employees]
+            return currentDb
+          })
+        }
+      }
+    } catch (err) {
+      console.warn('[AdminOverview] Sync backend failed:', err)
+    }
+  }, [token, user?.organizationId, organization?.id])
+
+  useEffect(() => {
+    syncBackendData()
+  }, [syncBackendData])
+
+  useEffect(() => {
+    const socket = getSocket()
+    const onUpdate = () => syncBackendData()
+    socket.on('trip:lifecycle', onUpdate)
+    socket.on('driver:camera-status', onUpdate)
+    return () => {
+      socket.off('trip:lifecycle', onUpdate)
+      socket.off('driver:camera-status', onUpdate)
+    }
+  }, [syncBackendData])
 
   // Filter Drivers by Organization
   const orgDrivers = useMemo(() => {
     const list = db.users || []
     if (!user?.organizationId) return []
     return list.filter(
-      (u) => u.role === 'DRIVER' && u.organizationId === user.organizationId
+      (u) => (u.role === 'DRIVER' || u.role === 'USER') && u.organizationId === user.organizationId
     )
   }, [db.users, user?.organizationId])
 
-  const orgDriverIds = useMemo(() => orgDrivers.map((d) => d._id), [orgDrivers])
+  const orgDriverIds = useMemo(() => orgDrivers.map((d) => d._id || d.id), [orgDrivers])
 
   // Filter Trips & Incidents for this Organization
   const orgTrips = useMemo(() => {
@@ -53,10 +123,13 @@ export default function AdminOverview() {
   const activeDrivers = orgDrivers.filter((d) => d.status === 'driving' || d.cameraActive).length
 
   const avgSafetyScore = useMemo(() => {
+    if (remoteSummary?.averageSafetyScore != null && remoteSummary.completedSessions > 0) {
+      return Number(remoteSummary.averageSafetyScore).toFixed(1)
+    }
     if (orgTrips.length === 0) return null
     const sum = orgTrips.reduce((a, b) => a + (b.safetyScore || 90), 0)
     return (sum / orgTrips.length).toFixed(1)
-  }, [orgTrips])
+  }, [remoteSummary, orgTrips])
 
   const todayIncidentsCount = useMemo(() => {
     const today = new Date().toDateString()
@@ -144,11 +217,13 @@ export default function AdminOverview() {
             <span className={styles.kpiLabel}>Điểm An Toàn Đội Xe</span>
             <Award size={18} color="#10B981" />
           </div>
-          <div className={styles.kpiValue} style={{ color: avgSafetyScore ? (Number(avgSafetyScore) >= 90 ? '#10B981' : '#F59E0B') : 'var(--text-muted)' }}>
+          <div className={styles.kpiValue} style={{ color: avgSafetyScore ? (Number(avgSafetyScore) >= 85 ? '#10B981' : Number(avgSafetyScore) >= 70 ? '#F59E0B' : '#EF4444') : 'var(--text-muted)' }}>
             {avgSafetyScore || '--'} <span style={{ fontSize: '1.2rem', color: 'var(--text-muted)' }}>/ 100</span>
           </div>
           <div className={styles.kpiSub}>
-            {avgSafetyScore ? 'Tính trên các phiên lái đã hoàn thành' : 'Chưa có dữ liệu chuyến đi'}
+            {avgSafetyScore
+              ? `Tính trên ${remoteSummary?.completedSessions || orgTrips.length} phiên lái đã hoàn thành`
+              : 'Chưa có dữ liệu chuyến đi'}
           </div>
         </div>
 

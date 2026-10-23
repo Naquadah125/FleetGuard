@@ -1,10 +1,12 @@
 import { EmotionLog } from '../models/EmotionLog.js';
 import { VideoAnalysis } from '../models/VideoAnalysis.js';
 import { DrivingSession } from '../models/DrivingSession.js';
+import { User } from '../models/User.js';
 import { getIsMongoConnected, memoryStore } from '../db.js';
 import { ChatService } from '../../../ai-chatbot/src/chatService.js';
 import { ChatConversation } from '../models/ChatConversation.js';
 import { detectAdminIntent, requestedPeriodDays, resolveAdminAnalytics } from '../services/adminAnalyticsService.js';
+import { recordAuditEvent } from '../services/auditLogService.js';
 
 async function saveChatMessage({ userId, sessionId, role, message, structuredData = null }) {
   const record = { user_id: userId, session_id: sessionId, role, message, structured_data: structuredData };
@@ -305,6 +307,45 @@ export async function saveDrivingSession(req, res) {
         end_time: payload.end_time || new Date()
       };
       memoryStore.sessions.set(payload.session_id, saved);
+    }
+
+    // Record Audit Log for Driver trip start or completion
+    try {
+      let driver = null;
+      if (getIsMongoConnected()) {
+        if (payload.user_id) {
+          driver = await User.findById(payload.user_id).lean();
+        }
+      } else {
+        driver = memoryStore.users.get(payload.user_id);
+      }
+
+      const isCompleted = String(payload.status || '').toUpperCase() === 'COMPLETED';
+      const action = isCompleted ? 'END_TRIP' : 'START_TRIP';
+      const description = isCompleted
+        ? `Tài xế ${driver?.name || payload.driver_name || 'Tài xế'} hoàn thành chuyến đi (Điểm an toàn: ${payload.safety_score ?? '--'}/100)`
+        : `Tài xế ${driver?.name || payload.driver_name || 'Tài xế'} bắt đầu chuyến đi ${payload.session_id}`;
+
+      await recordAuditEvent({
+        actor: {
+          id: String(driver?._id || payload.user_id || ''),
+          name: driver?.name || payload.driver_name || 'Tài xế',
+          email: driver?.email || '',
+          organizationId: driver?.organizationId || payload.organization_id || payload.organizationId,
+        },
+        action,
+        resourceType: 'driving_session',
+        resourceId: payload.session_id,
+        description,
+        metadata: {
+          safetyScore: payload.safety_score,
+          status: payload.status,
+          distanceKm: payload.distance_km,
+          durationMinutes: payload.duration_minutes,
+        },
+      });
+    } catch (auditErr) {
+      console.error('[Save session audit log error]:', auditErr.message);
     }
 
     return res.status(201).json({
