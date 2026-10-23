@@ -32,6 +32,18 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  phone: {
+    type: String,
+    default: ''
+  },
+  dateOfBirth: {
+    type: String,
+    default: ''
+  },
+  avatarColor: {
+    type: String,
+    default: '#2563EB'
+  },
   created_at: {
     type: Date,
     default: Date.now
