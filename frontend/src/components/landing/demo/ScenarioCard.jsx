@@ -12,7 +12,7 @@ const DOT = {
 
 /**
  * One AI-demo scenario, as in the design mockup: a plain white card (very light mint border, soft
- * shadow) with a "● Label" header, a DriverIllustration fixed to one state (the SVG carries its
+ * shadow) with a "● Label" header, a DriverIllustration fixed to one state (it carries its
  * own squircle window) and a one-line caption. Measured against the 1440 px mockup: 267×284 card,
  * 14px radius, 226 px illustration, 17px bold label, 14px caption.
  *
@@ -51,7 +51,7 @@ export default function ScenarioCard({ scenario, index, active }) {
         </header>
 
         <div className="px-5">
-          <DriverIllustration state={scenario.state} transition={false} className="w-full" />
+          <DriverIllustration state={scenario.state} className="w-full" />
         </div>
 
         <p className="px-4 pt-2.5 pb-3.5 text-center text-balance lg:px-3 xl:px-4 text-body font-medium text-[#3A3D45]">{scenario.caption}</p>
