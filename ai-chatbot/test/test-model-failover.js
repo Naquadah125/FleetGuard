@@ -21,7 +21,7 @@ await missing_api_key_throws_configuration_error();
 
 assert.deepEqual(
   getGeminiModels({ model: 'gemini-2.5-flash, gemini-2.0-flash' }),
-  ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-3.6-flash'],
+  ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-3.5-flash-lite'],
 );
 
 async function interactions_api_runs_scoped_analytics_tools() {
@@ -127,9 +127,9 @@ async function unavailable_models_fall_back_to_current_default() {
   });
 
   const result = await service.sendMessage('Xin chào', { id: 'driver-a', role: 'USER' });
-  assert.deepEqual(attemptedModels, ['retired-model', 'gemini-3.6-flash']);
+  assert.deepEqual(attemptedModels, ['retired-model', 'gemini-3.5-flash-lite']);
   assert.equal(result.reply, 'Gemini is responding.');
-  assert.equal(result.modelStatus.selectedModel, 'gemini-3.6-flash');
+  assert.equal(result.modelStatus.selectedModel, 'gemini-3.5-flash-lite');
 }
 
 await unavailable_models_fall_back_to_current_default();

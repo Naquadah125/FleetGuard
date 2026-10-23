@@ -16,6 +16,7 @@ import { memoryStore } from './src/db.js';
 
 const TEST_PORT = 5055;
 const BASE_URL = `http://localhost:${TEST_PORT}`;
+const TEST_ORGANIZATION_ID = 'test_fleet';
 
 let totalAssertions = 0;
 let passedAssertions = 0;
@@ -66,6 +67,31 @@ async function httpRequest(path, method = 'GET', body = null, token = null) {
   });
 }
 
+function waitForSocketEvent(socket, event) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error(`Timed out waiting for Socket.IO ${event}`));
+    }, 5000);
+    const onEvent = (data) => {
+      cleanup();
+      resolve(data);
+    };
+    const onError = (error) => {
+      cleanup();
+      reject(error);
+    };
+    const cleanup = () => {
+      clearTimeout(timeout);
+      socket.off(event, onEvent);
+      socket.off('connect_error', onError);
+    };
+
+    socket.once(event, onEvent);
+    socket.once('connect_error', onError);
+  });
+}
+
 console.log('\n\x1b[1m=== BẮT ĐẦU KIỂM THỬ TÍCH HỢP: DRIVER SAFETY BACKEND ===\x1b[0m\n');
 
 async function runTests() {
@@ -85,7 +111,8 @@ async function runTests() {
       name: 'Fleet Manager',
       email: 'admin@fleet.vn',
       password: 'SecurePassword123!',
-      role: 'FLEET_ADMIN'
+      role: 'FLEET_ADMIN',
+      organizationId: TEST_ORGANIZATION_ID
     });
     assert(adminRegRes.status === 201, `Đăng ký tài khoản FLEET_ADMIN thành công (Status: ${adminRegRes.status})`);
     assert(adminRegRes.data.token !== undefined, `Nhận được JWT token cho FLEET_ADMIN`);
@@ -97,7 +124,8 @@ async function runTests() {
       email: 'driver1@fleet.vn',
       password: 'DriverPass123!',
       role: 'DRIVER',
-      vehicle_id: 'VEH-9999'
+      vehicle_id: 'VEH-9999',
+      organizationId: TEST_ORGANIZATION_ID
     });
     assert(driverRegRes.status === 201, `Đăng ký tài khoản DRIVER thành công`);
 
@@ -112,22 +140,24 @@ async function runTests() {
     assert(meRes.status === 200 && meRes.data.user.email === 'admin@fleet.vn', `Xác thực JWT token thành công qua /api/auth/me`);
 
     // 2. Kiểm tra Socket.io kết nối và tham gia phòng Admin
-    console.log('\n\x1b[36m[Test 2] Kiểm tra Kết nối Socket.io & Room Fleet Admins\x1b[0m');
-    adminSocket = ClientSocket(BASE_URL);
-    await new Promise((resolve) => adminSocket.on('connect', resolve));
+    console.log('\n\x1b[36m[Test 2] Kiểm tra Kết nối Socket.io & Room tổ chức\x1b[0m');
+    adminSocket = ClientSocket(BASE_URL, { auth: { token: adminToken } });
+    const adminConnected = waitForSocketEvent(adminSocket, 'connect');
+    await adminConnected;
     assert(adminSocket.connected, `Socket Client Admin kết nối thành công`);
 
-    const joinedPromise = new Promise((resolve) => {
-      adminSocket.on('admin:joined', (msg) => resolve(msg));
-    });
+    const joinedPromise = waitForSocketEvent(adminSocket, 'admin:joined');
     adminSocket.emit('admin:join');
     const joinedMsg = await joinedPromise;
-    assert(joinedMsg.room === 'room:fleet_admins', `Admin tham gia phòng 'room:fleet_admins' thành công`);
+    assert(
+      joinedMsg.room === `room:org_${TEST_ORGANIZATION_ID}`,
+      `Admin tham gia phòng 'room:${TEST_ORGANIZATION_ID}' thành công`
+    );
 
     // 3. Kiểm tra Driver stream telemetry & Bộ đệm Batching 2 giây
     console.log('\n\x1b[36m[Test 3] Kiểm tra Telemetry Streaming & Bộ đệm Batch Buffer\x1b[0m');
-    driverSocket = ClientSocket(BASE_URL);
-    await new Promise((resolve) => driverSocket.on('connect', resolve));
+    driverSocket = ClientSocket(BASE_URL, { auth: { token: driverRegRes.data.token } });
+    await waitForSocketEvent(driverSocket, 'connect');
     assert(driverSocket.connected, `Socket Client Driver kết nối thành công`);
 
     // Lắng nghe live telemetry phía Admin
