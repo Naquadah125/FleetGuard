@@ -4,12 +4,17 @@
  * Icons are lucide-react component *names*; each section maps names → components.
  */
 
+/**
+ * One link per landing section, in page order, so the active underline walks left → right while
+ * scrolling down. (The mockup's "Tài nguyên ▾" had no menu and no destination: dropped.)
+ */
 export const NAV_LINKS = [
   { label: 'Trang chủ', id: 'top' },
   { label: 'Tính năng', id: 'features' },
-  { label: 'Công nghệ', id: 'technology' },
+  { label: 'Demo AI', id: 'demo' },
   { label: 'Bảng giá', id: 'pricing' },
-  { label: 'Tài nguyên', id: 'contact', menu: true },
+  { label: 'So sánh', id: 'comparison' },
+  { label: 'Công nghệ', id: 'technology' },
   { label: 'Liên hệ', id: 'contact' },
 ]
 
@@ -242,12 +247,34 @@ export const STATS = [
 export const FOOTER = {
   description:
     'Giải pháp giám sát và bảo vệ đội xe bằng AI hàng đầu cho doanh nghiệp vận tải Việt Nam.',
+  /**
+   * Link kinds: `id` scrolls to a landing section; a link without one has no page yet and renders
+   * as plain text with the `soon` badge (once per group when no item in it is live).
+   */
   groups: [
-    { title: 'Sản phẩm', links: ['Tính năng', 'Bảng giá', 'Công nghệ', 'Chính sách'] },
-    { title: 'Tài nguyên', links: ['Blog', 'Hướng dẫn sử dụng', 'Tài liệu API', 'Câu hỏi thường gặp'] },
-    { title: 'Công ty', links: ['Giới thiệu', 'Tin tức', 'Tuyển dụng', 'Liên hệ'] },
+    {
+      title: 'Sản phẩm',
+      links: [
+        { label: 'Tính năng', id: 'features' },
+        { label: 'Demo AI', id: 'demo' },
+        { label: 'Bảng giá', id: 'pricing' },
+        { label: 'So sánh', id: 'comparison' },
+        { label: 'Công nghệ', id: 'technology' },
+      ],
+    },
+    {
+      title: 'Tài nguyên',
+      links: [{ label: 'Blog' }, { label: 'Hướng dẫn sử dụng' }, { label: 'Tài liệu API' }, { label: 'Câu hỏi thường gặp' }],
+    },
+    {
+      title: 'Công ty',
+      links: [{ label: 'Giới thiệu' }, { label: 'Tin tức' }, { label: 'Tuyển dụng' }],
+    },
   ],
+  /** Badge on footer items that have no page yet. */
+  soon: 'Sắp ra mắt',
   contactTitle: 'Liên hệ',
+  zaloLabel: 'Chat Zalo',
   phone: '1900 1234',
   email: 'support@fleetguard.vn',
   address: 'Tòa nhà ABC, 123 Đường XYZ, Quận 1, TP.HCM',

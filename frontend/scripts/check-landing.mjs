@@ -513,6 +513,43 @@ try {
     return problems.length ? problems.join('; ') : null
   })
 
+  // 6d. nav-sync — header links follow the page's section order (so the active underline walks
+  // left → right while scrolling), every target exists, the bar has room at its breakpoint, and no
+  // link anywhere on the page is a dead "#" placeholder.
+  await run('nav-sync', async () => {
+    const problems = []
+    for (const width of [1280, 1440]) {
+      const { context, page } = await newPage(browser, { width })
+      try {
+        await load(page)
+        await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+        await page.waitForTimeout(800)
+        const r = await page.evaluate(() => {
+          const links = [...document.querySelectorAll('header nav[aria-label] ul a')]
+          const ids = links.map((a) => a.getAttribute('href').slice(1))
+          const all = [...document.querySelectorAll('[id]')]
+          const order = ids.map((id) => all.indexOf(document.getElementById(id)))
+          const bar = document.querySelector('header .container-page')
+          return {
+            missing: ids.filter((id) => !document.getElementById(id)),
+            sorted: order.every((v, i) => i === 0 || v > order[i - 1]),
+            wrapped: links.filter((a) => a.scrollHeight > a.clientHeight || a.getClientRects().length > 1).map((a) => a.textContent),
+            overflow: bar.scrollWidth - bar.clientWidth,
+            dead: [...document.querySelectorAll('a[href="#"], a:not([href])')].map((a) => a.textContent.trim() || a.ariaLabel),
+          }
+        })
+        if (r.missing.length) problems.push(`${width}: nav targets missing: ${r.missing.join(', ')}`)
+        if (!r.sorted) problems.push(`${width}: nav order differs from the page's section order`)
+        if (r.wrapped.length) problems.push(`${width}: nav labels wrap: ${r.wrapped.join(', ')}`)
+        if (r.overflow > 0) problems.push(`${width}: header overflows by ${r.overflow}px`)
+        if (r.dead.length) problems.push(`${width}: dead links: ${r.dead.join(', ')}`)
+      } finally {
+        await context.close()
+      }
+    }
+    return problems.length ? problems.join('; ') : null
+  })
+
   // 6c. breakpoint-roundtrip — 1440 → 800 → 1440 must not kill navbar triggers (ScrollSmoother
   // creation used to nest other components' gsap contexts into its matchMedia context). After
   // the round trip, scrolled down: header solid, a link active, trigger count back to the start.

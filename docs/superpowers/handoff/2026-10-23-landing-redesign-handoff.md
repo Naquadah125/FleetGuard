@@ -46,7 +46,7 @@ npm run shot -- "http://localhost:5190/" ../.tmp/shots --widths=1440,768,375
 
 ### Cần người quyết định / cung cấp
 1. **Số Zalo thật** — đang là placeholder `19001234` (`CONTACT_CTA.zaloNumber` trong `src/content/landing.js`). Hotline `1900 1234`, email, địa chỉ, giá (199.000đ/299.000đ), số liệu (98,5%, 10.000+, 500+, 4.9★, 120+ đánh giá) đều là số trong mockup, chưa xác minh với kinh doanh.
-2. **Hình tài xế (AI Demo) chưa giống mockup hoàn toàn** — tóc vẫn là khối đặc, mặt hơi tròn so với tranh vẽ tay trong mockup. SVG đã qua 2 vòng vẽ lại; muốn giống hẳn cần ảnh raster gốc độ phân giải cao của 4 trạng thái (khi đó giữ được nhún/Zzz/ánh điện thoại ở mức lớp phủ, mất chớp mắt/ngáp từng bộ phận). File: `DriverIllustration.jsx`, motion: `demo/driverMotion.js`.
+2. **Hình tài xế (AI Demo) — đã thay bằng ảnh raster (2026-10-23)**: 4 ảnh vẽ bằng AI theo mockup, `src/assets/driver/{normal,drowsy,fatigued,distracted}.webp` (800×650, ~27 kB/ảnh, `loading="lazy"`), khung squircle cắt bằng CSS mask. Chuyển động còn lại: nhịp thở (`art`), Zzz bay (drowsy), ánh điện thoại (distracted). Mất chớp mắt / gật đầu / ngáp động theo bộ phận. Muốn đổi ảnh: giữ tỉ lệ 16:13 và vị trí đầu/vô-lăng như cũ; nếu đầu lệch nhiều thì chỉnh lại toạ độ Zzz / `phone-glow` trong `DriverIllustration.jsx`.
 3. **Mở PR vào `main`** — chưa mở.
 4. **Nút tạm dừng trên `/login`** — chuyển động điện thoại ở AuthShell chỉ tôn trọng trạng thái tạm dừng đặt từ landing; trang login không có nút riêng (WCAG 2.2.2). Chọn: thêm `MotionPauseButton` vào panel trái, hoặc giới hạn chuyển động ~5 s.
 5. **Màu placeholder input** `ink-subtle` (#94A3B8) chỉ 2.56:1 — spec cho phép vì chỉ dùng cho placeholder; nếu muốn đạt AA cần đổi token.
@@ -60,7 +60,7 @@ npm run shot -- "http://localhost:5190/" ../.tmp/shots --widths=1440,768,375
 
 ### Code / tooling
 11. **`npm run shot --full` chụp trang trống dưới Hero** — vì section dưới Hero giờ mount lần lượt sau first paint; script tắt ScrollSmoother và chụp trước khi mount xong. Sửa `scripts/shot.mjs`: chờ mọi `section[id]` có nội dung trước khi chụp. (Trang thật không bị.)
-12. Footer: link nhóm "Sản phẩm" đang tra theo label — đổi `FOOTER.groups[0].links` sang `{ label, id }` cùng lúc sửa `Footer.jsx`.
+12. ~~Footer tra link theo label~~ — xong (2026-10-23): menu theo đúng thứ tự section, footer dùng `{ label, id }` (Chat Zalo nằm ở cột Liên hệ); mục chưa có trang (Blog, API, Tuyển dụng, Điều khoản…) hiện chữ + nhãn "Sắp ra mắt", không còn link `#`. Khi có trang thật: thêm `href` vào item trong `FOOTER` và một nhánh trong `FooterLink`.
 13. Xoá class thừa `.brandText` / `.brandAccent` trong `pages/{admin,driver}/*Layout.module.css`.
 14. Đường chạy trên điện thoại ở AuthShell dùng path SVG nhân bản bằng code — nên chuyển vào `PhoneMap.jsx` (hoạt động đúng, chỉ là dọn dẹp).
 15. Phím mũi tên cho ToggleGroup chọn loại tài khoản ở Register và nút tháng/năm ở Pricing.

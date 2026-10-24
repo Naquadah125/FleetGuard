@@ -52,7 +52,7 @@ function roadIdle(decor, dashPeriod) {
 
 /**
  * Pricing (#pricing) — design mockup layout: compact heading, white billing pill (savings badge
- * inside it), two plan cards (824px grid at lg) over a wide light-grey curved road, with a white
+ * inside it), two plan cards (side by side from md, 824px max) over a wide light-grey curved road, with a white
  * sedan (front three-quarter) on the road at left and a green box truck at right, its cargo box
  * tucked behind the right card.
  * Motion — desktop: the vehicles scrub out from behind the cards as the band enters (sedan down-
@@ -228,7 +228,7 @@ export default function Pricing() {
         </div>
 
         <div className="container-page relative">
-          <Reveal className="mx-auto grid max-w-[540px] gap-6 lg:max-w-[824px] lg:grid-cols-2 lg:items-start lg:gap-8">
+          <Reveal className="mx-auto grid max-w-[540px] gap-6 md:max-w-[824px] md:grid-cols-2 md:items-start lg:gap-8">
             {PRICING.plans.map((plan) => (
               <div key={plan.id} data-reveal>
                 <PricingCard plan={plan} billing={billing} unit={PRICING.unit} popularBadge={PRICING.popularBadge} />

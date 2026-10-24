@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, Menu, X } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
 
 import FleetGuardLogo from '@/components/brand/FleetGuardLogo'
 import { Button } from '@/components/ui/button'
@@ -23,13 +23,7 @@ import { cn } from '@/lib/utils'
 /** Scroll distance (px) after which the bar turns solid. */
 const SOLID_AFTER = 24
 
-const SECTION_IDS = [...new Set(NAV_LINKS.map((l) => l.id))]
-
-/**
- * Two links share `contact` ("Tài nguyên", "Liên hệ"); only the last one is highlighted
- * so the bar never shows two active items at once.
- */
-const activeIndexFor = (id) => NAV_LINKS.findLastIndex((l) => l.id === id)
+const SECTION_IDS = NAV_LINKS.map((l) => l.id)
 
 /** Active section at scroll 0 (the hero): shown from the first paint, before the markers exist. */
 const LOAD_ACTIVE_ID = NAV_LINKS[0].id
@@ -49,15 +43,15 @@ const LOAD_ACTIVE_ID = NAV_LINKS[0].id
  * state (`data-scrolled="false"`, "Trang chủ" active), and the scroll listener is attached at
  * once, so any scroll before the deferred bind (restore, hash jump) still updates `data-scrolled`;
  * the active link follows as soon as the markers are measured.
- * < 1024px: menu button opens a right-hand Sheet; picking a link closes it, then scrolls and
- * moves focus to the section (Radix's return-focus-to-trigger is skipped in that case).
+ * The seven section links fit beside the actions from 1280px; below that a menu button opens a
+ * right-hand Sheet (1024–1279px keeps Đăng nhập / Đăng ký in the bar). Picking a link closes it,
+ * then scrolls and moves focus to the section (Radix's return-focus-to-trigger is skipped then).
  */
 export default function Navbar() {
   const headerRef = useRef(null)
   const pendingScrollRef = useRef(null)
   const [activeId, setActiveId] = useState(LOAD_ACTIVE_ID)
   const [menuOpen, setMenuOpen] = useState(false)
-  const activeIndex = activeId ? activeIndexFor(activeId) : -1
 
   useGSAP(
     (_ctx, contextSafe) => {
@@ -153,7 +147,7 @@ export default function Navbar() {
 
   // Close the sheet if the viewport grows into the desktop layout while it is open.
   useEffect(() => {
-    const mq = window.matchMedia('(min-width: 1024px)')
+    const mq = window.matchMedia('(min-width: 1280px)')
     const onChange = (e) => {
       if (e.matches) setMenuOpen(false)
     }
@@ -209,30 +203,23 @@ export default function Navbar() {
           <FleetGuardLogo className="text-xl" />
         </a>
 
-        <nav aria-label={COPY.navLabel} className="hidden lg:block">
+        <nav aria-label={COPY.navLabel} className="hidden xl:block">
           <ul className="flex items-center gap-1 xl:gap-3">
-            {NAV_LINKS.map((link, i) => {
-              const active = i === activeIndex
+            {NAV_LINKS.map((link) => {
+              const active = link.id === activeId
               return (
-                <li key={link.label} data-nav-item>
+                <li key={link.id} data-nav-item>
                   <a
                     href={`#${link.id}`}
                     onClick={goTo(link.id)}
                     aria-current={active ? 'location' : undefined}
                     className={cn(
-                      'group/link relative flex h-11 items-center gap-1 rounded-md px-3 text-body font-medium text-ink',
+                      'relative flex h-11 items-center rounded-md px-3 text-body font-medium whitespace-nowrap text-ink',
                       'transition-colors duration-200 outline-none hover:text-brand-dark focus-ring',
                       active && 'text-brand-dark',
                     )}
                   >
                     {link.label}
-                    {/* `menu` links are a dropdown-style group in the mockup: chevron. */}
-                    {link.menu ? (
-                      <ChevronDown
-                        aria-hidden="true"
-                        className="size-4 transition-transform duration-200 group-hover/link:translate-y-0.5 motion-reduce:transition-none"
-                      />
-                    ) : null}
                     <span
                       aria-hidden="true"
                       className={cn(
@@ -248,7 +235,7 @@ export default function Navbar() {
           </ul>
         </nav>
 
-        <div className="hidden items-center gap-3 lg:flex">
+        <div className="ml-auto hidden items-center gap-3 lg:flex xl:ml-0">
           <Button asChild variant="outline" data-nav-item>
             <Link to="/login">{COPY.login}</Link>
           </Button>
@@ -259,7 +246,7 @@ export default function Navbar() {
 
         <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon-lg" aria-label={COPY.openMenu} className="-mr-2 lg:hidden" data-nav-item>
+            <Button variant="ghost" size="icon-lg" aria-label={COPY.openMenu} className="-mr-2 xl:hidden" data-nav-item>
               <Menu aria-hidden="true" className="size-6" />
             </Button>
           </SheetTrigger>
@@ -282,10 +269,10 @@ export default function Navbar() {
             </SheetHeader>
             <nav aria-label={COPY.navLabel} className="flex-1 overflow-y-auto px-3 py-4">
               <ul className="flex flex-col gap-1">
-                {NAV_LINKS.map((link, i) => {
-                  const active = i === activeIndex
+                {NAV_LINKS.map((link) => {
+                  const active = link.id === activeId
                   return (
-                    <li key={link.label}>
+                    <li key={link.id}>
                       <a
                         href={`#${link.id}`}
                         onClick={goToFromMenu(link.id)}

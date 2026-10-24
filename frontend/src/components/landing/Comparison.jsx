@@ -57,10 +57,10 @@ function Availability({ value }) {
 
 /**
  * Comparison (#comparison): feature table Cơ bản vs Nâng cao.
- * One scroll container (the shadcn table's own wrapper is flattened): on phones the table is
- * 420px wide, the feature column sticks, value cells are start-aligned so the "Nâng cao" column
- * visibly peeks in, and a right-edge fade shows until the end is reached. The scroller is a named,
- * focusable region (keyboard scrolling). A potted plant sits left of the table at xl
+ * The table fits the viewport from 320px up (phones get a wider feature column and tighter cell
+ * padding), so both plans are visible side by side without scrolling. It still sits in one named,
+ * focusable scroll region (the shadcn table's own wrapper is flattened) with a right-edge fade, as
+ * a fallback for very narrow viewports or large text. A potted plant sits left of the table at xl
  * (data-speed parallax; leaves sway while on screen unless motion is paused).
  * Motion (deferred setup, below the fold): rows reveal with a stagger, check marks draw in
  * (strokeDashoffset on pathLength=1). Static under reduced motion.
@@ -183,21 +183,21 @@ export default function Comparison() {
                 'outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-dark focus-visible:outline-solid',
               )}
             >
-              <Table className="min-w-[420px] table-fixed text-body sm:min-w-[560px]">
+              <Table className="min-w-72 table-fixed text-body">
                 <colgroup>
-                  <col className="w-[38%]" />
-                  <col className="w-[31%]" />
-                  <col className="w-[31%]" />
+                  <col className="w-[44%] sm:w-[38%]" />
+                  <col className="w-[28%] sm:w-[31%]" />
+                  <col className="w-[28%] sm:w-[31%]" />
                 </colgroup>
                 <TableHeader>
                   <TableRow className="border-line bg-brand-50 hover:bg-brand-50">
-                    <TableHead scope="col" className="h-12 px-4 font-bold text-navy sm:px-5 max-sm:sticky max-sm:left-0 max-sm:z-10 max-sm:bg-brand-50 max-sm:shadow-[1px_0_0_var(--color-line)]">
+                    <TableHead scope="col" className="h-12 px-3 font-bold text-navy sm:px-5">
                       {featureCol}
                     </TableHead>
-                    <TableHead scope="col" className="h-12 px-4 text-start font-bold text-navy sm:text-center">
+                    <TableHead scope="col" className="h-12 px-2 text-center font-bold text-navy sm:px-4">
                       {basicCol}
                     </TableHead>
-                    <TableHead scope="col" className="h-12 px-4 text-start font-bold text-brand-dark sm:text-center">
+                    <TableHead scope="col" className="h-12 px-2 text-center font-bold text-brand-dark sm:px-4">
                       {advancedCol}
                     </TableHead>
                   </TableRow>
@@ -205,11 +205,11 @@ export default function Comparison() {
                 <TableBody>
                   {COMPARISON.rows.map(([feature, basic, advanced]) => (
                     <TableRow key={feature} data-reveal className="border-line hover:bg-brand-50/40">
-                      <TableHead scope="row" className="h-12 px-4 font-medium whitespace-normal text-ink sm:px-5 max-sm:sticky max-sm:left-0 max-sm:z-10 max-sm:bg-white max-sm:shadow-[1px_0_0_var(--color-line)]">
+                      <TableHead scope="row" className="h-12 px-3 py-2 font-medium whitespace-normal text-ink sm:px-5">
                         {feature}
                       </TableHead>
                       {[basic, advanced].map((value, i) => (
-                        <TableCell key={i} className="h-12 px-4 text-start sm:text-center">
+                        <TableCell key={i} className="h-12 px-2 text-center sm:px-4">
                           <Availability value={value} />
                         </TableCell>
                       ))}
